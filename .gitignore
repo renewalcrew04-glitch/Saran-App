@@ -32,6 +32,7 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
 
 # typescript
 *.tsbuildinfo
@@ -41,3 +42,31 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Backend specific
+backend/.env
+backend/node_modules/
+backend/logs/
+backend/*.log
+backend/.aws/
+
+# Flutter specific
+flutter_app/.dart_tool/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/.packages
+flutter_app/.pub-cache/
+flutter_app/.pub/
+flutter_app/build/
+flutter_app/.ios/
+flutter_app/.android/
+flutter_app/*.iml
+flutter_app/.idea/
+flutter_app/.vscode/
+flutter_app/*.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

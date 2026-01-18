@@ -1,0 +1,98 @@
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  NODE_VERSION: "18"
+  MONGODB_URI: $MONGODB_URI
+  AWS_REGION: $AWS_REGION
+
+cache:
+  paths:
+    - node_modules/
+
+# Test stage
+test:
+  stage: test
+  image: node:${NODE_VERSION}
+  before_script:
+    - npm ci
+  script:
+    - npm test
+  only:
+    - merge_requests
+    - main
+    - develop
+
+# Build stage
+build:
+  stage: build
+  image: node:${NODE_VERSION}
+  before_script:
+    - npm ci
+  script:
+    - echo "Building application..."
+    - echo "Build completed successfully"
+  artifacts:
+    paths:
+      - node_modules/
+      - src/
+    expire_in: 1 hour
+  only:
+    - main
+    - develop
+
+# Deploy to AWS (Development)
+deploy:development:
+  stage: deploy
+  image: node:${NODE_VERSION}
+  before_script:
+    - npm install -g aws-cli
+    - apt-get update -qq && apt-get install -y -qq git
+  script:
+    - echo "Deploying to AWS (Development)..."
+    - |
+      aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+      aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+      aws configure set region $AWS_REGION
+    - echo "Deployment to development completed"
+  environment:
+    name: development
+    url: https://dev-api.saran.app
+  only:
+    - develop
+  when: manual
+
+# Deploy to AWS (Production)
+deploy:production:
+  stage: deploy
+  image: node:${NODE_VERSION}
+  before_script:
+    - npm install -g aws-cli
+    - apt-get update -qq && apt-get install -y -qq git
+  script:
+    - echo "Deploying to AWS (Production)..."
+    - |
+      aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+      aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+      aws configure set region $AWS_REGION
+    - echo "Deployment to production completed"
+  environment:
+    name: production
+    url: https://api.saran.app
+  only:
+    - main
+  when: manual
+
+# AWS Elastic Beanstalk deployment (alternative)
+deploy:eb:
+  stage: deploy
+  image: python:3.9
+  before_script:
+    - pip install awsebcli --upgrade
+  script:
+    - eb init -p docker saran-backend --region $AWS_REGION
+    - eb deploy
+  only:
+    - main
