@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 
 class AuthService {
@@ -77,12 +78,19 @@ class AuthService {
   }
 
   Future<String?> _getToken() async {
-    // Get token from secure storage or shared preferences
-    // Implementation depends on your storage solution
-    return null;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
   }
 
-  void setToken(String token) {
+  Future<void> setToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('token', token);
     _dio.options.headers['Authorization'] = 'Bearer $token';
+  }
+
+  Future<void> clearToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    _dio.options.headers.remove('Authorization');
   }
 }

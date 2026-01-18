@@ -10,7 +10,7 @@ import 'package:saran_app/screens/space/space_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: '/home',
+    initialLocation: '/login',
     routes: [
       // Auth Routes
       GoRoute(

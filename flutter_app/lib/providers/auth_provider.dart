@@ -25,6 +25,8 @@ class AuthProvider with ChangeNotifier {
     _token = prefs.getString('token');
     if (_token != null) {
       _isAuthenticated = true;
+      // Set token in AuthService
+      await _authService.setToken(_token!);
       // Load user data
       await getCurrentUser();
     }
@@ -42,9 +44,10 @@ class AuthProvider with ChangeNotifier {
         _user = User.fromJson(response['user']);
         _isAuthenticated = true;
 
-        // Save token
+        // Save token in both SharedPreferences and AuthService
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', _token!);
+        await _authService.setToken(_token!);
 
         _isLoading = false;
         notifyListeners();
@@ -71,9 +74,10 @@ class AuthProvider with ChangeNotifier {
         _user = User.fromJson(response['user']);
         _isAuthenticated = true;
 
-        // Save token
+        // Save token in both SharedPreferences and AuthService
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', _token!);
+        await _authService.setToken(_token!);
 
         _isLoading = false;
         notifyListeners();
@@ -104,6 +108,7 @@ class AuthProvider with ChangeNotifier {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
+    await _authService.clearToken();
     _token = null;
     _user = null;
     _isAuthenticated = false;
