@@ -32,21 +32,26 @@ export const register = async (req, res, next) => {
       });
     }
 
-    // Create user
+    // Create user (uid will be auto-generated in pre-save hook)
     const user = await User.create({
       username,
       email,
       password,
-      name,
-      uid: undefined // Will be generated in pre-save hook
+      name
     });
+
+    // Ensure uid is set (in case pre-save didn't run)
+    if (!user.uid && user._id) {
+      user.uid = user._id.toString();
+      await user.save();
+    }
 
     if (user) {
       res.status(201).json({
         success: true,
         token: generateToken(user._id),
         user: {
-          uid: user.uid,
+          uid: user.uid || user._id.toString(),
           username: user.username,
           email: user.email,
           name: user.name,
