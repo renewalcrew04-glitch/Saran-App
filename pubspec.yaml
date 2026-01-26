@@ -1,0 +1,100 @@
+name: saran_app
+description: SARAN App - A social wellness application built with Flutter
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI
+  cupertino_icons: ^1.0.6
+  cached_network_image: ^3.4.1
+  font_awesome_flutter: ^10.7.0
+  flutter_svg: ^2.0.10
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+
+  # Hooks
+  flutter_hooks: ^0.18.6
+  hooks_riverpod: ^2.5.1
+  
+  # Animations
+  animations: ^2.0.6
+
+  # Real-time & Multimedia
+  record: ^6.0.0
+  just_audio: ^0.9.40
+
+  # Navigation
+  go_router: ^17.0.1
+
+  # Media
+  image_picker: ^1.1.2
+  video_player: ^2.9.2
+  chewie: ^1.8.5
+  photo_view: ^0.15.0
+
+  # State Management
+  provider: ^6.1.1
+  get: ^4.6.6
+
+  # Camera
+  camera: ^0.11.0+2
+  permission_handler: ^11.3.1
+
+  # Networking
+  http: ^1.1.0
+  dio: ^5.4.0
+  connectivity_plus: ^7.0.0
+
+  # Local Storage
+  shared_preferences: ^2.2.3
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Authentication & Security
+  flutter_secure_storage: ^10.0.0
+  local_auth: ^3.0.0
+
+  # Location
+  geolocator: ^14.0.2
+  google_maps_flutter: ^2.5.3
+
+  # Notifications
+  flutter_local_notifications: ^19.5.0
+
+  # Utils
+  intl: ^0.20.2
+  url_launcher: ^6.2.2
+  share_plus: ^12.0.1
+  package_info_plus: ^9.0.0
+  device_info_plus: ^12.3.0
+  path: ^1.9.0
+
+  # Animations
+  flutter_animate: ^4.3.0
+  lottie: ^3.1.0
+
+  # Charts
+  fl_chart: ^1.1.1
+
+  # WebSocket
+  web_socket_channel: ^3.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/
