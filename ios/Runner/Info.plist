@@ -53,5 +53,9 @@
 	<string>We need your location to send emergency SOS signals and share your location with emergency contacts.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>We need your location to send emergency SOS signals and share your location with emergency contacts.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SARAN needs access to your photos to let you upload posts and update your profile.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>SARAN needs microphone access to record voice notes and wellness sessions.</string>
 </dict>
 </plist>
