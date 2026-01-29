@@ -126,16 +126,19 @@ deploy:ec2:
     - master
   when: manual
 
-# AWS Elastic Beanstalk deployment (alternative)
+# AWS Elastic Beanstalk deployment (alternative – run manually if you use EB)
+# Set AWS_REGION in CI/CD Variables (e.g. us-east-1), or it defaults below
 deploy:eb:
   stage: deploy
   image: python:3.9
   before_script:
     - pip install awsebcli --upgrade
   script:
+    - export AWS_REGION="${AWS_REGION:-us-east-1}"
     - cd backend
-    - eb init -p docker saran-backend --region $AWS_REGION
+    - eb init -p docker saran-backend --region "$AWS_REGION"
     - eb deploy
   only:
     - main
     - master
+  when: manual
