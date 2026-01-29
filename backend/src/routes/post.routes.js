@@ -1,15 +1,17 @@
 import express from 'express';
 import {
+  addComment,
   createPost,
-  getPost,
-  updatePost,
   deletePost,
-  likePost,
-  unlikePost,
-  repost,
-  quotePost,
+  editPost,
   getComments,
-  addComment
+  getPost,
+  likePost,
+  quotePost,
+  repost,
+  toggleHideLikeCount,
+  unlikePost,
+  updatePost,
 } from '../controllers/post.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 
@@ -25,5 +27,7 @@ router.post('/:id/repost', protect, repost);
 router.post('/:id/quote', protect, quotePost);
 router.get('/:id/comments', protect, getComments);
 router.post('/:id/comments', protect, addComment);
+router.patch("/:postId/hide-like", protect, toggleHideLikeCount);
+router.patch("/:postId/edit", protect, editPost);
 
 export default router;

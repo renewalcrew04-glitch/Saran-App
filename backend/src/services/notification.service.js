@@ -1,0 +1,88 @@
+import Notification from "../models/Notification.model.js";
+import User from "../models/User.model.js";
+import { sendNotificationPush } from "./push.service.js";
+
+/**
+ * Map notification type to push message
+ */
+const getPushText = (type) => {
+  switch (type) {
+    case "like":
+      return "Someone liked your post";
+    case "comment":
+      return "New comment on your post";
+    case "reply":
+      return "Someone replied to your comment";
+    case "repost":
+      return "Your post was reposted";
+    case "quote":
+      return "Your post was quoted";
+    case "space_join":
+      return "Someone joined your Space";
+    case "space_reminder":
+      return "Your Space is starting soon";
+    case "sos_close":
+      return "SOS from a close friend";
+    case "sos_nearby":
+      return "Emergency SOS nearby";
+    default:
+      return "You have a new notification";
+  }
+};
+
+/**
+ * Central notification creator
+ * - Respects user preferences
+ * - Stores in DB
+ * - Sends AWS SNS push
+ */
+export const createNotification = async ({
+  userId,
+  actorId = null,
+  type,
+  entityId = null,
+  entityType = null,
+  meta = {},
+}) => {
+  const user = await User.findById(userId).select(
+    "notificationSettings awsPushEndpointArn"
+  );
+
+  if (!user) return;
+
+  const prefs = user.notificationSettings || {};
+
+  // Respect preferences (SOS & moderation handled elsewhere if needed)
+  const blocked =
+    (type === "like" && prefs.likes === false) ||
+    (type === "comment" && prefs.comments === false) ||
+    (type === "reply" && prefs.comments === false) ||
+    (type === "repost" && prefs.reposts === false) ||
+    (type === "quote" && prefs.reposts === false) ||
+    (type.startsWith("space_") && prefs.spaces === false);
+
+  if (blocked) return;
+
+  // 1️⃣ Store notification in DB
+  await Notification.create({
+    userId,
+    actorId,
+    type,
+    entityId,
+    entityType,
+    meta,
+  });
+
+  // 2️⃣ Send push notification (AWS SNS)
+  if (user.awsPushEndpointArn) {
+    await sendNotificationPush({
+      userId,
+      title: "New activity",
+      body: getPushText(type),
+      data: {
+        type,
+        entityId: entityId ? entityId.toString() : "",
+      },
+    });
+  }
+};

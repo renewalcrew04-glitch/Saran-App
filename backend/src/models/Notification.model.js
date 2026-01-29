@@ -1,55 +1,80 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const notificationSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
+      index: true,
       required: true,
-      index: true
     },
-    fromUserId: {
+
+    actorId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
+      ref: "User",
+      default: null,
     },
-    fromUserName: {
-      type: String,
-      required: true // Denormalized
-    },
-    fromUserAvatar: {
-      type: String,
-      default: null
-    },
+
     type: {
       type: String,
-      enum: ['like', 'comment', 'reply', 'mention', 'tag', 'share', 'save', 'follow', 'dm'],
-      required: true
+      enum: [
+        "like",
+        "comment",
+        "reply",
+        "mention",
+        "repost",
+        "quote",
+        "follow",
+        "follow_accept",
+
+        "space_new",
+        "space_join",
+        "space_reminder",
+
+        "sos_close",
+        "sos_nearby",
+        "sos_accept",
+        "sos_resolve",
+
+        "moderation",
+        "verification",
+
+        "wellness",
+        "sdaily",
+      ],
+      required: true,
     },
+
     entityId: {
       type: mongoose.Schema.Types.ObjectId,
-      default: null
+      default: null,
     },
+
     entityType: {
       type: String,
-      enum: ['post', 'comment', 'sframe', 'conversation'],
-      default: null
+      enum: ["post", "comment", "event", "sos", "user"],
+      default: null,
     },
+
+    meta: {
+      type: Object,
+      default: {},
+    },
+
     read: {
       type: Boolean,
       default: false,
-      index: true
-    }
+      index: true,
+    },
+
+    deleted: {
+      type: Boolean,
+      default: false,
+    },
   },
-  {
-    timestamps: true
-  }
+  { timestamps: true }
 );
 
-// Indexes
-notificationSchema.index({ userId: 1, read: 1, createdAt: -1 });
-notificationSchema.index({ createdAt: -1 });
+notificationSchema.index({ userId: 1, createdAt: -1 });
 
-const Notification = mongoose.model('Notification', notificationSchema);
-
-export default Notification;
+export default mongoose.model("Notification", notificationSchema);

@@ -1,49 +1,60 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const conversationSchema = new mongoose.Schema(
   {
-    participants: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
-    }],
+    participants: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+      },
+    ],
+
     lastMessage: {
       type: String,
-      default: ''
+      default: "",
     },
+
     lastMessageAt: {
       type: Date,
-      default: Date.now
+      default: Date.now,
     },
+
     unread: {
       type: Map,
       of: Number,
-      default: new Map()
+      default: new Map(),
     },
+
     archived: {
       type: Map,
       of: Boolean,
-      default: new Map()
+      default: new Map(),
     },
+
     muted: {
       type: Map,
       of: Boolean,
-      default: new Map()
+      default: new Map(),
     },
+
     pinned: {
       type: Map,
       of: Boolean,
-      default: new Map()
-    }
+      default: new Map(),
+    },
+
+    // ✅ typing indicator map: { userId: true }
+    typing: {
+      type: Object,
+      default: {},
+    },
   },
-  {
-    timestamps: true
-  }
+  { timestamps: true }
 );
 
-// Index for finding conversations by participants
 conversationSchema.index({ participants: 1 });
 
-const Conversation = mongoose.model('Conversation', conversationSchema);
+const Conversation = mongoose.model("Conversation", conversationSchema);
 
 export default Conversation;

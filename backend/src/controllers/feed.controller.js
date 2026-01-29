@@ -1,6 +1,6 @@
-import Post from '../models/Post.model.js';
 import Follow from '../models/Follow.model.js';
 import Like from '../models/Like.model.js';
+import Post from '../models/Post.model.js';
 import User from '../models/User.model.js';
 
 // @desc    Get home feed (posts from users you follow)
@@ -12,22 +12,32 @@ export const getHomeFeed = async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
+    const { category, followingOnly } = req.query;
 
-    // Get list of users that current user is following
-    const following = await Follow.find({
-      follower: userId,
-      status: 'accepted'
-    }).select('following');
-
-    const followingIds = following.map(f => f.following);
-    followingIds.push(userId); // Include own posts
-
-    // Get posts from followed users (and own posts)
-    const posts = await Post.find({
-      uid: { $in: followingIds },
+    let query = {
       isDeleted: false,
-      visibility: 'public'
-    })
+      visibility: 'public',
+    };
+
+    // CATEGORY FILTER
+    if (category && category !== 'For You') {
+      query.category = category;
+    }
+
+    // FOLLOWING FEED ONLY
+    if (followingOnly === 'true') {
+      const following = await Follow.find({
+        follower: userId,
+        status: 'accepted',
+      }).select('following');
+
+      const followingIds = following.map(f => f.following);
+      followingIds.push(userId); // include own posts
+
+      query.uid = { $in: followingIds };
+    }
+
+    const posts = await Post.find(query)
       .populate('uid', 'uid username name avatar verified')
       .populate('originalPostId', 'uid username type text media createdAt')
       .populate('repostedByUid', 'uid username name avatar')
@@ -35,26 +45,21 @@ export const getHomeFeed = async (req, res, next) => {
       .skip(skip)
       .limit(limit);
 
-    // Get which posts current user has liked
+    // Likes info
     const postIds = posts.map(p => p._id);
     const likes = await Like.find({
       uid: userId,
-      post: { $in: postIds }
+      post: { $in: postIds },
     });
+
     const likedPostIds = new Set(likes.map(l => l.post.toString()));
 
-    // Add isLiked flag to each post
     const postsWithLikes = posts.map(post => ({
       ...post.toObject(),
-      isLiked: likedPostIds.has(post._id.toString())
+      isLiked: likedPostIds.has(post._id.toString()),
     }));
 
-    // Get total count
-    const total = await Post.countDocuments({
-      uid: { $in: followingIds },
-      isDeleted: false,
-      visibility: 'public'
-    });
+    const total = await Post.countDocuments(query);
 
     res.json({
       success: true,
@@ -63,8 +68,8 @@ export const getHomeFeed = async (req, res, next) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     next(error);

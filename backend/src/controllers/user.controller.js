@@ -1,5 +1,6 @@
-import User from '../models/User.model.js';
 import Follow from '../models/Follow.model.js';
+import Post from '../models/Post.model.js';
+import User from '../models/User.model.js';
 
 // @desc    Get user profile by UID
 // @route   GET /api/users/:uid
@@ -41,14 +42,22 @@ export const getUserProfile = async (req, res, next) => {
       isFollowedBy = !!follow;
     }
 
-    res.json({
-      success: true,
-      user: {
-        ...user.toObject(),
-        isFollowing,
-        isFollowedBy
-      }
-    });
+    const postsCount = await Post.countDocuments({
+  uid: user._id,
+  isDeleted: false,
+});
+
+    const userObj = user.toObject();
+
+res.json({
+  success: true,
+  user: {
+    ...userObj,
+    postsCount,     // ✅ injected, not mutated
+    isFollowing,
+    isFollowedBy,
+  }
+});
   } catch (error) {
     next(error);
   }
@@ -109,6 +118,9 @@ export const updateUserProfile = async (req, res, next) => {
         followersCount: updatedUser.followersCount,
         followingCount: updatedUser.followingCount,
         postsCount: updatedUser.postsCount,
+        createdAt: updatedUser.createdAt,
+        updatedAt: updatedUser.updatedAt,
+        wellnessPoints: updatedUser.wellnessPoints,
         wellnessStreak: updatedUser.wellnessStreak
       }
     });
@@ -366,6 +378,18 @@ export const getFollowing = async (req, res, next) => {
   }
 };
 
+export const deleteMyAccount = async (req, res, next) => {
+  try {
+    const currentUserId = req.user._id;
+
+    await User.deleteOne({ _id: currentUserId });
+
+    return res.json({ success: true, message: "Account deleted" });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // @desc    Search users
 // @route   GET /api/users/search?q=query
 // @access  Private
@@ -414,6 +438,36 @@ export const searchUsers = async (req, res, next) => {
         total,
         pages: Math.ceil(total / limit)
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+// @desc    Get posts of a user
+// @route   GET /api/users/:uid/posts
+// @access  Private
+export const getUserPosts = async (req, res, next) => {
+  try {
+    const { uid } = req.params;
+
+    // Find user by UID (string)
+    const user = await User.findOne({ uid });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const posts = await Post.find({
+      uid: user._id,          // ✅ CORRECT FIELD
+      isDeleted: false,
+    })
+      .sort({ createdAt: -1 });
+
+    return res.json({
+      success: true,
+      posts,
     });
   } catch (error) {
     next(error);

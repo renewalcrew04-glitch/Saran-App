@@ -1,62 +1,68 @@
-import Post from '../models/Post.model.js';
-import Like from '../models/Like.model.js';
 import Comment from '../models/Comment.model.js';
+import Like from '../models/Like.model.js';
+import Post from '../models/Post.model.js';
 import User from '../models/User.model.js';
+import { createNotification } from "../services/notification.service.js";
 
 // @desc    Create a new post
 // @route   POST /api/posts
 // @access  Private
+
 export const createPost = async (req, res, next) => {
   try {
-    const { type, text, media, thumbnail, visibility, category, hashtags } = req.body;
-    const userId = req.user._id;
+    const {
+      text = '',
+      media = [],
+      thumbnail = null,
+      visibility = 'public',
+      category = null,
+      hashtags = [],
+      mentions = [],
+      isQuote = false,
+      originalPostId = null,
+    } = req.body;
 
-    // Validation
-    if (!type || !['text', 'photo', 'video'].includes(type)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Post type is required and must be text, photo, or video'
-      });
+    const userId = req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    // Get user info
     const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
 
-    // Create post
+    // ✅ PERMANENT FIX: infer type
+    let type = 'text';
+    if (Array.isArray(media) && media.length > 0) {
+      type = media[0].endsWith('.mp4') ? 'video' : 'photo';
+    }
+
     const post = await Post.create({
-      uid: userId,
+      uid: user._id,
       username: user.username,
-      type,
-      text: text || '',
-      media: media || [],
-      thumbnail: thumbnail || null,
-      visibility: visibility || 'public',
-      category: category || null,
-      hashtags: hashtags || []
+      type,                    // ✅ FIXED
+      text,
+      media: Array.isArray(media) ? media : [],
+      thumbnail,
+      visibility,
+      category,
+      hashtags: Array.isArray(hashtags) ? hashtags : [],
+      mentions: Array.isArray(mentions) ? mentions : [],
+      isQuote,
+      originalPostId,
     });
 
-    // Update user's post count
-    await User.findByIdAndUpdate(userId, {
-      $inc: { postsCount: 1 }
+    await User.findByIdAndUpdate(user._id, {
+      $inc: { postsCount: 1 },
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      post: {
-        id: post._id,
-        uid: post.uid,
-        username: post.username,
-        type: post.type,
-        text: post.text,
-        media: post.media,
-        thumbnail: post.thumbnail,
-        likesCount: post.likesCount,
-        commentsCount: post.commentsCount,
-        repostsCount: post.repostsCount,
-        createdAt: post.createdAt
-      }
+      post,
     });
   } catch (error) {
+    console.error('CREATE POST ERROR ❌', error);
     next(error);
   }
 };
@@ -226,6 +232,16 @@ export const likePost = async (req, res, next) => {
     post.likesCount += 1;
     await post.save();
 
+    // Create notification for post owner
+    if (post.uid.toString() !== userId.toString()) {
+  await createNotification({
+    userId: post.uid,
+    actorId: userId,
+    type: "like",
+    entityId: post._id,
+    entityType: "post",
+  });
+}
     res.json({
       success: true,
       message: 'Post liked successfully',
@@ -303,6 +319,17 @@ export const repost = async (req, res, next) => {
       });
     }
 
+    // Create notification for post owner
+    if (originalPost.uid.toString() !== userId.toString()) {
+  await createNotification({
+    userId: originalPost.uid,
+    actorId: userId,
+    type: "repost",
+    entityId: originalPost._id,
+    entityType: "post",
+  });
+}
+
     // Check if already reposted
     const existingRepost = await Post.findOne({
       uid: userId,
@@ -366,6 +393,17 @@ export const quotePost = async (req, res, next) => {
         message: 'Post not found'
       });
     }
+
+    // Create notification for post owner
+    if (originalPost.uid.toString() !== userId.toString()) {
+  await createNotification({
+    userId: originalPost.uid,
+    actorId: userId,
+    type: "quote",
+    entityId: originalPost._id,
+    entityType: "post",
+  });
+}
 
     // Get user info
     const user = await User.findById(userId);
@@ -458,6 +496,63 @@ export const getComments = async (req, res, next) => {
   }
 };
 
+export const toggleHideLikeCount = async (req, res, next) => {
+  try {
+    const uid = req.user._id;
+    const { postId } = req.params;
+
+    const post = await Post.findOne({ _id: postId, uid });
+    if (!post) {
+      return res.status(404).json({ success: false });
+    }
+
+    post.hideLikeCount = !post.hideLikeCount;
+    await post.save();
+
+    res.json({
+      success: true,
+      hideLikeCount: post.hideLikeCount,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const editPost = async (req, res, next) => {
+  try {
+    const uid = req.user._id;
+    const { postId } = req.params;
+    const { text } = req.body;
+
+    const post = await Post.findOne({ _id: postId, uid });
+    if (!post) {
+      return res.status(404).json({ success: false });
+    }
+
+    // ⏱️ 10-minute edit window
+    const diff =
+      (Date.now() - new Date(post.createdAt).getTime()) / 60000;
+
+    if (diff > 10) {
+      return res.status(403).json({
+        success: false,
+        message: "Edit window expired",
+      });
+    }
+
+    post.text = text;
+    post.edited = true;
+    await post.save();
+
+    res.json({
+      success: true,
+      post,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // @desc    Add comment to post
 // @route   POST /api/posts/:id/comments
 // @access  Private
@@ -494,6 +589,17 @@ export const addComment = async (req, res, next) => {
     // Update post comments count
     post.commentsCount += 1;
     await post.save();
+
+    // Create notification for post owner
+    if (post.uid.toString() !== userId.toString()) {
+  await createNotification({
+    userId: post.uid,
+    actorId: userId,
+    type: parentCommentId ? "reply" : "comment",
+    entityId: post._id,
+    entityType: "post",
+  });
+}
 
     // If it's a reply, update parent comment replies count
     if (parentCommentId) {

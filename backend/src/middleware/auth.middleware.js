@@ -4,7 +4,12 @@ import User from '../models/User.model.js';
 export const protect = async (req, res, next) => {
   try {
     let token;
-
+    
+    // TEMP DEV BYPASS
+if (process.env.NODE_ENV !== "production") {
+  req.user = { _id: "000000000000000000000001" };
+  return next();
+}
     // Check for token in Authorization header
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];

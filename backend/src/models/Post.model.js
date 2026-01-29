@@ -12,6 +12,14 @@ const postSchema = new mongoose.Schema(
       type: String,
       required: true // Denormalized for quick access
     },
+    hideLikeCount: {
+      type: Boolean,
+      default: false,
+    },
+    edited: {
+      type: Boolean,
+      default: false,
+    },
     type: {
       type: String,
       enum: ['text', 'photo', 'video', 'repost', 'quote'],
