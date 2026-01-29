@@ -257,11 +257,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
         return ExplorePeopleTile(
           user: user,
           isPrivate: user.isPrivate == true,
+          // ✅ FIX: Correctly push to the User Profile
           onOpenProfile: () {
-            // You can create profile route later
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Profile page coming soon")),
-            );
+            context.push('/user-profile', extra: user);
           },
           onFollow: () => _follow(user),
         );

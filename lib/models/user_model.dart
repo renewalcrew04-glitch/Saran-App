@@ -18,6 +18,9 @@ class User {
   final String? website;
   final String? locationString;
   final String? phone;
+  
+  // ✅ FOLLOW STATUS
+  final bool? isFollowing;
 
   User({
     required this.uid,
@@ -37,11 +40,15 @@ class User {
     this.website,
     this.locationString,
     this.phone,
+    this.isFollowing,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    // Handle MongoDB _id if uid is missing
+    final dynamic rawId = json['uid'] ?? json['_id'] ?? json['id'];
+
     return User(
-      uid: json['uid'] ?? '',
+      uid: rawId?.toString() ?? '',
       username: json['username'] ?? '',
       email: json['email'] ?? '',
       name: json['name'] ?? '',
@@ -59,6 +66,8 @@ class User {
       website: json['website'],
       locationString: json['locationString'],
       phone: json['phone'],
+      // ✅ Map follow status
+      isFollowing: json['isFollowing'],
     );
   }
 
@@ -81,6 +90,7 @@ class User {
       'website': website,
       'locationString': locationString,
       'phone': phone,
+      'isFollowing': isFollowing,
     };
   }
 }

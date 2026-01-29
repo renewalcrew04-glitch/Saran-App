@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:saran_app/models/post_model.dart';
-import 'package:saran_app/models/space_event_model.dart'; // ✅ Added for Detail Screen
+import 'package:saran_app/models/user_model.dart'; // ✅ Added for UserProfileScreen
+import 'package:saran_app/models/space_event_model.dart'; 
 import 'package:saran_app/features/settings/settings_routes.dart';
 import 'package:saran_app/screens/auth/login_screen.dart';
 import 'package:saran_app/screens/auth/signup_screen.dart';
@@ -15,6 +16,8 @@ import 'package:saran_app/screens/post/post_detail_screen.dart';
 import 'package:saran_app/screens/post/edit_post_screen.dart';
 
 import 'package:saran_app/screens/profile/liked_posts_screen.dart';
+import 'package:saran_app/screens/profile/user_profile_screen.dart'; // ✅ ADDED
+
 import 'package:saran_app/features/sframe/screens/sframe_create_screen.dart';
 import 'package:saran_app/features/sframe/screens/sframe_viewer_screen.dart';
 import 'package:saran_app/widgets/main_navigation.dart';
@@ -45,7 +48,7 @@ import 'package:saran_app/screens/profile/wellness/hydration_screen.dart';
 import 'package:saran_app/screens/explore/hashtag_explore_screen.dart';
 
 // =========================
-// SPACE (✅ ADDED THESE IMPORTS)
+// SPACE
 // =========================
 import 'package:saran_app/screens/space/create_event_screen.dart';
 import 'package:saran_app/screens/space/my_events_screen.dart';
@@ -77,7 +80,21 @@ class AppRouter {
       ),
 
       // =========================
-      // SPACE ROUTES (✅ ADDED)
+      // USER PROFILE (✅ FIX: Added Route)
+      // =========================
+      GoRoute(
+        path: '/user-profile',
+        builder: (context, state) {
+          final user = state.extra as User?;
+          if (user == null) {
+            return const _RouterErrorScreen(message: "User data missing");
+          }
+          return UserProfileScreen(user: user);
+        },
+      ),
+
+      // =========================
+      // SPACE ROUTES
       // =========================
       GoRoute(
         path: '/space/create',
@@ -92,7 +109,7 @@ class AppRouter {
         builder: (context, state) {
           final extra = state.extra;
           if (extra is SpaceEvent) {
-            return EventDetailsScreen(event: extra); // Assuming you have this screen
+            return EventDetailsScreen(event: extra);
           }
           return const _RouterErrorScreen(message: "Event details missing");
         },

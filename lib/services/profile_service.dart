@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
+import '../models/user_model.dart';
 
 class ProfileService {
   final Dio _dio = Dio(
@@ -20,6 +21,39 @@ class ProfileService {
   Future<Map<String, dynamic>> _getAuthHeaders() async {
     final token = await _getToken();
     return {'Authorization': 'Bearer $token'};
+  }
+
+  // ✅ Get Full User Profile (Includes isFollowing check)
+  Future<User> getUserProfile(String uid) async {
+    final headers = await _getAuthHeaders();
+    final response = await _dio.get(
+      '${ApiConfig.users}/$uid',
+      options: Options(headers: headers),
+    );
+
+    if (response.data['success'] == true) {
+      return User.fromJson(response.data['user']);
+    } else {
+      throw Exception("Failed to load profile");
+    }
+  }
+
+  // ✅ Follow User
+  Future<void> followUser(String uid) async {
+    final headers = await _getAuthHeaders();
+    await _dio.post(
+      '${ApiConfig.users}/$uid/follow',
+      options: Options(headers: headers),
+    );
+  }
+
+  // ✅ Unfollow User
+  Future<void> unfollowUser(String uid) async {
+    final headers = await _getAuthHeaders();
+    await _dio.delete(
+      '${ApiConfig.users}/$uid/follow',
+      options: Options(headers: headers),
+    );
   }
 
   Future<List<Map<String, dynamic>>> getFollowers(String userId) async {
