@@ -102,7 +102,7 @@ const userSchema = new mongoose.Schema(
   sDaily: { type: Boolean, default: false }
 },
 
-    // ✅ Location for Nearby SOS
+    // ✅ Location for Nearby SOS (GeoJSON Point; [0,0] = not set)
     location: {
       type: {
         type: String,
@@ -111,7 +111,7 @@ const userSchema = new mongoose.Schema(
       },
       coordinates: {
         type: [Number], // [lng, lat]
-        default: undefined,
+        default: [0, 0],
       },
     },
 
