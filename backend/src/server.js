@@ -7,6 +7,8 @@ import helmet from 'helmet';
 import { connectDB } from './config/database.js';
 import "./jobs/spaceReminder.job.js";
 import { errorHandler, notFound } from './middleware/errorMiddleware.js';
+import { protect } from './middleware/auth.middleware.js';
+import { uploadSingle } from './controllers/upload.controller.js';
 import eventReminderRoutes from "./routes/eventReminder.routes.js";
 
 // Routes
@@ -80,6 +82,9 @@ app.use('/api/sframes', sframeRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/sos', sosRoutes);
 app.use('/api/wellness', wellnessRoutes);
+// Upload routes registered HERE so they work even if upload.routes.js is old on server
+app.get('/api/upload/check', (_, res) => res.json({ ok: true, route: 'upload' }));
+app.post('/api/upload/single', protect, ...uploadSingle);
 app.use('/api/upload', uploadRoutes);
 
 app.use('/api/mind-journal', mindJournalRoutes);
@@ -110,6 +115,7 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📎 Upload routes mounted: ${typeof uploadRoutes?.stack !== 'undefined' ? 'yes' : 'no'}`);
 });
 
 export default app;
