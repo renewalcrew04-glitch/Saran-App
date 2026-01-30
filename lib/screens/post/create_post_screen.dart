@@ -4,10 +4,10 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../models/post_model.dart';
 import '../../services/post_service.dart';
-import '../../services/upload_service.dart'; // ✅ Added Upload Service
+import '../../services/upload_service.dart';
 import '../../constants/post_categories.dart';
-import '../../utils/category_gradients.dart';
 import '../../widgets/category_multi_select_sheet.dart';
+import '../../widgets/quote_post_embed.dart'; // Ensure you have this widget
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -18,13 +18,12 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final PostService _postService = PostService();
-  final UploadService _uploadService = UploadService(); // ✅ Init Upload Service
+  final UploadService _uploadService = UploadService();
 
   final TextEditingController _textController = TextEditingController();
   final TextEditingController _hashtagsController = TextEditingController();
 
   bool _publishing = false;
-
   final List<String> _selectedCategories = [];
   String _visibility = "public";
 
@@ -37,7 +36,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
-    if (args is Post) _quotedPost = args;
+    if (args is Post) {
+      _quotedPost = args;
+    }
   }
 
   bool get _canPublish =>
@@ -87,7 +88,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       final text = _textController.text.trim();
       final hashtags = _parseHashtags(_hashtagsController.text);
 
-      // QUOTE REPOST
+      // 1. QUOTE REPOST LOGIC
       if (_quotedPost != null) {
         await _postService.quotePost(
           postId: _quotedPost!.id,
@@ -97,24 +98,24 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         return;
       }
 
-      // ✅ FIXED: Upload Media First
+      // 2. NORMAL POST LOGIC (with Media Upload)
       List<String> mediaUrls = [];
       if (_pickedMediaPath != null) {
-        final String uploadedUrl =
-            await _uploadService.uploadMedia(_pickedMediaPath!);
+        // Upload locally picked file to server
+        final String uploadedUrl = await _uploadService.uploadMedia(_pickedMediaPath!);
         mediaUrls.add(uploadedUrl);
       }
 
-      final type =
-          mediaUrls.isEmpty ? "text" : (_isVideo ? "video" : "photo");
+      final type = mediaUrls.isNotEmpty 
+          ? (_isVideo ? "video" : "photo") 
+          : "text";
 
       await _postService.createPost(
         type: type,
         text: text,
-        media: mediaUrls, // ✅ Send the Server URL, not local path
+        media: mediaUrls,
         visibility: _visibility,
-        category:
-            _selectedCategories.isNotEmpty ? _selectedCategories.first : null,
+        category: _selectedCategories.isNotEmpty ? _selectedCategories.first : null,
         hashtags: [
           ...hashtags,
           ..._selectedCategories.map((c) => "#$c"),
@@ -137,230 +138,208 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: Text(
-          _quotedPost != null ? "Quote Post" : "Create Post",
-          style: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w800,
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
         ),
+        title: const SizedBox.shrink(), // Minimal header
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: ElevatedButton(
+                onPressed: _canPublish && !_publishing ? _publish : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                child: _publishing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text(
+                        "Post",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+              ),
+            ),
+          ),
+        ],
       ),
-
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_quotedPost != null) _quotePreview(),
+            // User Avatar Row (Optional, adds context)
+            const SizedBox(height: 10),
+            
+            // Input Area
+            TextField(
+              controller: _textController,
+              maxLines: null,
+              autofocus: true,
+              style: const TextStyle(fontSize: 18, color: Colors.black87, height: 1.4),
+              decoration: InputDecoration(
+                hintText: _quotedPost != null ? "Add a comment..." : "What's happening?",
+                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 18),
+                border: InputBorder.none,
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
 
-            if (_quotedPost == null) _categorySelector(),
+            const SizedBox(height: 20),
 
-            _input(_textController, "Write something...", max: 6),
-            const SizedBox(height: 14),
-            _input(_hashtagsController, "Hashtags (ex: #women #wellness)"),
-            const SizedBox(height: 14),
+            // Quoted Post Preview
+            if (_quotedPost != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: QuotePostEmbed(post: _quotedPost!), // Reusing your existing embed widget
+              ),
 
+            // Media Preview
             if (_pickedMediaPath != null) _mediaPreview(),
 
-            Row(
-              children: [
-                _mediaBtn(Icons.image_outlined, "Image", _pickImage),
-                const SizedBox(width: 12),
-                _mediaBtn(Icons.videocam_outlined, "Video", _pickVideo),
-              ],
-            ),
+            const SizedBox(height: 20),
+            const Divider(color: Color(0xFFEEEEEE)),
+            
+            // Category & Hashtags (Only for new posts)
+            if (_quotedPost == null) ...[
+              const SizedBox(height: 10),
+              TextField(
+                controller: _hashtagsController,
+                style: const TextStyle(fontSize: 14, color: Colors.blueGrey),
+                decoration: const InputDecoration(
+                  hintText: "Add tags #wellness #health",
+                  hintStyle: TextStyle(fontSize: 14, color: Colors.grey),
+                  border: InputBorder.none,
+                  prefixIcon: Icon(Icons.tag, size: 18, color: Colors.grey),
+                  prefixIconConstraints: BoxConstraints(minWidth: 24),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _categorySelector(),
+            ],
           ],
         ),
       ),
+      bottomNavigationBar: _buildBottomToolbar(),
+    );
+  }
 
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: ElevatedButton(
-            onPressed: _publishing ? null : _publish,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            child: _publishing
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text(
-                    "Publish",
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
+  Widget _buildBottomToolbar() {
+    return Container(
+      padding: EdgeInsets.only(
+        left: 20, 
+        right: 20, 
+        top: 10, 
+        bottom: MediaQuery.of(context).viewInsets.bottom + 10
+      ),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Color(0xFFF5F5F5))),
+        color: Colors.white,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: _pickImage,
+            icon: const Icon(Icons.image_outlined, color: Colors.blueAccent),
           ),
+          IconButton(
+            onPressed: _pickVideo,
+            icon: const Icon(Icons.videocam_outlined, color: Colors.blueAccent),
+          ),
+          const Spacer(),
+          // Visibility indicator
+          Text(
+            _visibility == 'public' ? 'Everyone can reply' : 'Restricted',
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _categorySelector() {
+    return GestureDetector(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+          builder: (_) => CategoryMultiSelectSheet(
+            selected: _selectedCategories,
+            onDone: (cats) => setState(() => _selectedCategories..clear()..addAll(cats)),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _selectedCategories.isEmpty ? "Select Topic" : _selectedCategories.first,
+              style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.w600, fontSize: 12),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.blue.shade700),
+          ],
         ),
       ),
     );
   }
 
-  // =========================
-  // WIDGETS
-  // =========================
-
-  Widget _quotePreview() => Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.black12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Quote post",
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _quotedPost!.text,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.black87),
-            ),
-          ],
-        ),
-      );
-
-  Widget _categorySelector() => GestureDetector(
-        onTap: () {
-          showModalBottomSheet(
-            context: context,
-            backgroundColor: Colors.transparent,
-            isScrollControlled: true,
-            builder: (_) => CategoryMultiSelectSheet(
-              selected: _selectedCategories,
-              onDone: (cats) {
-                setState(() {
-                  _selectedCategories
-                    ..clear()
-                    ..addAll(cats);
-                });
-              },
-            ),
-          );
-        },
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 14),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            gradient: _selectedCategories.isNotEmpty
-                ? CategoryGradients.forCategories(_selectedCategories)
-                : null,
-            color: _selectedCategories.isEmpty
-                ? Colors.grey.shade100
-                : null,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.black12),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.category, color: Colors.black),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  _selectedCategories.isEmpty
-                      ? "Select categories"
-                      : _selectedCategories.join(", "),
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+  Widget _mediaPreview() {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: _isVideo
+              ? Container(
+                  height: 200,
+                  width: double.infinity,
+                  color: Colors.black12,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.play_circle_fill, size: 50, color: Colors.white),
+                )
+              : Image.file(
+                  File(_pickedMediaPath!),
+                  width: double.infinity,
+                  height: 250, // Standard preview height
+                  fit: BoxFit.cover,
                 ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: GestureDetector(
+            onTap: _removeMedia,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
               ),
-              const Icon(Icons.keyboard_arrow_down, color: Colors.black),
-            ],
+              child: const Icon(Icons.close, color: Colors.white, size: 18),
+            ),
           ),
         ),
-      );
-
-  Widget _mediaPreview() => Column(
-        children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: _isVideo
-                    ? Container(
-                        height: 220,
-                        color: Colors.grey.shade200,
-                        alignment: Alignment.center,
-                        child: const Text("Video selected"),
-                      )
-                    : Image.file(
-                        File(_pickedMediaPath!),
-                        height: 220,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-              ),
-              Positioned(
-                right: 10,
-                top: 10,
-                child: IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: _removeMedia,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-        ],
-      );
-
-  Widget _input(TextEditingController c, String hint, {int max = 1}) =>
-      Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.black12),
-        ),
-        child: TextField(
-          controller: c,
-          maxLines: max,
-          style: const TextStyle(color: Colors.black),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey.shade500),
-            border: InputBorder.none,
-          ),
-        ),
-      );
-
-  Widget _mediaBtn(IconData icon, String label, VoidCallback onTap) =>
-      Expanded(
-        child: OutlinedButton.icon(
-          onPressed: onTap,
-          icon: Icon(icon, color: Colors.black),
-          label: Text(label, style: const TextStyle(color: Colors.black)),
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Colors.black12),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          ),
-        ),
-      );
+      ],
+    );
+  }
 }

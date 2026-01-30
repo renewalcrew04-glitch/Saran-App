@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:saran_app/models/post_model.dart';
-import 'package:saran_app/models/user_model.dart'; // ✅ Added for UserProfileScreen
+import 'package:saran_app/models/user_model.dart'; 
 import 'package:saran_app/models/space_event_model.dart'; 
 import 'package:saran_app/features/settings/settings_routes.dart';
 import 'package:saran_app/screens/auth/login_screen.dart';
@@ -16,7 +16,7 @@ import 'package:saran_app/screens/post/post_detail_screen.dart';
 import 'package:saran_app/screens/post/edit_post_screen.dart';
 
 import 'package:saran_app/screens/profile/liked_posts_screen.dart';
-import 'package:saran_app/screens/profile/user_profile_screen.dart'; // ✅ ADDED
+import 'package:saran_app/screens/profile/user_profile_screen.dart'; 
 
 import 'package:saran_app/features/sframe/screens/sframe_create_screen.dart';
 import 'package:saran_app/features/sframe/screens/sframe_viewer_screen.dart';
@@ -80,7 +80,7 @@ class AppRouter {
       ),
 
       // =========================
-      // USER PROFILE (✅ FIX: Added Route)
+      // USER PROFILE (✅ FIXED)
       // =========================
       GoRoute(
         path: '/user-profile',

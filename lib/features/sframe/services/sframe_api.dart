@@ -1,59 +1,90 @@
-import 'dart:io';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-
-// ✅ FIXED: Pointing to the correct config location
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../config/api_config.dart';
-import '../../../core/utils/auth_headers.dart';
+import '../models/sframe_model.dart';
 
 class SFrameApi {
-  static String base = '${ApiConfig.baseUrl}/sframes';
+  final Dio _dio = Dio(
+    BaseOptions(
+      baseUrl: ApiConfig.baseUrl,
+      connectTimeout: ApiConfig.connectTimeout,
+      receiveTimeout: ApiConfig.receiveTimeout,
+      headers: {'Content-Type': 'application/json'},
+    ),
+  );
 
-  static Future<List<dynamic>> getActiveFrames() async {
-    final res = await http.get(
-      Uri.parse(base),
-      headers: await authHeaders(),
-    );
-    return jsonDecode(res.body);
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
   }
 
-  static Future<String> uploadMedia(File file) async {
-    // ✅ FIXED: Using the correct ApiConfig path
-    final uri = Uri.parse('${ApiConfig.baseUrl}/sframes/upload');
-
-    final request = http.MultipartRequest('POST', uri);
-    request.headers.addAll(await authHeaders());
-    request.files.add(
-      await http.MultipartFile.fromPath('file', file.path),
-    );
-
-    final response = await request.send();
-    final body = await response.stream.bytesToString();
-    final data = jsonDecode(body);
-
-    return data['url'];
-  }
-
-  static Future<void> viewFrame(String frameId) async {
-    await http.post(
-      Uri.parse('$base/$frameId/view'),
-      headers: await authHeaders(),
+  Future<Options> _getAuthOptions() async {
+    final token = await _getToken();
+    return Options(
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
     );
   }
 
-  static Future<void> replyToFrame(String frameId, String text) async {
-    await http.post(
-      Uri.parse('$base/$frameId/reply'),
-      headers: await authHeaders(),
-      body: jsonEncode({ "text": text }),
-    );
+  // ✅ Create S-Frame
+  Future<SFrame> createSFrame({
+    required String mediaType,
+    String? mediaUrl,
+    String? textContent,
+    String? mood,
+    int durationHours = 24,
+  }) async {
+    try {
+      final options = await _getAuthOptions();
+      final response = await _dio.post(
+        '/sframes', // Maps to backend route
+        data: {
+          'mediaType': mediaType,
+          'mediaUrl': mediaUrl,
+          'textContent': textContent,
+          'mood': mood,
+          'durationHours': durationHours,
+        },
+        options: options,
+      );
+
+      return SFrame.fromJson(response.data);
+    } catch (e) {
+      throw Exception('Failed to create S-Frame: $e');
+    }
   }
 
-  static Future<void> createFrame(Map<String, dynamic> payload) async {
-    await http.post(
-      Uri.parse(base),
-      headers: await authHeaders(),
-      body: jsonEncode(payload),
-    );
+  // Get All S-Frames (Feed)
+  Future<List<SFrame>> getSFrames() async {
+    try {
+      final options = await _getAuthOptions();
+      final response = await _dio.get(
+        '/sframes',
+        options: options,
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data;
+        return data.map((json) => SFrame.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      // Return empty list on error to prevent UI crash
+      return [];
+    }
+  }
+
+  // Mark View
+  Future<void> viewSFrame(String id) async {
+    try {
+      final options = await _getAuthOptions();
+      await _dio.post(
+        '/sframes/$id/view',
+        options: options,
+      );
+    } catch (e) {
+      // Silent fail
+    }
   }
 }

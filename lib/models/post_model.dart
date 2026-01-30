@@ -28,8 +28,9 @@ class Post {
   final String? userName;
   final bool? userVerified;
 
-  // 🔥 NEW
+  // 🔥 NEW FIELDS
   final bool isPinned;
+  final Post? quotedPost; // ✅ Support for Quote Reposts
 
   Post({
     required this.id,
@@ -59,12 +60,16 @@ class Post {
     this.isPinned = false,
     this.hideLikeCount = false,
     this.edited = false,
+    this.quotedPost,
   });
+
+  // ✅ Getters for compatibility
+  bool get verified => userVerified ?? false;
 
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
       id: json['_id'] ?? '',
-      uid: json['uid'] is Map ? json['uid']['_id'] : json['uid'].toString(),
+      uid: json['uid'] is Map ? json['uid']['_id'] : (json['uid']?.toString() ?? ''),
       username: json['username'] ?? '',
       type: json['type'] ?? 'text',
       text: json['text'] ?? '',
@@ -81,16 +86,27 @@ class Post {
       visibility: json['visibility'] ?? 'public',
       category: json['category'],
       hashtags: List<String>.from(json['hashtags'] ?? []),
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      createdAt: json['createdAt'] != null 
+          ? DateTime.parse(json['createdAt']) 
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null 
+          ? DateTime.parse(json['updatedAt']) 
+          : DateTime.now(),
       isLiked: json['isLiked'] ?? false,
-      userAvatar: json['uid'] is Map ? json['uid']['avatar'] : null,
-      userName: json['uid'] is Map ? json['uid']['name'] : null,
-      userVerified:
-          json['uid'] is Map ? (json['uid']['verified'] ?? false) : null,
+      
+      // Handle flattened user info
+      userAvatar: json['userAvatar'] ?? (json['uid'] is Map ? json['uid']['avatar'] : null),
+      userName: json['userName'] ?? (json['uid'] is Map ? json['uid']['name'] : null),
+      userVerified: json['userVerified'] ?? (json['uid'] is Map ? (json['uid']['verified'] ?? false) : null),
+      
       isPinned: json['isPinned'] ?? false,
       hideLikeCount: json['hideLikeCount'] ?? false,
       edited: json['edited'] ?? false,
+      
+      // ✅ Parse Quoted Post
+      quotedPost: json['quotedPost'] != null 
+          ? Post.fromJson(json['quotedPost']) 
+          : null,
     );
   }
 }

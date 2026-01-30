@@ -257,7 +257,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         return ExplorePeopleTile(
           user: user,
           isPrivate: user.isPrivate == true,
-          // ✅ FIX: Correctly push to the User Profile
+          // ✅ FIX: Navigate to User Profile
           onOpenProfile: () {
             context.push('/user-profile', extra: user);
           },

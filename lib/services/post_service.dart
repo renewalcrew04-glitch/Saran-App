@@ -15,9 +15,6 @@ class PostService {
     ),
   );
 
-  // =========================
-  // AUTH
-  // =========================
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
@@ -30,9 +27,49 @@ class PostService {
     };
   }
 
-  // =========================
-  // LIKE / UNLIKE
-  // =========================
+  // --- ACTIONS ---
+
+  Future<Map<String, dynamic>> createPost({
+    required String type,
+    String? text,
+    List<String>? media,
+    String? category,
+    List<String>? hashtags,
+    String visibility = 'public',
+  }) async {
+    final headers = await _getAuthHeaders();
+    final response = await _dio.post(
+      ApiConfig.posts,
+      data: {
+        'type': type,
+        'text': text ?? '',
+        'media': media ?? <String>[],
+        'category': category,
+        'hashtags': hashtags ?? <String>[],
+        'visibility': visibility,
+      },
+      options: Options(headers: headers),
+    );
+    return response.data;
+  }
+
+  Future<void> quotePost({required String postId, required String text}) async {
+    final headers = await _getAuthHeaders();
+    await _dio.post(
+      '${ApiConfig.posts}/$postId/quote',
+      data: {'text': text},
+      options: Options(headers: headers),
+    );
+  }
+
+  Future<void> repost(String postId) async {
+    final headers = await _getAuthHeaders();
+    await _dio.post(
+      '${ApiConfig.posts}/$postId/repost',
+      options: Options(headers: headers),
+    );
+  }
+
   Future<bool> likePost(String postId) async {
     final headers = await _getAuthHeaders();
     final response = await _dio.post(
@@ -51,64 +88,6 @@ class PostService {
     return response.data['success'] == true;
   }
 
-  // =========================
-  // CREATE POST
-  // =========================
-  Future<Map<String, dynamic>> createPost({
-    required String type,
-    String? text,
-    List<String>? media,
-    String? category,
-    List<String>? hashtags,
-    String visibility = 'public',
-  }) async {
-    final headers = await _getAuthHeaders();
-
-    final response = await _dio.post(
-      ApiConfig.posts,
-      data: {
-        'type': type,
-        'text': text ?? '',
-        'media': media ?? <String>[],
-        'category': category,
-        'hashtags': hashtags ?? <String>[],
-        'visibility': visibility,
-      },
-      options: Options(headers: headers),
-    );
-
-    return response.data;
-  }
-
-  // =========================
-  // REPOST
-  // =========================
-  Future<void> repost(String postId) async {
-    final headers = await _getAuthHeaders();
-    await _dio.post(
-      '${ApiConfig.posts}/$postId/repost',
-      options: Options(headers: headers),
-    );
-  }
-
-  // =========================
-  // QUOTE REPOST
-  // =========================
-  Future<void> quotePost({
-    required String postId,
-    required String text,
-  }) async {
-    final headers = await _getAuthHeaders();
-    await _dio.post(
-      '${ApiConfig.posts}/$postId/quote',
-      data: {'text': text},
-      options: Options(headers: headers),
-    );
-  }
-
-  // =========================
-  // SAVE COLLECTIONS
-  // =========================
   Future<bool> toggleSave(String postId) async {
     final headers = await _getAuthHeaders();
     final res = await _dio.post(
@@ -117,6 +96,26 @@ class PostService {
     );
     return res.data['saved'] == true;
   }
+
+  Future<bool> toggleHideLikeCount(String postId) async {
+    final headers = await _getAuthHeaders();
+    final res = await _dio.patch(
+      '${ApiConfig.posts}/$postId/hide-like',
+      options: Options(headers: headers),
+    );
+    return res.data['hideLikeCount'] == true;
+  }
+
+  Future<void> editPost({required String postId, required String text}) async {
+    final headers = await _getAuthHeaders();
+    await _dio.patch(
+      '${ApiConfig.posts}/$postId/edit',
+      data: {'text': text},
+      options: Options(headers: headers),
+    );
+  }
+
+  // --- MISSING METHODS RESTORED ---
 
   Future<List<dynamic>> getSaveCollections() async {
     final headers = await _getAuthHeaders();
@@ -136,70 +135,6 @@ class PostService {
     );
   }
 
-  // =========================
-// MUTED CONTENT
-// =========================
-Future<Map<String, List<String>>> getMutedContent() async {
-  final headers = await _getAuthHeaders();
-  final res = await _dio.get(
-    '${ApiConfig.baseUrl}/content-mute',
-    options: Options(headers: headers),
-  );
-
-  return {
-    'words': List<String>.from(res.data['mutedWords'] ?? []),
-    'hashtags': List<String>.from(res.data['mutedHashtags'] ?? []),
-  };
-}
-
-Future<void> updateMutedContent({
-  required List<String> words,
-  required List<String> hashtags,
-}) async {
-  final headers = await _getAuthHeaders();
-  await _dio.put(
-    '${ApiConfig.baseUrl}/content-mute',
-    data: {
-      'mutedWords': words,
-      'mutedHashtags': hashtags,
-    },
-    options: Options(headers: headers),
-  );
-}
-
-  // =========================
-  // EDIT POST
-  // =========================
-  
-// Edit post (text only)
-Future<void> editPost({
-  required String postId,
-  required String text,
-}) async {
-  final headers = await _getAuthHeaders();
-  await _dio.patch(
-    '${ApiConfig.posts}/$postId/edit',
-    data: {'text': text},
-    options: Options(headers: headers),
-  );
-}
-
-  // =========================
-  // HIDE LIKE COUNT
-  // =========================
-// Toggle hide like count
-Future<bool> toggleHideLikeCount(String postId) async {
-  final headers = await _getAuthHeaders();
-  final res = await _dio.patch(
-    '${ApiConfig.posts}/$postId/hide-like',
-    options: Options(headers: headers),
-  );
-  return res.data['hideLikeCount'] == true;
-}
-
-  // =========================
-  // HASHTAGS
-  // =========================
   Future<List<Map<String, dynamic>>> getTrendingHashtags() async {
     final headers = await _getAuthHeaders();
     final res = await _dio.get(
