@@ -8,6 +8,7 @@ import { connectDB } from './config/database.js';
 import "./jobs/spaceReminder.job.js";
 import { errorHandler, notFound } from './middleware/errorMiddleware.js';
 import { protect } from './middleware/auth.middleware.js';
+import { createPost } from './controllers/post.controller.js';
 import { uploadSingle } from './controllers/upload.controller.js';
 import eventReminderRoutes from "./routes/eventReminder.routes.js";
 
@@ -73,6 +74,8 @@ app.get('/health', (_, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+// Create post registered here so it works even if post.routes.js is old on server
+app.post('/api/posts', protect, createPost);
 app.use('/api/posts', postRoutes);
 app.use('/api/feed', feedRoutes);
 app.use('/api/notifications', notificationRoutes);
