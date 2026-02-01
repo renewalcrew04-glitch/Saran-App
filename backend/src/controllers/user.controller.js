@@ -390,6 +390,34 @@ export const deleteMyAccount = async (req, res, next) => {
   }
 };
 
+// @desc    Get suggested users for explore (users to follow)
+// @route   GET /api/users/suggestions
+// @access  Private
+export const getSuggestions = async (req, res, next) => {
+  try {
+    const currentUserId = req.user._id;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const following = await Follow.find({ follower: currentUserId, status: 'accepted' })
+      .select('following')
+      .lean();
+    const followingIds = following.map((f) => f.following);
+    const excludeIds = [currentUserId, ...followingIds];
+
+    const users = await User.find({
+      _id: { $nin: excludeIds }
+    })
+      .select('uid username name avatar bio verified followersCount followingCount')
+      .sort({ followersCount: -1, createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    res.json({ success: true, users });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Search users
 // @route   GET /api/users/search?q=query
 // @access  Private

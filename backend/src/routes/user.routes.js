@@ -4,6 +4,7 @@ import {
   followUser,
   getFollowers,
   getFollowing,
+  getSuggestions,
   getUserPosts,
   getUserProfile,
   searchUsers,
@@ -15,8 +16,9 @@ import { protect } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-// IMPORTANT: Specific routes (like /search) must come BEFORE parameterized routes (like /:uid)
+// IMPORTANT: Specific routes (like /search, /suggestions) must come BEFORE parameterized routes (like /:uid)
 router.get('/search', protect, searchUsers);
+router.get('/suggestions', protect, getSuggestions);
 
 // ✅ keep ME routes here
 router.delete('/me/delete', protect, deleteMyAccount);

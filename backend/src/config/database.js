@@ -1,11 +1,18 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Load .env from backend root (one level up from src/)
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 export const connectDB = async () => {
   try {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/saran';
+    if (!process.env.MONGODB_URI) {
+      console.warn('⚠️ MONGODB_URI not set in .env, using localhost');
+    }
     
     // Removed deprecated options: useNewUrlParser and useUnifiedTopology
     // These are no longer needed in Mongoose 6+ and MongoDB Driver 4+

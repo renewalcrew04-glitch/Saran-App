@@ -116,8 +116,9 @@ app.use(notFound);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+const HOST = process.env.HOST || '0.0.0.0'; // 0.0.0.0 = accept connections from any IP (required on EC2)
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 Server running on http://${HOST}:${PORT}`);
   console.log(`📎 Upload routes mounted: ${typeof uploadRoutes?.stack !== 'undefined' ? 'yes' : 'no'}`);
 });
 
