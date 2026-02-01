@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Follow from '../models/Follow.model.js';
 import Post from '../models/Post.model.js';
 import User from '../models/User.model.js';
@@ -477,9 +478,18 @@ export const searchUsers = async (req, res, next) => {
 export const getUserPosts = async (req, res, next) => {
   try {
     const { uid } = req.params;
+    if (!uid) {
+      return res.status(400).json({
+        success: false,
+        message: 'User identifier is required',
+      });
+    }
 
-    // Find user by UID (string)
-    const user = await User.findOne({ uid });
+    // Find user by uid (string) or by _id (MongoDB ObjectId string)
+    let user = await User.findOne({ uid });
+    if (!user && mongoose.Types.ObjectId.isValid(uid)) {
+      user = await User.findById(uid);
+    }
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -488,7 +498,7 @@ export const getUserPosts = async (req, res, next) => {
     }
 
     const posts = await Post.find({
-      uid: user._id,          // ✅ CORRECT FIELD
+      uid: user._id,
       isDeleted: false,
     })
       .sort({ createdAt: -1 });

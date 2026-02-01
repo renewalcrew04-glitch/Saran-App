@@ -105,11 +105,13 @@ export const login = async (req, res, next) => {
       });
     }
 
+    const uidValue = user.uid || user._id.toString();
+
     res.json({
       success: true,
       token: generateToken(user._id),
       user: {
-        uid: user.uid,
+        uid: uidValue,
         username: user.username,
         email: user.email,
         name: user.name,
@@ -131,10 +133,13 @@ export const getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id);
 
+    // Ensure uid is always sent (fallback to _id for old users without uid)
+    const uidValue = user.uid || user._id.toString();
+
     res.json({
       success: true,
       user: {
-        uid: user.uid,
+        uid: uidValue,
         username: user.username,
         email: user.email,
         name: user.name,
