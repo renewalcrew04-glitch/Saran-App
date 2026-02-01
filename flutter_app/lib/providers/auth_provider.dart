@@ -1,117 +1,177 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
-class AuthProvider with ChangeNotifier {
-  User? _user;
-  String? _token;
-  bool _isLoading = false;
-  bool _isAuthenticated = false;
-
-  User? get user => _user;
-  String? get token => _token;
-  bool get isLoading => _isLoading;
-  bool get isAuthenticated => _isAuthenticated;
-
+class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
 
-  AuthProvider() {
-    _loadUser();
-  }
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+  bool get loading => _isLoading;
 
-  Future<void> _loadUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('token');
-    if (_token != null) {
-      _isAuthenticated = true;
-      // Set token in AuthService
-      await _authService.setToken(_token!);
-      // Load user data
-      await getCurrentUser();
-    }
-    notifyListeners();
-  }
+  User? _user;
+  User? get user => _user;
 
-  Future<bool> login(String email, String password) async {
-    _isLoading = true;
-    notifyListeners();
+  String? _token;
+  String? get token => _token;
 
+  bool get isLoggedIn => _token != null && _token!.isNotEmpty;
+
+  // =========================
+  // LOAD USER (MANUAL)
+  // =========================
+  Future<void> loadUser() async {
     try {
-      final response = await _authService.login(email, password);
-      if (response['success'] == true) {
-        _token = response['token'];
-        _user = User.fromJson(response['user']);
-        _isAuthenticated = true;
-
-        // Save token in both SharedPreferences and AuthService
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('token', _token!);
-        await _authService.setToken(_token!);
-
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      }
-      _isLoading = false;
+      _isLoading = true;
       notifyListeners();
-      return false;
-    } catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
 
-  Future<bool> register(String username, String email, String password, String name) async {
-    _isLoading = true;
-    notifyListeners();
+      final userJson = await _authService.getCurrentUser();
+      final dynamic rawUser = userJson['user'] ?? userJson;
 
-    try {
-      final response = await _authService.register(username, email, password, name);
-      if (response['success'] == true) {
-        _token = response['token'];
-        _user = User.fromJson(response['user']);
-        _isAuthenticated = true;
-
-        // Save token in both SharedPreferences and AuthService
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('token', _token!);
-        await _authService.setToken(_token!);
-
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      }
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<void> getCurrentUser() async {
-    try {
-      final response = await _authService.getCurrentUser();
-      if (response['success'] == true) {
-        _user = User.fromJson(response['user']);
-        notifyListeners();
+      if (rawUser is Map<String, dynamic>) {
+        _user = User.fromJson(rawUser);
       }
     } catch (e) {
-      // Handle error
+      // keep old user
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
+  // =========================
+  // LOAD USER FROM TOKEN
+  // =========================
+  Future<void> loadUserFromToken() async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final savedToken = await _authService.getToken();
+      if (savedToken == null || savedToken.isEmpty) {
+        _token = null;
+        _user = null;
+        return;
+      }
+
+      _token = savedToken;
+
+      final userJson = await _authService.getCurrentUser();
+      final dynamic rawUser = userJson['user'] ?? userJson;
+
+      if (rawUser is Map<String, dynamic>) {
+        _user = User.fromJson(rawUser);
+      }
+    } catch (e) {
+      _token = null;
+      _user = null;
+      await _authService.clearToken();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // =========================
+  // LOGIN (FIXED)
+  // =========================
+  Future<bool> login(
+    String email,
+    String password,
+  ) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final data = await _authService.login(email, password);
+
+      final token = data['token']?.toString();
+      final dynamic rawUser = data['user'];
+
+      if (token == null || token.isEmpty) {
+        throw Exception("Token not received from backend");
+      }
+
+      await _authService.setToken(token);
+      _token = token;
+
+      if (rawUser is Map<String, dynamic>) {
+        _user = User.fromJson(rawUser);
+      } else {
+        // fallback to /me
+        final meData = await _authService.getCurrentUser();
+        final dynamic meUser = meData['user'] ?? meData;
+        if (meUser is Map<String, dynamic>) {
+          _user = User.fromJson(meUser);
+        }
+      }
+
+      return true;
+    } catch (e) {
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // =========================
+  // REGISTER (UNCHANGED)
+  // =========================
+  Future<bool> register(
+    String username,
+    String email,
+    String password,
+    String name,
+  ) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final data =
+          await _authService.register(username, email, password, name);
+
+      final token = data['token']?.toString();
+      final dynamic rawUser = data['user'];
+
+      if (token == null || token.isEmpty) {
+        throw Exception("Token not received from backend");
+      }
+
+      await _authService.setToken(token);
+      _token = token;
+
+      if (rawUser is Map<String, dynamic>) {
+        _user = User.fromJson(rawUser);
+      } else {
+        final meData = await _authService.getCurrentUser();
+        final dynamic meUser = meData['user'] ?? meData;
+        if (meUser is Map<String, dynamic>) {
+          _user = User.fromJson(meUser);
+        }
+      }
+
+      return true;
+    } catch (e) {
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // =========================
+  // LOGOUT
+  // =========================
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
+    _isLoading = true;
+    notifyListeners();
+
     await _authService.clearToken();
     _token = null;
     _user = null;
-    _isAuthenticated = false;
+
+    _isLoading = false;
     notifyListeners();
   }
 }
