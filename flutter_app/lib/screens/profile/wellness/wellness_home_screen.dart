@@ -59,7 +59,6 @@ class WellnessHomeScreen extends StatelessWidget {
               icon: Icons.favorite_border,
               title: "S-Cycle",
               desc: "Period & wellness tracker",
-              highlight: true,
               onTap: () => context.push('/wellness/s-cycle'),
             ),
             _WellnessCard(
@@ -80,14 +79,12 @@ class _WellnessCard extends StatelessWidget {
   final String title;
   final String desc;
   final VoidCallback onTap;
-  final bool highlight;
 
   const _WellnessCard({
     required this.icon,
     required this.title,
     required this.desc,
     required this.onTap,
-    this.highlight = false,
   });
 
   @override
@@ -101,8 +98,8 @@ class _WellnessCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: highlight ? Colors.black : const Color(0xFFEEEEEE),
-            width: highlight ? 2 : 1,
+            color: const Color(0xFFEEEEEE),
+            width: 1,
           ),
         ),
         child: Row(

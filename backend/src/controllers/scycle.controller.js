@@ -82,6 +82,60 @@ export const markPeriodStarted = async (req, res) => {
 };
 
 /**
+ * PUT /api/wellness/s-cycle/log/:id
+ * Update a log by id (mood, symptoms, note)
+ */
+export const updateLog = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { mood, symptoms, note } = req.body;
+
+    const log = await SCycleLog.findByIdAndUpdate(
+      id,
+      {
+        mood: mood ?? "",
+        symptoms: Array.isArray(symptoms) ? symptoms : [],
+        note: note ?? "",
+      },
+      { new: true }
+    );
+
+    if (!log) {
+      return res.status(404).json({ message: "Log not found" });
+    }
+
+    return res.status(200).json({
+      message: "Log updated",
+      log,
+    });
+  } catch (err) {
+    console.error("updateLog error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+/**
+ * DELETE /api/wellness/s-cycle/log/:id
+ * Delete a log by id
+ */
+export const deleteLog = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const log = await SCycleLog.findByIdAndDelete(id);
+
+    if (!log) {
+      return res.status(404).json({ message: "Log not found" });
+    }
+
+    return res.status(200).json({ message: "Log deleted" });
+  } catch (err) {
+    console.error("deleteLog error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+/**
  * GET /api/wellness/s-cycle/history/:userId
  * Returns last 60 logs (latest first)
  */

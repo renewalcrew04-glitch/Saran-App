@@ -417,8 +417,9 @@ class _SCycleScreenState extends State<SCycleScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
+      final msg = e.toString().replaceFirst('Exception: ', '');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to save log ❌")),
+        SnackBar(content: Text("Failed to save log: ${msg.length > 60 ? '${msg.substring(0, 60)}…' : msg}")),
       );
     }
   }
@@ -433,6 +434,75 @@ class _SCycleScreenState extends State<SCycleScreen> {
     } catch (_) {
       return value.toString();
     }
+  }
+
+  Future<void> _deleteLogFromHistory(Map<String, dynamic> item) async {
+    final id = item["_id"]?.toString();
+    if (id == null || id.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete log?"),
+        content: const Text(
+          "This log entry will be removed. This cannot be undone.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await SCycleService.deleteLog(id);
+      if (!mounted) return;
+      await _loadAll();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Log deleted")),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to delete: ${e.toString().replaceFirst('Exception: ', '')}")),
+      );
+    }
+  }
+
+  void _openEditLogSheet(Map<String, dynamic> item) {
+    final id = item["_id"]?.toString();
+    if (id == null || id.isEmpty) return;
+    final currentMood = (item["mood"] ?? "").toString();
+    final currentSymptoms = (item["symptoms"] ?? []) as List<dynamic>;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => _EditLogSheetContent(
+        logId: id,
+        initialMood: currentMood.isEmpty ? null : currentMood,
+        initialSymptoms: currentSymptoms.map((s) => s.toString()).toList(),
+        moods: _moods,
+        symptoms: _symptoms,
+        onSaved: () async {
+          if (!mounted) return;
+          await _loadAll();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Log updated ✅")),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -702,7 +772,7 @@ class _SCycleScreenState extends State<SCycleScreen> {
                                   final date = _formatDate(item["date"] ?? item["createdAt"] ?? "");
                                   final mood = (item["mood"] ?? "").toString();
                                   final symptoms = (item["symptoms"] ?? []) as List<dynamic>;
-                                  final started = (item["periodStarted"] ?? false) == true;
+                                  final started = (item["periodStarted"] ?? item["isPeriodStart"] ?? false) == true;
 
                                   return Container(
                                     margin: const EdgeInsets.only(bottom: 10),
@@ -749,6 +819,36 @@ class _SCycleScreenState extends State<SCycleScreen> {
                                                   ),
                                                 ),
                                               ),
+                                            PopupMenuButton<String>(
+                                              icon: const Icon(Icons.more_horiz, size: 22, color: Colors.black54),
+                                              padding: EdgeInsets.zero,
+                                              onSelected: (value) {
+                                                if (value == 'edit') _openEditLogSheet(item);
+                                                if (value == 'delete') _deleteLogFromHistory(item);
+                                              },
+                                              itemBuilder: (ctx) => [
+                                                const PopupMenuItem(
+                                                  value: 'edit',
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(Icons.edit_outlined, size: 20),
+                                                      SizedBox(width: 10),
+                                                      Text("Edit"),
+                                                    ],
+                                                  ),
+                                                ),
+                                                const PopupMenuItem(
+                                                  value: 'delete',
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                                                      SizedBox(width: 10),
+                                                      Text("Delete", style: TextStyle(color: Colors.red)),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ],
                                         ),
                                         const SizedBox(height: 8),
@@ -828,6 +928,208 @@ class _PredictionRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _EditLogSheetContent extends StatefulWidget {
+  final String logId;
+  final String? initialMood;
+  final List<String> initialSymptoms;
+  final List<Map<String, String>> moods;
+  final List<String> symptoms;
+  final VoidCallback onSaved;
+
+  const _EditLogSheetContent({
+    required this.logId,
+    required this.initialMood,
+    required this.initialSymptoms,
+    required this.moods,
+    required this.symptoms,
+    required this.onSaved,
+  });
+
+  @override
+  State<_EditLogSheetContent> createState() => _EditLogSheetContentState();
+}
+
+class _EditLogSheetContentState extends State<_EditLogSheetContent> {
+  late String? selectedMood;
+  late Set<String> selectedSymptoms;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedMood = widget.initialMood;
+    selectedSymptoms = Set<String>.from(widget.initialSymptoms);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 14,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  "Edit log",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close, color: Colors.black),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              "Mood",
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: widget.moods.map((m) {
+              final key = m["key"] as String;
+              final isSelected = selectedMood == key;
+              return GestureDetector(
+                onTap: () => setState(() => selectedMood = key),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.black : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: isSelected ? Colors.black : Colors.grey.shade300,
+                    ),
+                  ),
+                  child: Text(
+                    "${m["emoji"]} $key",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              "Symptoms",
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: widget.symptoms.map((s) {
+              final isSelected = selectedSymptoms.contains(s);
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      selectedSymptoms.remove(s);
+                    } else {
+                      selectedSymptoms.add(s);
+                    }
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.black : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: isSelected ? Colors.black : Colors.grey.shade300,
+                    ),
+                  ),
+                  child: Text(
+                    s,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      color: isSelected ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: () async {
+                if (selectedMood == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Select your mood first 🙂")),
+                  );
+                  return;
+                }
+                try {
+                  await SCycleService.updateLog(
+                    logId: widget.logId,
+                    mood: selectedMood!,
+                    symptoms: selectedSymptoms.toList(),
+                  );
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                  widget.onSaved();
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Failed to update: ${e.toString().replaceFirst('Exception: ', '')}")),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text(
+                "Save changes",
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

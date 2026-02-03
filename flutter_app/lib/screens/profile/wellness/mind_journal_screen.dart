@@ -111,6 +111,229 @@ class _MindJournalScreenState extends State<MindJournalScreen> {
     }
   }
 
+  Future<void> _deleteJournal(Map<String, dynamic> j) async {
+    final id = j["_id"]?.toString();
+    if (id == null || id.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete journal?"),
+        content: const Text(
+          "This entry will be removed. This cannot be undone.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await MindJournalService.deleteJournal(id);
+      if (!mounted) return;
+      await _loadMyJournals();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Journal deleted")),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to delete: ${e.toString().replaceFirst('Exception: ', '')}")),
+      );
+    }
+  }
+
+  Future<void> _editJournal(Map<String, dynamic> j) async {
+    final id = j["_id"]?.toString();
+    if (id == null || id.isEmpty) return;
+    final presentCtrl = TextEditingController(text: (j["presentFeel"] ?? "").toString());
+    final comparisonCtrl = TextEditingController(text: (j["stopComparison"] ?? "").toString());
+    final selfCareCtrl = TextEditingController(text: (j["selfCare"] ?? "").toString());
+    bool saving = false;
+
+    final updated = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text("Edit journal"),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("How present do you feel right now?", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: presentCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      hintText: "Take your time...",
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text("What comparison can you stop making?", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: comparisonCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      hintText: "It's safe to let go...",
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text("What did you do just for yourself today?", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: selfCareCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      hintText: "Celebrate yourself...",
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: saving ? null : () => Navigator.pop(ctx, false),
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        setDialogState(() => saving = true);
+                        try {
+                          await MindJournalService.updateJournal(
+                            journalId: id,
+                            presentFeel: presentCtrl.text.trim(),
+                            stopComparison: comparisonCtrl.text.trim(),
+                            selfCare: selfCareCtrl.text.trim(),
+                          );
+                          if (!ctx.mounted) return;
+                          Navigator.pop(ctx, true);
+                        } catch (e) {
+                          setDialogState(() => saving = false);
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(content: Text("Failed to update: ${e.toString().replaceFirst('Exception: ', '')}")),
+                            );
+                          }
+                        }
+                      },
+                child: saving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text("Save"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    presentCtrl.dispose();
+    comparisonCtrl.dispose();
+    selfCareCtrl.dispose();
+
+    if (updated == true && mounted) {
+      await _loadMyJournals();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Journal updated ✨")),
+      );
+    }
+  }
+
+  Widget _buildJournalCard(Map<String, dynamic> j) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  (j["createdAt"] ?? "").toString().isNotEmpty
+                      ? "🗓 ${(j["createdAt"]).toString()}"
+                      : "🗓 Journal Entry",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_horiz, size: 22, color: Colors.black54),
+                padding: EdgeInsets.zero,
+                onSelected: (value) {
+                  if (value == 'edit') _editJournal(j);
+                  if (value == 'delete') _deleteJournal(j);
+                },
+                itemBuilder: (ctx) => [
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit_outlined, size: 20),
+                        SizedBox(width: 10),
+                        Text("Edit"),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                        SizedBox(width: 10),
+                        Text("Delete", style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if ((j["presentFeel"] ?? "").toString().isNotEmpty)
+            Text("• ${j["presentFeel"]}"),
+          if ((j["stopComparison"] ?? "").toString().isNotEmpty)
+            Text("• ${j["stopComparison"]}"),
+          if ((j["selfCare"] ?? "").toString().isNotEmpty)
+            Text("• ${j["selfCare"]}"),
+        ],
+      ),
+    );
+  }
+
   Widget _buildField({
     required String label,
     required String hint,
@@ -245,47 +468,7 @@ class _MindJournalScreenState extends State<MindJournalScreen> {
                 )
               else
                 Column(
-                  children: _journals.map((j) {
-                    return Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey.shade200),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
-                            blurRadius: 10,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            (j["createdAt"] ?? "").toString().isNotEmpty
-                                ? "🗓 ${(j["createdAt"]).toString()}"
-                                : "🗓 Journal Entry",
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          if ((j["presentFeel"] ?? "").toString().isNotEmpty)
-                            Text("• ${j["presentFeel"]}"),
-                          if ((j["stopComparison"] ?? "").toString().isNotEmpty)
-                            Text("• ${j["stopComparison"]}"),
-                          if ((j["selfCare"] ?? "").toString().isNotEmpty)
-                            Text("• ${j["selfCare"]}"),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+                  children: _journals.map((j) => _buildJournalCard(j)).toList(),
                 ),
             ],
           ),
