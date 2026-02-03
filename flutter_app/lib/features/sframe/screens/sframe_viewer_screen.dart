@@ -136,6 +136,43 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
     }
   }
 
+  void _showLikedModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.black,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Echos (Likes)',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No likes yet',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final frame = widget.frames[index];
@@ -143,13 +180,27 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
     final currentUid = auth.user?.uid ?? '';
     final isOwnStory = currentUid.isNotEmpty && frame.uid == currentUid;
 
+    final size = MediaQuery.of(context).size;
+    const topBarHeight = 100.0;
+    const bottomBarHeight = 140.0;
+    const headerRightWidth = 80.0;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
         onTapDown: (d) {
+          final pos = d.localPosition;
+          // Don't advance/close when tapping header, options, heart/eye, or reply bar
+          if (pos.dy < topBarHeight) return;
+          if (pos.dy > size.height - bottomBarHeight) return;
+          if (pos.dx > size.width - headerRightWidth && pos.dy < topBarHeight) return;
           HapticFeedback.lightImpact();
-          final w = MediaQuery.of(context).size.width;
-          d.localPosition.dx > w / 2 ? _next() : _prev();
+          final w = size.width;
+          if (pos.dx > w / 2) {
+            _next();
+          } else {
+            _prev();
+          }
         },
         onLongPressStart: (_) {
           setState(() => paused = true);
@@ -297,23 +348,28 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Echos (placeholder – backend can add later)
+                  // Echos (likes) – tap to see who liked
                   Padding(
                     padding: const EdgeInsets.only(right: 16),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.favorite_border, color: Colors.white, size: 22),
-                        const SizedBox(width: 4),
-                        Text(
-                          '0',
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
-                        ),
-                      ],
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _showLikedModal(context),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.favorite_border, color: Colors.white, size: 22),
+                          const SizedBox(width: 4),
+                          Text(
+                            '0',
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  // View count + eye
+                  // View count + eye – tap to see who viewed
                   GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: () async {
                       final users = await SFrameService.getSeenUsers(frame.id);
                       if (!context.mounted) return;

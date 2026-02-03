@@ -44,17 +44,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<String> _wellnessHistory = [];
   bool _wellnessLoading = true;
 
-  // Main Tabs
-  String _activeMainTab = 'posts'; // posts, wellness, games, saved
+  // Main Tabs (like reference: grid = posts, video = reels, person = tagged)
+  String _activeMainTab = 'posts'; // posts, reels, tagged
 
-  // Sub Tabs (inside Posts)
-  String _activePostTab = 'all'; // all, text, photo, video, repost
-
-  // Local previews (KEEP - not used now but safe)
-  File? _localCoverPreview;
   File? _localAvatarPreview;
-
-  bool _uploadingCover = false;
   bool _uploadingAvatar = false;
 
   @override
@@ -158,79 +151,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  List<Post> get _filteredPosts {
-    if (_activePostTab == 'all') return _posts;
-
-    if (_activePostTab == 'text') {
-      return _posts.where((p) => p.type == 'text').toList();
-    }
-
-    if (_activePostTab == 'photo') {
-      return _posts.where((p) => p.type == 'photo').toList();
-    }
-
-    if (_activePostTab == 'video') {
-      return _posts.where((p) => p.type == 'video').toList();
-    }
-
-    if (_activePostTab == 'repost') {
-      return _posts.where((p) => p.type == 'repost').toList();
-    }
-
-    return _posts;
-  }
-
-  // KEEP THESE (not used now because camera icons removed)
-  Future<void> _pickCoverImage() async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final auth = context.read<AuthProvider>();
-      final token = auth.token;
-      if (token == null) throw Exception("No token");
-
-      final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);
-      if (picked == null) return;
-
-      setState(() {
-        _localCoverPreview = File(picked.path);
-      });
-
-      setState(() => _uploadingCover = true);
-      final url = await _uploadService.uploadSingle(
-        token: token,
-        file: File(picked.path),
-      );
-
-      final res = await _profileUpdateService.updateCover(url, currentUserUid: auth.user?.uid);
-
-      if (!mounted) return;
-
-      final userMap = res?['user'];
-      if (userMap is Map<String, dynamic>) {
-        auth.updateUserFromMap(userMap);
-      } else {
-        await auth.loadUser();
-      }
-
-      if (!mounted) return;
-      setState(() {
-        _uploadingCover = false;
-        _localCoverPreview = null;
-      });
-
-      messenger.showSnackBar(
-        const SnackBar(content: Text("Cover updated")),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _uploadingCover = false);
-      if (!context.mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(content: Text("Failed to update cover")),
-      );
-    }
-  }
-
   Future<void> _pickAvatarImage() async {
     try {
       final auth = context.read<AuthProvider>();
@@ -289,33 +209,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text(
-          user.username,
-          style: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-          ),
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.add, color: Colors.black, size: 28),
+          onPressed: () => context.push('/post/create'),
         ),
-        actions: [
-          IconButton(
-  icon: const Icon(Icons.notifications_none, color: Colors.black),
-  onPressed: () {
-    context.push('/notifications');
-  },
-),
-          IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(10),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline, color: Colors.grey[800], size: 18),
+            const SizedBox(width: 6),
+            Text(
+              user.username,
+              style: const TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
               ),
-              child: Icon(Icons.menu, color: Colors.grey[800], size: 20),
             ),
-            onPressed: () {
-              MenuSheet.open(context);
-            },
+            const SizedBox(width: 4),
+            Icon(Icons.keyboard_arrow_down, color: Colors.grey[800], size: 22),
+          ],
+        ),
+        centerTitle: true,
+        actions: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                icon: Icon(Icons.notifications_none, color: Colors.grey[800], size: 26),
+                onPressed: () => context.push('/notifications'),
+              ),
+              Positioned(
+                right: 10,
+                top: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text('9+', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+          IconButton(
+            icon: Icon(Icons.menu, color: Colors.grey[800], size: 24),
+            onPressed: () => MenuSheet.open(context),
           ),
         ],
       ),
@@ -332,9 +273,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(user),
-              const SizedBox(height: 8),
               _buildMainTabs(),
-              if (_activeMainTab == 'posts') _buildPostSubTabs(),
               _buildBodyContent(user),
               SizedBox(height: MediaQuery.of(context).padding.bottom + 20),
             ],
@@ -345,55 +284,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildHeader(dynamic user) {
-    return Column(
-      children: [
-        // Cover Image (tap to change)
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            GestureDetector(
-              onTap: _pickCoverImage,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    height: 150,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                    ),
-                    child: _localCoverPreview != null
-                        ? Image.file(_localCoverPreview!, fit: BoxFit.cover)
-                        : (user.coverImage != null && user.coverImage!.isNotEmpty
-                            ? Image.network(
-                                ApiConfig.networkImageUrl(user.coverImage!) ?? user.coverImage!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) {
-                                  return const Center(
-                                    child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
-                                  );
-                                },
-                              )
-                            : const Center(
-                                child: Icon(Icons.image, color: Colors.grey, size: 40),
-                              )),
-                  ),
-                  if (_uploadingCover)
-                    Container(
-                      color: Colors.black26,
-                      child: const Center(
-                        child: CircularProgressIndicator(color: Colors.white),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            // Avatar (tap to change)
-            Positioned(
-              left: 16,
-              bottom: -32,
-              child: GestureDetector(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          // Row: Avatar (left) + Name & Stats (right)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Avatar (tap to change) + small add circle
+              GestureDetector(
                 onTap: _pickAvatarImage,
                 child: Stack(
                   alignment: Alignment.center,
@@ -403,17 +303,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey.shade300),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                          )
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
                         ],
                       ),
                       child: CircleAvatar(
-                        radius: 42,
-                        backgroundColor: Colors.grey[300],
+                        radius: 48,
+                        backgroundColor: Colors.grey.shade200,
                         backgroundImage: _localAvatarPreview != null
                             ? FileImage(_localAvatarPreview!)
                             : (user.avatar != null && user.avatar!.isNotEmpty
@@ -422,10 +323,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: ((user.avatar == null || user.avatar!.isEmpty) &&
                                 _localAvatarPreview == null)
                             ? Text(
-                                user.name.isNotEmpty ? user.name[0].toUpperCase() : 'S',
+                                user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
                                 style: TextStyle(
-                                  fontSize: 28,
-                                  color: Colors.grey[700],
+                                  fontSize: 32,
+                                  color: Colors.grey[600],
                                   fontWeight: FontWeight.bold,
                                 ),
                               )
@@ -448,143 +349,156 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: const Icon(Icons.add, color: Colors.black, size: 18),
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 42),
-
-        // Name + Bio
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                user.name,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '@${user.username}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[700],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              if (user.bio != null && user.bio.toString().trim().isNotEmpty)
-                Text(
-                  user.bio!,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[800],
-                    height: 1.35,
-                  ),
-                ),
-
-              const SizedBox(height: 14),
-
-              // Edit Profile button (CONNECTED + REFRESH)
-              SizedBox(
-                width: double.infinity,
-                height: 44,
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                    );
-
-                    // refresh user + posts after edit
-                    if (!mounted) return;
-                    final auth = Provider.of<AuthProvider>(context, listen: false);
-                    await auth.loadUser();
-                    await _loadUserPosts();
-                  },
-                  icon: const Icon(Icons.edit, size: 18, color: Colors.black),
-                  label: const Text(
-                    'Edit Profile',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.w700,
+              const SizedBox(width: 24),
+              // Name + Stats
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.name.toUpperCase().replaceAll(' ', ' '),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.black,
+                        letterSpacing: 0.5,
+                      ),
                     ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Colors.grey.shade300),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Stats row (clickable)
-              Row(
-                children: [
-                  Expanded(
-                    child: _StatButton(
-                      count: _posts.length,
-                      label: 'Posts',
-                      onTap: () {
-                        setState(() {
-                          _activeMainTab = 'posts';
-                        });
-                      },
-                    ),
-                  ),
-                  Expanded(
-                    child: _StatButton(
-                      count: user.followersCount,
-                      label: 'Followers',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => FollowersListScreen(
-                              userId: user.uid,
-                              username: user.username,
-                            ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _StatButton(
+                            count: _posts.length,
+                            label: 'posts',
+                            onTap: () => setState(() => _activeMainTab = 'posts'),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                  Expanded(
-                    child: _StatButton(
-                      count: user.followingCount,
-                      label: 'Following',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => FollowingListScreen(
-                              userId: user.uid,
-                              username: user.username,
-                            ),
+                        ),
+                        Expanded(
+                          child: _StatButton(
+                            count: user.followersCount,
+                            label: 'followers',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => FollowersListScreen(
+                                    userId: user.uid,
+                                    username: user.username,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
+                        ),
+                        Expanded(
+                          child: _StatButton(
+                            count: user.followingCount,
+                            label: 'following',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => FollowingListScreen(
+                                    userId: user.uid,
+                                    username: user.username,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-
-              const SizedBox(height: 16),
-              _buildWellnessPreviewCard(),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 20),
+          // Edit profile | Share profile | Add friend icon
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 40,
+                  child: OutlinedButton(
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                      );
+                      if (!mounted) return;
+                      final auth = Provider.of<AuthProvider>(context, listen: false);
+                      await auth.loadUser();
+                      await _loadUserPosts();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black,
+                      side: BorderSide(color: Colors.grey.shade400),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Edit profile', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 40,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      // Share profile - copy link or share sheet
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Share profile')),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black,
+                      side: BorderSide(color: Colors.grey.shade400),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Share profile', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                height: 40,
+                width: 40,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade400),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: Icon(Icons.person_add_alt_1_outlined, color: Colors.grey[800], size: 20),
+                  onPressed: () => context.push('/explore'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildWellnessPreviewCard(),
+          const SizedBox(height: 12),
+        ],
+      ),
     );
   }
 
@@ -665,155 +579,173 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildMainTabs() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: _MainTabChip(
-                icon: Icons.grid_on,
-                label: 'Posts',
-                isActive: _activeMainTab == 'posts',
-                onTap: () => setState(() => _activeMainTab = 'posts'),
-              ),
-            ),
-            Expanded(
-              child: _MainTabChip(
-                icon: Icons.favorite_border,
-                label: 'Wellness',
-                isActive: _activeMainTab == 'wellness',
-                onTap: () async {
-                  await _loadWellnessStreak();
-                  if (!mounted) return;
-                  context.push('/wellness');
-                },
-              ),
-            ),
-            Expanded(
-              child: _MainTabChip(
-                icon: Icons.sports_esports_outlined,
-                label: 'Games',
-                isActive: _activeMainTab == 'games',
-                onTap: () {
-                  context.push('/games');
-                },
-              ),
-            ),
-            Expanded(
-              child: _MainTabChip(
-                icon: Icons.bookmark_border,
-                label: 'Saved',
-                isActive: _activeMainTab == 'saved',
-                onTap: () => setState(() => _activeMainTab = 'saved'),
-              ),
-            ),
-          ],
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
-    );
-  }
-
-  Widget _buildPostSubTabs() {
-    return Padding(
-      padding: const EdgeInsets.only(left: 12, right: 12, top: 12),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _PostFilterChip(
-              label: 'All',
-              isActive: _activePostTab == 'all',
-              onTap: () => setState(() => _activePostTab = 'all'),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ProfileIconTab(
+              icon: Icons.grid_on,
+              isActive: _activeMainTab == 'posts',
+              onTap: () => setState(() => _activeMainTab = 'posts'),
             ),
-            _PostFilterChip(
-              label: 'Texts',
-              isActive: _activePostTab == 'text',
-              onTap: () => setState(() => _activePostTab = 'text'),
+          ),
+          Expanded(
+            child: _ProfileIconTab(
+              icon: Icons.play_circle_outline,
+              isActive: _activeMainTab == 'reels',
+              onTap: () => setState(() => _activeMainTab = 'reels'),
             ),
-            _PostFilterChip(
-              label: 'Photos',
-              isActive: _activePostTab == 'photo',
-              onTap: () => setState(() => _activePostTab = 'photo'),
+          ),
+          Expanded(
+            child: _ProfileIconTab(
+              icon: Icons.person_outline,
+              isActive: _activeMainTab == 'tagged',
+              onTap: () => setState(() => _activeMainTab = 'tagged'),
             ),
-            _PostFilterChip(
-              label: 'Videos',
-              isActive: _activePostTab == 'video',
-              onTap: () => setState(() => _activePostTab = 'video'),
-            ),
-            _PostFilterChip(
-              label: 'Reposts',
-              isActive: _activePostTab == 'repost',
-              onTap: () => setState(() => _activePostTab = 'repost'),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildBodyContent(dynamic user) {
-    if (_isLoading) {
-      return const SizedBox(
-        height: 220,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-
     if (_activeMainTab == 'posts') {
-      return _buildPostsGrid();
+      if (_isLoading) {
+        return const SizedBox(
+          height: 280,
+          child: Center(child: CircularProgressIndicator(color: Colors.black54)),
+        );
+      }
+      return _buildPostsSection();
     }
 
-    if (_activeMainTab == 'games') {
-      return const SizedBox(
-        height: 220,
-        child: Center(child: Text('Games')),
+    if (_activeMainTab == 'reels') {
+      return _buildEmptySection(
+        icon: Icons.play_circle_outline,
+        title: 'No reels yet',
+        subtitle: 'Videos you share will appear here.',
       );
     }
 
-    if (_activeMainTab == 'saved') {
-      return const SizedBox(
-        height: 220,
-        child: Center(child: Text('Saved - Coming soon')),
+    if (_activeMainTab == 'tagged') {
+      return _buildEmptySection(
+        icon: Icons.person_outline,
+        title: 'No tags yet',
+        subtitle: 'Photos and videos you\'re tagged in will appear here.',
       );
     }
 
     return const SizedBox.shrink();
   }
 
-  Widget _buildPostsGrid() {
-    final list = _filteredPosts;
+  Widget _buildEmptySection({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 64, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostsSection() {
+    final list = _posts;
 
     if (list.isEmpty) {
-      return const SizedBox(
-        height: 220,
-        child: Center(child: Text('No posts yet')),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Illustration placeholder (curtains / share vibe)
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(Icons.photo_camera_outlined, size: 48, color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Create your first post',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Share your point of view.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 44,
+              child: ElevatedButton(
+                onPressed: () => context.push('/post/create'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0095F6),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Create'),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
     return Padding(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(2),
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: list.length,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
-          crossAxisSpacing: 6,
-          mainAxisSpacing: 6,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
         ),
         itemBuilder: (context, index) {
           final post = list[index];
-
           return GestureDetector(
             onTap: () {},
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.zero,
               child: Container(
                 color: Colors.grey.shade200,
                 child: _PostGridTile(post: post),
@@ -947,15 +879,13 @@ class _StatButton extends StatelessWidget {
   }
 }
 
-class _MainTabChip extends StatelessWidget {
+class _ProfileIconTab extends StatelessWidget {
   final IconData icon;
-  final String label;
   final bool isActive;
   final VoidCallback onTap;
 
-  const _MainTabChip({
+  const _ProfileIconTab({
     required this.icon,
-    required this.label,
     required this.isActive,
     required this.onTap,
   });
@@ -964,74 +894,20 @@ class _MainTabChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
       child: Container(
-        height: 42,
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: isActive ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 6),
-                  ),
-                ]
-              : [],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 18, color: isActive ? Colors.black : Colors.grey[700]),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                color: isActive ? Colors.black : Colors.grey[700],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PostFilterChip extends StatelessWidget {
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _PostFilterChip({
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: isActive ? Colors.black : Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isActive ? Colors.white : Colors.black,
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
+          border: Border(
+            bottom: BorderSide(
+              color: isActive ? Colors.black : Colors.transparent,
+              width: 2,
             ),
           ),
+        ),
+        child: Icon(
+          icon,
+          size: 26,
+          color: isActive ? Colors.black : Colors.grey[600],
         ),
       ),
     );

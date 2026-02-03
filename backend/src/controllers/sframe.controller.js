@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Follow from "../models/Follow.model.js";
 import Notification from "../models/Notification.model.js";
 import SFrame from "../models/SFrame.model.js";
@@ -46,15 +47,14 @@ export const createSFrame = async (req, res) => {
 /**
  * GET ACTIVE S-FRAMES (SELF + PEOPLE I FOLLOW) — Instagram-style
  * GET /api/sframes
- * Returns stories from the current user and from users they follow, so:
- * - When I share a story, I see it (my stories).
- * - Other users who follow me see my story in their feed.
+ * Returns stories from the current user and from users they follow (accepted only).
+ * So: when someone follows you, they see YOUR stories in their feed (because they follow you).
  */
 export const getSFrames = async (req, res) => {
   try {
     const now = new Date();
 
-    // People I follow (Follow model uses follower / following)
+    // People I follow (accepted): follower = me, following = them
     const followingDocs = await Follow.find({
       follower: req.user._id,
       status: "accepted",
@@ -62,8 +62,17 @@ export const getSFrames = async (req, res) => {
       .select("following")
       .lean();
 
-    const followingIds = followingDocs.map((f) => f.following);
-    const allowedUserIds = [req.user._id, ...followingIds]; // self + people I follow
+    const followingIds = followingDocs.map((f) => f.following).filter(Boolean);
+    // Normalize to ObjectIds so the query always matches
+    const selfId = mongoose.Types.ObjectId.isValid(req.user._id)
+      ? new mongoose.Types.ObjectId(req.user._id)
+      : req.user._id;
+    const allowedUserIds = [
+      selfId,
+      ...followingIds.map((id) =>
+        mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id
+      ),
+    ].filter(Boolean);
 
     const frames = await SFrame.find({
       uid: { $in: allowedUserIds },

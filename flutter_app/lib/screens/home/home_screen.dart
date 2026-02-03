@@ -189,7 +189,10 @@ class _HomeScreenState extends State<HomeScreen> {
         onOpenMessages: () => context.push('/messages'),
       ),
       body: RefreshIndicator(
-        onRefresh: _loadFeed,
+        onRefresh: () async {
+          await _loadFeed();
+          if (mounted) setState(() => _sframeRefresh++);
+        },
         color: Colors.black,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),

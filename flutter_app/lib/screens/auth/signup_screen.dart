@@ -19,6 +19,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _agreeToTerms = false;
 
   @override
   void dispose() {
@@ -31,6 +32,15 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _handleSignup() async {
+    if (!_agreeToTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please agree to the Terms and Conditions to continue.'),
+          backgroundColor: Colors.black,
+        ),
+      );
+      return;
+    }
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -79,7 +89,7 @@ class _SignupScreenState extends State<SignupScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.grey[800]),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.go('/login'),
         ),
       ),
       body: Container(
@@ -226,6 +236,55 @@ class _SignupScreenState extends State<SignupScreen> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: 24),
+                // Terms and Conditions checkbox
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Checkbox(
+                        value: _agreeToTerms,
+                        onChanged: (value) => setState(() => _agreeToTerms = value ?? false),
+                        activeColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _agreeToTerms = !_agreeToTerms),
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: RichText(
+                            text: TextSpan(
+                              style: TextStyle(
+                                color: Colors.grey[800],
+                                fontSize: 14,
+                                height: 1.4,
+                              ),
+                              children: [
+                                const TextSpan(text: 'I agree to the '),
+                                TextSpan(
+                                  text: 'Terms and Conditions',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                                const TextSpan(text: ' of SARAN'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 32),
                 // Sign Up Button
