@@ -130,9 +130,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        final msg = e.toString().replaceFirst('Exception: ', '');
+        String msg = 'Could not load posts.';
+        if (e.toString().contains('404')) {
+          msg = 'Profile posts unavailable. Pull to refresh or log out and back in.';
+        } else if (e.toString().contains('500')) {
+          msg = 'Server error. Please try again later.';
+        } else {
+          final raw = e.toString().replaceFirst('Exception: ', '');
+          if (!raw.contains('DioException') && raw.length < 80) msg = raw;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not load posts: $msg')),
+          SnackBar(content: Text(msg)),
         );
       }
     }

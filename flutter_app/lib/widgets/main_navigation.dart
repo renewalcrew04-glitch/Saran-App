@@ -37,11 +37,11 @@ class _MainNavigationState extends State<MainNavigation> {
 
       bottomNavigationBar: SafeArea(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          decoration: const BoxDecoration(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          decoration: BoxDecoration(
             color: Colors.white,
             border: Border(
-              top: BorderSide(color: Color(0xFFEAEAEA), width: 1),
+              top: BorderSide(color: Colors.grey.shade200, width: 1),
             ),
           ),
           child: Row(
@@ -59,13 +59,13 @@ class _MainNavigationState extends State<MainNavigation> {
                 isActive: _index == 1,
                 onTap: () => _onTabTap(1),
               ),
-              // SOS CENTER BUTTON
+              // SOS center button – red
               GestureDetector(
                 onTap: () => _onTabTap(2),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent,
+                    color: Colors.red,
                     borderRadius: BorderRadius.circular(22),
                   ),
                   child: const Text(
@@ -77,7 +77,6 @@ class _MainNavigationState extends State<MainNavigation> {
                   ),
                 ),
               ),
-
               _navItem(
                 icon: Icons.calendar_month_outlined,
                 label: "Spaces",
@@ -108,17 +107,21 @@ class _MainNavigationState extends State<MainNavigation> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: isActive ? Colors.black : Colors.black38,
+          Container(
+            padding: const EdgeInsets.all(6),
+            child: Icon(
+              icon,
+              size: 22,
+              color: isActive ? Colors.black : Colors.black54,
+            ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: isActive ? Colors.black : Colors.black38,
+              color: isActive ? Colors.black : Colors.black54,
             ),
           ),
         ],

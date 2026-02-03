@@ -274,12 +274,14 @@ export const getFollowers = async (req, res, next) => {
   try {
     const { uid } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = Math.min(parseInt(req.query.limit) || 100, 200);
     const skip = (page - 1) * limit;
 
-    // Find user
-    const user = await User.findOne({ uid });
-
+    // Find user by uid, or by _id if uid looks like a MongoDB ObjectId (so all users are findable)
+    let user = await User.findOne({ uid });
+    if (!user && mongoose.Types.ObjectId.isValid(uid)) {
+      user = await User.findById(uid);
+    }
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -297,10 +299,12 @@ export const getFollowers = async (req, res, next) => {
       .skip(skip)
       .limit(limit);
 
-    const followers = follows.map(follow => ({
-      ...follow.follower.toObject(),
-      followedAt: follow.createdAt
-    }));
+    const followers = follows
+      .filter((f) => f.follower)
+      .map((follow) => ({
+        ...follow.follower.toObject(),
+        followedAt: follow.createdAt
+      }));
 
     // Get total count
     const total = await Follow.countDocuments({
@@ -330,12 +334,14 @@ export const getFollowing = async (req, res, next) => {
   try {
     const { uid } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = Math.min(parseInt(req.query.limit) || 100, 200);
     const skip = (page - 1) * limit;
 
-    // Find user
-    const user = await User.findOne({ uid });
-
+    // Find user by uid, or by _id if uid looks like a MongoDB ObjectId
+    let user = await User.findOne({ uid });
+    if (!user && mongoose.Types.ObjectId.isValid(uid)) {
+      user = await User.findById(uid);
+    }
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -353,10 +359,12 @@ export const getFollowing = async (req, res, next) => {
       .skip(skip)
       .limit(limit);
 
-    const following = follows.map(follow => ({
-      ...follow.following.toObject(),
-      followedAt: follow.createdAt
-    }));
+    const following = follows
+      .filter((f) => f.following)
+      .map((follow) => ({
+        ...follow.following.toObject(),
+        followedAt: follow.createdAt
+      }));
 
     // Get total count
     const total = await Follow.countDocuments({

@@ -1,15 +1,14 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
+# Dependencies
 node_modules/
 
-# Expo
+# Expo / Metro
 .expo/
 dist/
 web-build/
 expo-env.d.ts
+.metro-health-check*
 
-# Native
+# Native / keys
 .kotlin/
 *.orig.*
 *.jks
@@ -17,40 +16,33 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+*.pem
 
-# Metro
-.metro-health-check*
-
-# debug
+# Debug
 npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
+# Env / secrets
 .env
+.env*.local
+.jwt_secret.txt
 
-# typescript
+# TypeScript
 *.tsbuildinfo
 
-app-example
-
-# generated native folders
+# Generated native (Expo)
 /ios
 /android
 
-# Backend specific
+# Backend
 backend/.env
 backend/node_modules/
 backend/logs/
 backend/*.log
 backend/.aws/
 
-# Flutter specific
+# Flutter
 flutter_app/.dart_tool/
 flutter_app/.flutter-plugins
 flutter_app/.flutter-plugins-dependencies
@@ -70,3 +62,8 @@ flutter_app/*.lock
 .idea/
 *.swp
 *.swo
+
+# Old backups (not needed for store deploy)
+backup_20260119_234409/
+__MACOSX/
+.*.swp

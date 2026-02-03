@@ -7,7 +7,7 @@ import '../../../config/api_config.dart';
 import '../../../core/utils/auth_headers.dart';
 
 class SFrameApi {
-  static String base = '${ApiConfig.baseUrl}/sframes';
+  static String get base => ApiConfig.getUrl(ApiConfig.sframes);
 
   static Future<List<dynamic>> getActiveFrames() async {
     final res = await http.get(
@@ -17,9 +17,8 @@ class SFrameApi {
     return jsonDecode(res.body);
   }
 
-  static Future<String> uploadMedia(File file) async {
-    // ✅ FIXED: Using the correct ApiConfig path
-    final uri = Uri.parse('${ApiConfig.baseUrl}/sframes/upload');
+  static Future<String?> uploadMedia(File file) async {
+    final uri = Uri.parse(ApiConfig.getUrl('${ApiConfig.sframes}/upload'));
 
     final request = http.MultipartRequest('POST', uri);
     request.headers.addAll(await authHeaders());
@@ -29,9 +28,13 @@ class SFrameApi {
 
     final response = await request.send();
     final body = await response.stream.bytesToString();
-    final data = jsonDecode(body);
-
-    return data['url'];
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('Upload failed: ${response.statusCode}');
+    }
+    final data = jsonDecode(body) as Map<String, dynamic>?;
+    if (data == null) return null;
+    final url = data['url'] ?? data['fileUrl'] ?? data['path'];
+    return url is String ? url : null;
   }
 
   static Future<void> viewFrame(String frameId) async {

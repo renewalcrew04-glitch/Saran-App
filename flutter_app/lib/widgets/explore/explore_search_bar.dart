@@ -20,9 +20,8 @@ class ExploreSearchBar extends StatelessWidget {
       height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black, width: 1.2),
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [

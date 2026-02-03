@@ -4,9 +4,9 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../models/post_model.dart';
 import '../../services/post_service.dart';
-import '../../services/upload_service.dart'; // ✅ Added Upload Service
-import '../../utils/category_gradients.dart';
+import '../../services/upload_service.dart';
 import '../../widgets/category_multi_select_sheet.dart';
+import '../../widgets/quote_post_embed.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -137,7 +137,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -145,96 +144,125 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           icon: const Icon(Icons.close, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: null,
-        centerTitle: true,
+        title: const SizedBox.shrink(),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: _publishing
-                ? const SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : TextButton(
-                    onPressed: _canPublish ? _publish : null,
-                    child: Text(
-                      "Post",
-                      style: TextStyle(
-                        color: _canPublish ? Colors.black : Colors.grey,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: ElevatedButton(
+                onPressed: _canPublish && !_publishing ? _publish : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade300,
+                  disabledForegroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
+                ),
+                child: _publishing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text(
+                        "Post",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+              ),
+            ),
           ),
         ],
       ),
-
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_quotedPost != null) _quotePreview(),
-
-            if (_quotedPost == null) _categorySelector(),
-
-            _input(_textController, "What's happening?", max: 6),
-            const SizedBox(height: 14),
-            _input(_hashtagsController, "# Add tags #wellness #health"),
-            const SizedBox(height: 14),
-
-            if (_pickedMediaPath != null) _mediaPreview(),
-
-            Row(
-              children: [
-                _mediaBtn(Icons.image_outlined, "Image", _pickImage),
-                const SizedBox(width: 12),
-                _mediaBtn(Icons.videocam_outlined, "Video", _pickVideo),
-              ],
+            const SizedBox(height: 10),
+            TextField(
+              controller: _textController,
+              maxLines: null,
+              autofocus: true,
+              style: const TextStyle(fontSize: 18, color: Colors.black87, height: 1.4),
+              decoration: InputDecoration(
+                hintText: _quotedPost != null ? "Add a comment..." : "What's happening?",
+                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 18),
+                border: InputBorder.none,
+              ),
+              onChanged: (_) => setState(() {}),
             ),
+            const SizedBox(height: 20),
+            if (_quotedPost != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: QuotePostEmbed(originalPost: _quotedPost!, onTap: () {}),
+              ),
+            if (_pickedMediaPath != null) _mediaPreview(),
+            if (_pickedMediaPath != null) const SizedBox(height: 20),
+            const Divider(color: Color(0xFFEEEEEE)),
+            if (_quotedPost == null) ...[
+              const SizedBox(height: 10),
+              TextField(
+                controller: _hashtagsController,
+                style: const TextStyle(fontSize: 14, color: Colors.blueGrey),
+                decoration: const InputDecoration(
+                  hintText: "Add tags #wellness #health",
+                  hintStyle: TextStyle(fontSize: 14, color: Colors.grey),
+                  border: InputBorder.none,
+                  prefixIcon: Icon(Icons.tag, size: 18, color: Colors.grey),
+                  prefixIconConstraints: BoxConstraints(minWidth: 24),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 10),
+              _categorySelector(),
+            ],
           ],
         ),
       ),
-
-      // Post action is in app bar (matches design: X left, Post right)
+      bottomNavigationBar: _buildBottomToolbar(),
     );
   }
 
-  // =========================
-  // WIDGETS
-  // =========================
-
-  Widget _quotePreview() => Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.black12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Quote post",
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.w700,
-              ),
+  Widget _buildBottomToolbar() {
+    return Container(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 10,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 10,
+      ),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Color(0xFFF5F5F5))),
+        color: Colors.white,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: _pickImage,
+            icon: const Icon(Icons.image_outlined, color: Colors.blueAccent),
+          ),
+          IconButton(
+            onPressed: _pickVideo,
+            icon: const Icon(Icons.videocam_outlined, color: Colors.blueAccent),
+          ),
+          const Spacer(),
+          Text(
+            _visibility == 'public' ? 'Everyone can reply' : 'Restricted',
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 6),
-            Text(
-              _quotedPost!.text,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.black87),
-            ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _categorySelector() => GestureDetector(
         onTap: () {
@@ -255,105 +283,65 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           );
         },
         child: Container(
-          margin: const EdgeInsets.only(bottom: 14),
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            gradient: _selectedCategories.isNotEmpty
-                ? CategoryGradients.forCategories(_selectedCategories)
-                : null,
-            color: _selectedCategories.isEmpty
-                ? Colors.grey.shade100
-                : null,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.black12),
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.category, color: Colors.black),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  _selectedCategories.isEmpty
-                      ? "Select Topic"
-                      : _selectedCategories.join(", "),
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+              Text(
+                _selectedCategories.isEmpty
+                    ? "Select Topic"
+                    : _selectedCategories.first,
+                style: TextStyle(
+                  color: Colors.blue.shade700,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
                 ),
               ),
-              const Icon(Icons.keyboard_arrow_down, color: Colors.black),
+              const SizedBox(width: 4),
+              Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.blue.shade700),
             ],
           ),
         ),
       );
 
-  Widget _mediaPreview() => Column(
+  Widget _mediaPreview() => Stack(
         children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: _isVideo
-                    ? Container(
-                        height: 220,
-                        color: Colors.grey.shade200,
-                        alignment: Alignment.center,
-                        child: const Text("Video selected"),
-                      )
-                    : Image.file(
-                        File(_pickedMediaPath!),
-                        height: 220,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-              ),
-              Positioned(
-                right: 10,
-                top: 10,
-                child: IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: _removeMedia,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: _isVideo
+                ? Container(
+                    height: 200,
+                    width: double.infinity,
+                    color: Colors.black12,
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.play_circle_fill, size: 50, color: Colors.white),
+                  )
+                : Image.file(
+                    File(_pickedMediaPath!),
+                    width: double.infinity,
+                    height: 250,
+                    fit: BoxFit.cover,
+                  ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: GestureDetector(
+              onTap: _removeMedia,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
                 ),
+                child: const Icon(Icons.close, color: Colors.white, size: 18),
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: 14),
         ],
-      );
-
-  Widget _input(TextEditingController c, String hint, {int max = 1}) =>
-      Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.black12),
-        ),
-        child: TextField(
-          controller: c,
-          maxLines: max,
-          style: const TextStyle(color: Colors.black),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey.shade500),
-            border: InputBorder.none,
-          ),
-        ),
-      );
-
-  Widget _mediaBtn(IconData icon, String label, VoidCallback onTap) =>
-      Expanded(
-        child: OutlinedButton.icon(
-          onPressed: onTap,
-          icon: Icon(icon, color: Colors.black),
-          label: Text(label, style: const TextStyle(color: Colors.black)),
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Colors.black12),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          ),
-        ),
       );
 }

@@ -44,20 +44,26 @@ export const createSFrame = async (req, res) => {
 };
 
 /**
- * GET ACTIVE S-FRAMES (FOLLOWING + SELF)
+ * GET ACTIVE S-FRAMES (SELF + PEOPLE I FOLLOW) — Instagram-style
  * GET /api/sframes
+ * Returns stories from the current user and from users they follow, so:
+ * - When I share a story, I see it (my stories).
+ * - Other users who follow me see my story in their feed.
  */
 export const getSFrames = async (req, res) => {
   try {
     const now = new Date();
 
-    // users I follow
-    const following = await Follow.find({
-      followerId: req.user._id,
-    }).select("followingId");
+    // People I follow (Follow model uses follower / following)
+    const followingDocs = await Follow.find({
+      follower: req.user._id,
+      status: "accepted",
+    })
+      .select("following")
+      .lean();
 
-    const allowedUserIds = following.map((f) => f.followingId);
-    allowedUserIds.push(req.user._id); // include self
+    const followingIds = followingDocs.map((f) => f.following);
+    const allowedUserIds = [req.user._id, ...followingIds]; // self + people I follow
 
     const frames = await SFrame.find({
       uid: { $in: allowedUserIds },

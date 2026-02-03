@@ -51,4 +51,32 @@ class ProfileService {
 
     return [];
   }
+
+  /// Follow a user by their uid (or id).
+  Future<bool> followUser(String userId) async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await _dio.post(
+        '${ApiConfig.users}/$userId/follow',
+        options: Options(headers: headers),
+      );
+      return response.data['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Unfollow a user by their uid (or id).
+  Future<bool> unfollowUser(String userId) async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await _dio.delete(
+        '${ApiConfig.users}/$userId/follow',
+        options: Options(headers: headers),
+      );
+      return response.data['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
 }

@@ -31,20 +31,37 @@ class _SFrameCreateScreenState extends State<SFrameCreateScreen> {
 
     setState(() => _loading = true);
 
-    String? mediaUrl;
+    try {
+      String? mediaUrl;
+      if (_media != null) {
+        mediaUrl = await SFrameApi.uploadMedia(_media!);
+        if (mediaUrl == null && _media != null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Upload failed: no URL returned')),
+            );
+          }
+          return;
+        }
+      }
 
-    if (_media != null) {
-      mediaUrl = await SFrameApi.uploadMedia(_media!);
+      await SFrameApi.createFrame({
+        "mediaType": _media != null ? "photo" : "text",
+        "mediaUrl": mediaUrl,
+        "textContent": _text.text.trim(),
+        "durationHours": 24,
+      });
+
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: ${e.toString().replaceFirst('Exception: ', '')}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-
-    await SFrameApi.createFrame({
-      "mediaType": _media != null ? "photo" : "text",
-      "mediaUrl": mediaUrl,
-      "textContent": _text.text.trim(),
-      "durationHours": 24,
-    });
-
-    if (mounted) Navigator.pop(context);
   }
 
   @override
