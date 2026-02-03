@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../models/space_event_model.dart';
 import 'package:intl/intl.dart';
 
@@ -13,12 +14,7 @@ class SpaceEventCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        // Safe navigation passing the event object
-        Navigator.pushNamed(
-          context,
-          '/space/details',
-          arguments: event,
-        );
+        context.push('/space/details', extra: event);
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),

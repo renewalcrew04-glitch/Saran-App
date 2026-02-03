@@ -165,12 +165,12 @@ export const getBookedEvents = async (req, res) => {
   try {
     const uid = req.user._id;
     // Find bookings for ME, populate the Event details
-    const bookings = await EventBooking.find({ uid }).populate("eventId");
+    const bookings = await EventBooking.find({ uid }).populate("eventId").lean();
     
-    // Filter out any where event was deleted (null)
+    // Filter out any where event was deleted (null); add joinedByMe: true so UI shows "Already Joined"
     const events = bookings
       .filter(b => b.eventId != null)
-      .map((b) => b.eventId); // Extract just the event data
+      .map((b) => ({ ...(b.eventId?.toObject ? b.eventId.toObject() : b.eventId), joinedByMe: true }));
 
     res.json(events);
   } catch (error) {

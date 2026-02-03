@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../models/space_event_model.dart';
 import '../../features/space/space_provider_riverpod.dart';
@@ -124,7 +125,7 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen> with SingleTick
   }
 }
 
-// ✅ Custom Card Matching Your Screenshot
+// ✅ Custom Card – tap to see full event details
 class _MyEventCard extends StatelessWidget {
   final SpaceEvent event;
   final bool isHosted;
@@ -133,18 +134,21 @@ class _MyEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
-        ],
-      ),
-      child: Row(
+    return InkWell(
+      onTap: () => context.push('/space/details', extra: event),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+          ],
+        ),
+        child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Image
@@ -212,6 +216,7 @@ class _MyEventCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }
