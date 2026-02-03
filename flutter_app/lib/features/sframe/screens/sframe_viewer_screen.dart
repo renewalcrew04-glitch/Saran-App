@@ -5,11 +5,23 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import '../../../config/api_config.dart';
 import '../../../providers/auth_provider.dart';
 import '../models/sframe_model.dart';
 import '../services/sframe_service.dart';
 import '../utils/sframe_filters.dart';
 import '../widgets/sframe_seen_modal.dart';
+
+String _timeAgo(DateTime? date) {
+  if (date == null) return '';
+  final now = DateTime.now();
+  final diff = now.difference(date);
+  if (diff.inDays > 0) return '${diff.inDays}d';
+  if (diff.inHours > 0) return '${diff.inHours}h';
+  if (diff.inMinutes > 0) return '${diff.inMinutes}m';
+  if (diff.inSeconds > 0) return '${diff.inSeconds}s';
+  return 'now';
+}
 
 class SFrameViewerScreen extends StatefulWidget {
   final List<SFrame> frames;
@@ -208,42 +220,118 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
               ),
             ),
 
-            // ================= PROGRESS =================
-Positioned(
-  top: 40,
-  left: 16,
-  right: 16,
-  child: Row(
-    children: List.generate(
-      widget.frames.length,
-      (i) => Expanded(
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          height: 2,
-          color: i <= index ? Colors.white : Colors.white24,
-        ),
-      ),
-    ),
-  ),
-),
+            // ================= PROGRESS BARS (top) =================
+            Positioned(
+              top: 44,
+              left: 16,
+              right: 16,
+              child: Row(
+                children: List.generate(
+                  widget.frames.length,
+                  (i) => Expanded(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      height: 2,
+                      color: i <= index ? Colors.white : Colors.white24,
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
-            // ================= SEEN LIST =================
+            // ================= HEADER: Avatar + Name + Time =================
+            Positioned(
+              top: 56,
+              left: 16,
+              right: 80,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.white24,
+                    backgroundImage: frame.ownerAvatar != null &&
+                            frame.ownerAvatar!.isNotEmpty
+                        ? NetworkImage(
+                            ApiConfig.networkImageUrl(frame.ownerAvatar!) ?? frame.ownerAvatar!,
+                          )
+                        : null,
+                    child: frame.ownerAvatar == null || frame.ownerAvatar!.isEmpty
+                        ? const Icon(Icons.person, color: Colors.white70, size: 24)
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          frame.ownerName ?? 'Unknown',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (frame.createdAt != null)
+                          Text(
+                            _timeAgo(frame.createdAt),
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.8),
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ================= ECHOS (likes) + VIEWS =================
             Positioned(
               bottom: 90,
-              right: 20,
-              child: GestureDetector(
-                onTap: () async {
-                  final users =
-                      await SFrameService.getSeenUsers(
-                          frame.id);
-                  showSeenModal(context, users);
-                },
-                child: const Icon(
-                  Icons.remove_red_eye,
-                  color: Colors.white,
-                  size: 22,
-                ),
+              right: 16,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Echos (placeholder – backend can add later)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.favorite_border, color: Colors.white, size: 22),
+                        const SizedBox(width: 4),
+                        Text(
+                          '0',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // View count + eye
+                  GestureDetector(
+                    onTap: () async {
+                      final users = await SFrameService.getSeenUsers(frame.id);
+                      if (!context.mounted) return;
+                      showSeenModal(context, users);
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.remove_red_eye, color: Colors.white, size: 22),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${frame.viewCount}',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -366,7 +454,7 @@ class _VideoPlayerState extends State<_VideoPlayer> {
   @override
   void initState() {
     super.initState();
-    controller = VideoPlayerController.network(widget.url)
+    controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
       ..initialize().then((_) {
         widget.onDuration(controller.value.duration);
         setState(() {});

@@ -114,6 +114,7 @@ class _MindJournalScreenState extends State<MindJournalScreen> {
   Future<void> _deleteJournal(Map<String, dynamic> j) async {
     final id = j["_id"]?.toString();
     if (id == null || id.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -134,17 +135,18 @@ class _MindJournalScreenState extends State<MindJournalScreen> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !context.mounted) return;
     try {
       await MindJournalService.deleteJournal(id);
       if (!mounted) return;
       await _loadMyJournals();
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!mounted) return;
+      messenger.showSnackBar(
         const SnackBar(content: Text("Journal deleted")),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(content: Text("Failed to delete: ${e.toString().replaceFirst('Exception: ', '')}")),
       );
     }
@@ -153,6 +155,7 @@ class _MindJournalScreenState extends State<MindJournalScreen> {
   Future<void> _editJournal(Map<String, dynamic> j) async {
     final id = j["_id"]?.toString();
     if (id == null || id.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
     final presentCtrl = TextEditingController(text: (j["presentFeel"] ?? "").toString());
     final comparisonCtrl = TextEditingController(text: (j["stopComparison"] ?? "").toString());
     final selfCareCtrl = TextEditingController(text: (j["selfCare"] ?? "").toString());
@@ -247,9 +250,10 @@ class _MindJournalScreenState extends State<MindJournalScreen> {
     comparisonCtrl.dispose();
     selfCareCtrl.dispose();
 
-    if (updated == true && mounted) {
+    if (updated == true && context.mounted) {
       await _loadMyJournals();
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!mounted) return;
+      messenger.showSnackBar(
         const SnackBar(content: Text("Journal updated ✨")),
       );
     }
@@ -266,7 +270,7 @@ class _MindJournalScreenState extends State<MindJournalScreen> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 6),
           ),

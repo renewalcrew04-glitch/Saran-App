@@ -21,7 +21,7 @@ class QuotePostEmbed extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: Colors.black.withOpacity(0.45),
+          color: Colors.black.withValues(alpha: 0.45),
           border: Border.all(color: Colors.white12),
         ),
         child: Column(

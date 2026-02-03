@@ -103,7 +103,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
               await _load();
             }
           } catch (e) {
-            if (!mounted) return;
+            if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
             );

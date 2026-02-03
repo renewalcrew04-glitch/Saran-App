@@ -141,7 +141,7 @@ class _SpaceScreenState extends ConsumerState<SpaceScreen> {
           color: Colors.black,
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))
+            BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4))
           ],
         ),
         child: InkWell(

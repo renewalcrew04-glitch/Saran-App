@@ -83,7 +83,7 @@ class _VoiceWaveformWidgetState extends State<VoiceWaveformWidget> {
   @override
   Widget build(BuildContext context) {
     final iconColor = widget.isOwn ? Colors.white : Colors.black;
-    final baseWave = widget.isOwn ? Colors.white.withOpacity(0.3) : Colors.black.withOpacity(0.15);
+    final baseWave = widget.isOwn ? Colors.white.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.15);
     final progressWave = widget.isOwn ? Colors.white : Colors.black;
 
     return GestureDetector(

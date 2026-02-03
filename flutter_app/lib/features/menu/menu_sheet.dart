@@ -34,7 +34,7 @@ class MenuSheet extends StatelessWidget {
               width: 46,
               height: 5,
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.15),
+                color: Colors.black.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(99),
               ),
             ),

@@ -45,6 +45,11 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    coverImage: {
+      type: String,
+      default: null,
+    },
+
     bio: {
       type: String,
       maxlength: 500,

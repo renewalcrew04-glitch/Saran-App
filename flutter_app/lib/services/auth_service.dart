@@ -61,7 +61,7 @@ class AuthService {
         data: {'email': email, 'password': password},
       );
 
-      return Map<String, dynamic>.from(response.data);
+      return Map<String, dynamic>.from(response.data as Map);
     } catch (e) {
       if (e is DioException) {
         String errorMessage = 'Login failed';
@@ -70,11 +70,16 @@ class AuthService {
           final data = e.response!.data;
           if (data is Map) {
             errorMessage = (data['message'] ?? data['error'] ?? 'Login failed').toString();
+          } else if (data != null) {
+            errorMessage = data.toString();
+          }
+          if (e.response!.statusCode == 401) {
+            errorMessage = (data is Map ? (data['message'] ?? data['error']) : null)?.toString() ?? 'Invalid email or password.';
           }
         } else if (e.type == DioExceptionType.connectionTimeout) {
           errorMessage = 'Connection timeout. Check if the server is running.';
         } else if (e.type == DioExceptionType.connectionError) {
-          errorMessage = 'Cannot connect to server. Check your internet or server at ${ApiConfig.baseUrl}';
+          errorMessage = 'Cannot connect to server. Check internet or try again later.';
         } else if (e.type == DioExceptionType.receiveTimeout) {
           errorMessage = 'Server response timeout. Please try again.';
         }

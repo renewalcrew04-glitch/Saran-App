@@ -8,7 +8,7 @@ class ProfileUpdateService {
       baseUrl: ApiConfig.baseUrl,
       connectTimeout: ApiConfig.connectTimeout,
       receiveTimeout: ApiConfig.receiveTimeout,
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type': 'application/json', ...ApiConfig.jsonHeaders()},
     ),
   );
 
@@ -17,26 +17,46 @@ class ProfileUpdateService {
     return prefs.getString('token');
   }
 
-  Future<Map<String, dynamic>> _getAuthHeaders() async {
+  Future<Map<String, String>> _getAuthHeaders() async {
     final token = await _getToken();
-    return {'Authorization': 'Bearer $token'};
+    if (token == null || token.isEmpty) {
+      throw Exception('Not logged in');
+    }
+    return {
+      'Authorization': 'Bearer $token',
+      ...ApiConfig.jsonHeaders(),
+    };
   }
 
-  Future<void> updateAvatar(String avatarUrl) async {
+  /// Update current user's avatar. Use [currentUserUid] if your backend only has PUT /users/:uid.
+  /// Returns the API response (with [user] if backend returns it) so the UI can update immediately.
+  Future<Map<String, dynamic>?> updateAvatar(String avatarUrl, {String? currentUserUid}) async {
     final headers = await _getAuthHeaders();
-    await _dio.put(
-      '${ApiConfig.users}/me',
+    final path = currentUserUid != null && currentUserUid.isNotEmpty
+        ? '${ApiConfig.users}/$currentUserUid'
+        : '${ApiConfig.users}/me';
+    final url = ApiConfig.getUrl(path);
+    final response = await _dio.put<Map<String, dynamic>>(
+      url,
       data: {'avatar': avatarUrl},
       options: Options(headers: headers),
     );
+    return response.data;
   }
 
-  Future<void> updateCover(String coverUrl) async {
+  /// Update current user's cover. Use [currentUserUid] if your backend only has PUT /users/:uid.
+  /// Returns the API response (with [user] if backend returns it) so the UI can update immediately.
+  Future<Map<String, dynamic>?> updateCover(String coverUrl, {String? currentUserUid}) async {
     final headers = await _getAuthHeaders();
-    await _dio.put(
-      '${ApiConfig.users}/me',
+    final path = currentUserUid != null && currentUserUid.isNotEmpty
+        ? '${ApiConfig.users}/$currentUserUid'
+        : '${ApiConfig.users}/me';
+    final url = ApiConfig.getUrl(path);
+    final response = await _dio.put<Map<String, dynamic>>(
+      url,
       data: {'coverImage': coverUrl},
       options: Options(headers: headers),
     );
+    return response.data;
   }
 }

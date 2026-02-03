@@ -58,7 +58,7 @@ class SFrameService {
   static Future<void> deleteFrame(String frameId) async {
     final id = frameId.trim();
     if (id.isEmpty) throw Exception('Invalid story id');
-    final path = _base.endsWith('/') ? '${_base}$id' : '$_base/$id';
+    final path = _base.endsWith('/') ? '$_base$id' : '$_base/$id';
     final res = await http.delete(
       Uri.parse(path),
       headers: await authHeaders(),

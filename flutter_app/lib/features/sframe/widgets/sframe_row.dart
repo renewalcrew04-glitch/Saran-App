@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../../../config/api_config.dart';
+import '../../../providers/auth_provider.dart';
 import '../services/sframe_service.dart';
 import '../models/sframe_model.dart';
 
@@ -64,14 +67,78 @@ class SFrameRow extends StatelessWidget {
     );
   }
 
+  /// Order so current user's story is first (right after create), then others.
+  static List<SFrame> _orderWithMeFirst(List<SFrame> onePerUser, String? myUid) {
+    if (myUid == null || myUid.isEmpty) return onePerUser;
+    final mine = onePerUser.where((f) => f.uid == myUid).toList();
+    final others = onePerUser.where((f) => f.uid != myUid).toList();
+    return [...mine, ...others];
+  }
+
+  Widget _buildStoryBubble(
+    BuildContext context, {
+    required SFrame f,
+    required List<SFrame> userFrames,
+    required String? currentUid,
+    required String? avatarUrl,
+    required bool darkTheme,
+  }) {
+    final isMe = currentUid != null && f.uid == currentUid;
+    final viewIds = f.views.map((v) => v.toString()).toList();
+    final seen = currentUid != null && viewIds.contains(currentUid);
+    final borderColor = darkTheme
+        ? (seen ? Colors.grey.shade600 : Colors.white)
+        : (seen ? Colors.grey : Colors.black);
+    final iconColor = darkTheme ? Colors.white70 : Colors.black54;
+
+    return GestureDetector(
+      onTap: () async {
+        final result = await context.push<bool>(
+          '/sframe-viewer',
+          extra: {
+            'frames': userFrames,
+            'startIndex': 0,
+          },
+        );
+        if (result == true) onStoryCreated?.call();
+      },
+      child: Container(
+        width: 90,
+        height: 94,
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor, width: 2),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: isMe && avatarUrl != null && avatarUrl.isNotEmpty
+              ? Image.network(
+                  ApiConfig.networkImageUrl(avatarUrl) ?? avatarUrl,
+                  fit: BoxFit.cover,
+                  width: 90,
+                  height: 94,
+                  errorBuilder: (_, __, ___) => Center(
+                    child: Icon(Icons.person, color: iconColor, size: 36),
+                  ),
+                )
+              : Center(
+                  child: Icon(Icons.person, color: iconColor, size: 36),
+                ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final uid = "me"; // TEMP placeholder
+    final auth = context.watch<AuthProvider>();
+    final currentUid = auth.user?.uid;
+    final avatarUrl = auth.user?.avatar;
 
     return FutureBuilder<List<SFrame>>(
       future: SFrameService.loadFrames(),
       builder: (context, snapshot) {
-        // Full list from API; one-per-user list for row bubbles (latest per user).
         List<SFrame> allFrames = [];
         List<SFrame> onePerUser = [];
         if (!snapshot.hasError && snapshot.hasData) {
@@ -81,7 +148,7 @@ class SFrameRow extends StatelessWidget {
           for (final f in frames) {
             if (!map.containsKey(f.uid)) map[f.uid] = f;
           }
-          onePerUser = map.values.toList();
+          onePerUser = _orderWithMeFirst(map.values.toList(), currentUid);
         }
 
         final isLoading = snapshot.connectionState == ConnectionState.waiting;
@@ -111,41 +178,19 @@ class SFrameRow extends StatelessWidget {
                   ),
                 )
               else
-                ...onePerUser.asMap().entries.map((entry) {
-                  final f = entry.value;
-                  final seen = f.views.contains(uid);
-                  final borderColor = darkTheme
-                      ? (seen ? Colors.grey.shade600 : Colors.white)
-                      : (seen ? Colors.grey : Colors.black);
+                ...onePerUser.map((f) {
                   final userFrames = allFrames
                       .where((x) => x.uid == f.uid)
                       .toList()
                       .reversed
                       .toList();
-                  return GestureDetector(
-                    onTap: () async {
-                      final result = await context.push<bool>(
-                        '/sframe-viewer',
-                        extra: {
-                          'frames': userFrames,
-                          'startIndex': 0,
-                        },
-                      );
-                      if (result == true) onStoryCreated?.call();
-                    },
-                    child: Container(
-                      width: 90,
-                      height: 94,
-                      margin: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: borderColor,
-                          width: 2,
-                        ),
-                      ),
-                      child: Icon(Icons.person, color: darkTheme ? Colors.white70 : Colors.black54),
-                    ),
+                  return _buildStoryBubble(
+                    context,
+                    f: f,
+                    userFrames: userFrames,
+                    currentUid: currentUid,
+                    avatarUrl: isMe(f.uid, currentUid) ? avatarUrl : null,
+                    darkTheme: darkTheme,
                   );
                 }),
             ],
@@ -153,6 +198,10 @@ class SFrameRow extends StatelessWidget {
         );
       },
     );
+  }
+
+  static bool isMe(String? frameUid, String? currentUid) {
+    return currentUid != null && frameUid == currentUid;
   }
 }
 

@@ -12,6 +12,8 @@ class SpaceEventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateStr = DateFormat('MMM d, h:mm a').format(event.date);
 
+    final isJoined = event.isJoined;
+
     return GestureDetector(
       onTap: () {
         context.push('/space/details', extra: event);
@@ -23,12 +25,15 @@ class SpaceEventCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
           ],
-          border: Border.all(color: Colors.grey.shade100),
+          border: Border.all(
+            color: isJoined ? Colors.black.withValues(alpha: 0.2) : Colors.grey.shade100,
+            width: isJoined ? 1.5 : 1,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,14 +59,36 @@ class SpaceEventCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        event.category.toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.blueAccent,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            event.category.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.blueAccent,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          if (isJoined) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const Text(
+                                "Joined",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       Text(
                         dateStr,
@@ -111,11 +138,19 @@ class SpaceEventCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.people_outline, size: 16, color: Colors.grey.shade600),
+                          Icon(
+                            isJoined ? Icons.check_circle : Icons.people_outline,
+                            size: 16,
+                            color: isJoined ? Colors.black : Colors.grey.shade600,
+                          ),
                           const SizedBox(width: 4),
                           Text(
-                            '${event.joined} joined',
-                            style: TextStyle(color: Colors.grey.shade700, fontSize: 12, fontWeight: FontWeight.w600),
+                            isJoined ? 'You joined • ${event.joined} going' : '${event.joined} joined',
+                            style: TextStyle(
+                              color: isJoined ? Colors.black87 : Colors.grey.shade700,
+                              fontSize: 12,
+                              fontWeight: isJoined ? FontWeight.w700 : FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),

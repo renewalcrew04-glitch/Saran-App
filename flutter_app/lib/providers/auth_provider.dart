@@ -17,6 +17,16 @@ class AuthProvider extends ChangeNotifier {
 
   bool get isLoggedIn => _token != null && _token!.isNotEmpty;
 
+  /// Update in-memory user from a profile API response (e.g. after avatar/cover update).
+  /// Use this so the UI updates immediately without waiting for loadUser().
+  void updateUserFromMap(Map<String, dynamic>? userMap) {
+    if (userMap == null) return;
+    try {
+      _user = User.fromJson(userMap);
+      notifyListeners();
+    } catch (_) {}
+  }
+
   // =========================
   // LOAD USER (MANUAL)
   // =========================

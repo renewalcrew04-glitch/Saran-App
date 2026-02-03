@@ -30,20 +30,21 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
     final token = auth.token;
     if (token == null) return;
 
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
     final convoId = await context.read<DmProvider>().openDm(
           token: token,
           otherUid: user.uid,
         );
 
     if (convoId == null || convoId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text("Failed to open chat")),
       );
       return;
     }
-
-    Navigator.pushReplacement(
-      context,
+    navigator.pushReplacement(
       MaterialPageRoute(
         builder: (_) => ChatScreen(
           conversationId: convoId,

@@ -45,61 +45,62 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _typingDebounce;
   bool _typingSentTrue = false;
 
+  // Cached for dispose() – must not use context in dispose
+  ChatProvider? _chatProvider;
+  String? _cachedToken;
+
   @override
-void initState() {
-  super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _chatProvider ??= context.read<ChatProvider>();
+    _cachedToken ??= context.read<AuthProvider>().token;
+  }
 
-  Future.microtask(() async {
-    final auth = context.read<AuthProvider>();
-    final token = auth.token;
-    if (token == null) return;
+  @override
+  void initState() {
+    super.initState();
 
-    // open + start polling messages
-    await context.read<ChatProvider>().openConversation(
-          token: token,
-          conversationId: widget.conversationId,
-        );
+    Future.microtask(() async {
+      if (!mounted) return;
+      final auth = context.read<AuthProvider>();
+      final token = auth.token;
+      if (token == null) return;
+      final chatProvider = context.read<ChatProvider>();
+      final messageProvider = context.read<MessageProvider>();
 
-    // ✅ mark read (reset unreadCount in backend)
-    await context.read<ChatProvider>().markRead(
-          token: token,
-          conversationId: widget.conversationId,
-        );
+      await chatProvider.openConversation(
+            token: token,
+            conversationId: widget.conversationId,
+          );
+      if (!mounted) return;
 
-    // ✅ refresh conversation list so badge disappears immediately
-    await context.read<MessageProvider>().loadConversations(token: token);
-  });
-}
+      await chatProvider.markRead(
+            token: token,
+            conversationId: widget.conversationId,
+          );
+      if (!mounted) return;
+
+      await messageProvider.loadConversations(token: token);
+    });
+  }
 
   @override
   void dispose() {
     _typingDebounce?.cancel();
     _controller.dispose();
 
-    // stop polling
-    context.read<ChatProvider>().disposePolling();
-
-    // clear typing when leaving
-    _clearTypingOnExit();
+    // Stop polling and clear typing using cached refs only (no context in dispose)
+    if (_chatProvider != null && _cachedToken != null && _cachedToken!.isNotEmpty) {
+      _chatProvider!.disposePolling();
+      _chatProvider!.setTyping(
+        token: _cachedToken!,
+        conversationId: widget.conversationId,
+        value: false,
+      );
+    }
 
     _voiceRecorder.dispose();
     super.dispose();
-  }
-
-  Future<void> _clearTypingOnExit() async {
-    try {
-      final auth = context.read<AuthProvider>();
-      final token = auth.token;
-      if (token == null) return;
-
-      await context.read<ChatProvider>().setTyping(
-            token: token,
-            conversationId: widget.conversationId,
-            value: false,
-          );
-    } catch (_) {
-      // Typing update failed; non-critical
-    }
   }
 
   // ✅ typing handler
@@ -131,6 +132,7 @@ void initState() {
   }
 
   // debounce typing:false after user stops
+  final chatProvider = context.read<ChatProvider>();
   _typingDebounce?.cancel();
   _typingDebounce = Timer(const Duration(milliseconds: 800), () async {
     if (!mounted) return;
@@ -138,7 +140,7 @@ void initState() {
     final current = _controller.text.trim().isNotEmpty;
     if (!current) {
       _typingSentTrue = false;
-      await context.read<ChatProvider>().setTyping(
+      await chatProvider.setTyping(
             token: token,
             conversationId: widget.conversationId,
             value: false,
@@ -151,6 +153,7 @@ void initState() {
     final auth = context.read<AuthProvider>();
     final token = auth.token;
     if (token == null) return;
+    final chatProvider = context.read<ChatProvider>();
 
     final text = _controller.text.trim();
     if (text.isEmpty) return;
@@ -168,13 +171,13 @@ void initState() {
 
       // ✅ stop typing after send
       _typingSentTrue = false;
-      await context.read<ChatProvider>().setTyping(
+      await chatProvider.setTyping(
             token: token,
             conversationId: widget.conversationId,
             value: false,
           );
     } finally {
-      setState(() => _sending = false);
+      if (mounted) setState(() => _sending = false);
     }
   }
 
@@ -182,6 +185,7 @@ void initState() {
     final auth = context.read<AuthProvider>();
     final token = auth.token;
     if (token == null) return;
+    final chatProvider = context.read<ChatProvider>();
 
     final picker = ImagePicker();
     final picked = await picker.pickImage(
@@ -196,15 +200,16 @@ void initState() {
         token: token,
         file: File(picked.path),
       );
+      if (!mounted) return;
 
-      await context.read<ChatProvider>().sendImage(
+      await chatProvider.sendImage(
             token: token,
             conversationId: widget.conversationId,
             receiverUid: widget.otherUserId,
             imageUrl: url,
           );
     } finally {
-      setState(() => _sending = false);
+      if (mounted) setState(() => _sending = false);
     }
   }
 
@@ -217,6 +222,7 @@ void initState() {
     try {
       await _voiceRecorder.startRecording();
     } catch (e) {
+      if (!mounted) return;
       setState(() => _recording = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Mic error: $e")),
@@ -231,6 +237,7 @@ void initState() {
     final auth = context.read<AuthProvider>();
     final token = auth.token;
     if (token == null) return;
+    final chatProvider = context.read<ChatProvider>();
 
     setState(() => _recording = false);
 
@@ -244,19 +251,21 @@ void initState() {
         token: token,
         file: File(recordedPath),
       );
+      if (!mounted) return;
 
-      await context.read<ChatProvider>().sendVoice(
+      await chatProvider.sendVoice(
             token: token,
             conversationId: widget.conversationId,
             receiverUid: widget.otherUserId,
             voiceUrl: voiceUrl,
           );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Voice send failed: $e")),
       );
     } finally {
-      setState(() => _sending = false);
+      if (mounted) setState(() => _sending = false);
     }
   }
 
@@ -349,6 +358,7 @@ void initState() {
                               if (token == null) return;
 
                               final reaction = await ReactionPicker.show(context);
+                              if (!context.mounted) return;
                               if (reaction == null) return;
 
                               await context.read<ChatProvider>().react(

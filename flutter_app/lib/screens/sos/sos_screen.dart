@@ -89,13 +89,16 @@ class _SosScreenState extends State<SosScreen> {
 
     setState(() => isSending = true);
 
+    final token = context.read<AuthProvider>().token;
+    final messenger = ScaffoldMessenger.of(context);
+
     try {
       Position? position;
 
       if (sendToNearby) {
         if (!await _ensureLocationPermission()) return;
         position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
         );
       }
 
@@ -112,18 +115,18 @@ class _SosScreenState extends State<SosScreen> {
         "radiusKm": sendToNearby ? 2 : null,
       };
 
-      final response = await SosService.sendSOS(context, payload);
+      if (!mounted) return;
+      final response = await SosService.sendSOS(token, payload);
+      if (!mounted) return;
 
       sosProvider.activate(response["sosId"]);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Emergency alert sent"),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text("Emergency alert sent"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     } catch (_) {
       _error("Failed to send SOS");
     } finally {
@@ -137,12 +140,16 @@ class _SosScreenState extends State<SosScreen> {
     final sosProvider = context.read<SosProvider>();
     if (sosProvider.sosId == null) return;
 
+    final token = context.read<AuthProvider>().token;
+    final messenger = ScaffoldMessenger.of(context);
+    final sosId = sosProvider.sosId!;
+
     try {
-      await SosService.cancelSOS(context, sosProvider.sosId!);
+      await SosService.cancelSOS(token, sosId);
       sosProvider.deactivate();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text("SOS cancelled")),
         );
       }

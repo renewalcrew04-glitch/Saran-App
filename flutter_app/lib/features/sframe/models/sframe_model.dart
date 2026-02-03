@@ -6,6 +6,10 @@ class SFrame {
   final String? textContent;
   final String? filter;
   final List<dynamic> views;
+  final DateTime? createdAt;
+  final String? ownerName;
+  final String? ownerAvatar;
+  final String? ownerUsername;
 
   SFrame({
     required this.id,
@@ -15,13 +19,26 @@ class SFrame {
     this.textContent,
     this.filter,
     required this.views,
+    this.createdAt,
+    this.ownerName,
+    this.ownerAvatar,
+    this.ownerUsername,
   });
+
+  int get viewCount => views.length;
 
   static String _stringId(dynamic v) {
     if (v == null) return '';
     if (v is String) return v;
     if (v is Map && v['\$oid'] != null) return v['\$oid'].toString();
     return v.toString();
+  }
+
+  static DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
+    if (v is DateTime) return v;
+    if (v is String) return DateTime.tryParse(v);
+    return null;
   }
 
   factory SFrame.fromJson(Map<String, dynamic> d) {
@@ -33,6 +50,10 @@ class SFrame {
       textContent: d['textContent']?.toString(),
       filter: d['filter']?.toString(),
       views: d['views'] is List ? d['views'] as List<dynamic> : [],
+      createdAt: _parseDate(d['createdAt']),
+      ownerName: d['ownerName']?.toString(),
+      ownerAvatar: (d['ownerAvatar'] ?? d['owner']?['avatar'])?.toString(),
+      ownerUsername: d['ownerUsername']?.toString(),
     );
   }
 }

@@ -186,6 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
         dark: false,
         unreadCount: 0,
         onOpenNotifications: () => context.push('/notifications'),
+        onOpenMessages: () => context.push('/messages'),
       ),
       body: RefreshIndicator(
         onRefresh: _loadFeed,

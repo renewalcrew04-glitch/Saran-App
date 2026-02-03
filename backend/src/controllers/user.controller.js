@@ -64,6 +64,31 @@ res.json({
   }
 };
 
+// @desc    Update current user profile (PUT /api/users/me)
+// @route   PUT /api/users/me
+// @access  Private
+export const updateMe = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const { name, bio, avatar, coverImage, isPrivate } = req.body;
+    if (name !== undefined) user.name = name;
+    if (bio !== undefined) user.bio = bio;
+    if (avatar !== undefined) user.avatar = avatar;
+    if (coverImage !== undefined) user.coverImage = coverImage;
+    if (isPrivate !== undefined) user.isPrivate = isPrivate;
+    if (!user.profileCompleted && name && bio) user.profileCompleted = true;
+    const updated = await user.save();
+    const obj = updated.toObject();
+    delete obj.password;
+    res.json({ success: true, user: obj });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Update user profile
 // @route   PUT /api/users/:uid
 // @access  Private (own profile only)
@@ -71,7 +96,7 @@ export const updateUserProfile = async (req, res, next) => {
   try {
     const { uid } = req.params;
     const currentUserId = req.user._id;
-    const { name, bio, avatar, isPrivate } = req.body;
+    const { name, bio, avatar, coverImage, isPrivate } = req.body;
 
     // Find user
     const user = await User.findOne({ uid });
@@ -95,6 +120,7 @@ export const updateUserProfile = async (req, res, next) => {
     if (name) user.name = name;
     if (bio !== undefined) user.bio = bio;
     if (avatar !== undefined) user.avatar = avatar;
+    if (coverImage !== undefined) user.coverImage = coverImage;
     if (isPrivate !== undefined) user.isPrivate = isPrivate;
 
     // Mark profile as completed if not already
@@ -112,6 +138,7 @@ export const updateUserProfile = async (req, res, next) => {
         email: updatedUser.email,
         name: updatedUser.name,
         avatar: updatedUser.avatar,
+        coverImage: updatedUser.coverImage,
         bio: updatedUser.bio,
         isPrivate: updatedUser.isPrivate,
         profileCompleted: updatedUser.profileCompleted,

@@ -4,8 +4,11 @@ import 'package:provider/provider.dart';
 
 import '../../config/api_config.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/dm_provider.dart';
+import '../../providers/dm_search_provider.dart';
 import '../../providers/message_provider.dart';
 import '../../models/conversation_model.dart';
+import '../../models/dm_user_model.dart';
 import '../../services/message_service.dart';
 import 'chat_screen.dart';
 import 'new_message_screen.dart';
@@ -25,11 +28,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void initState() {
     super.initState();
     Future.microtask(() async {
+      if (!mounted) return;
       final auth = context.read<AuthProvider>();
       final token = auth.token;
       if (token == null) return;
-
-      await context.read<MessageProvider>().loadConversations(token: token);
+      final messageProvider = context.read<MessageProvider>();
+      await messageProvider.loadConversations(token: token);
     });
   }
 
@@ -149,8 +153,107 @@ class _MessagesScreenState extends State<MessagesScreen> {
         builder: (_) => ChatScreen(
           conversationId: c.id,
           otherUserId: other.id,
-          otherName: other.name ?? "User",
+          otherName: other.name,
           otherAvatar: other.avatar,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openDmWithUser(DmUserModel user) async {
+    final auth = context.read<AuthProvider>();
+    final token = auth.token;
+    if (token == null) return;
+
+    final convoId = await context.read<DmProvider>().openDm(
+          token: token,
+          otherUid: user.uid,
+        );
+
+    if (!mounted) return;
+    if (convoId == null || convoId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to open chat")),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          conversationId: convoId,
+          otherUserId: user.uid,
+          otherName: user.name,
+          otherAvatar: user.avatar,
+        ),
+      ),
+    );
+  }
+
+  Widget _userSearchTile(DmUserModel u) {
+    final avatarUrl = u.avatar != null ? ApiConfig.networkImageUrl(u.avatar!) : null;
+    return InkWell(
+      onTap: () => _openDmWithUser(u),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: Colors.grey[300],
+              backgroundImage: avatarUrl != null
+                  ? CachedNetworkImageProvider(avatarUrl)
+                  : null,
+              child: avatarUrl == null
+                  ? Text(
+                      u.name.isNotEmpty ? u.name[0].toUpperCase() : "U",
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    u.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: Colors.black,
+                    ),
+                  ),
+                  if (u.username.isNotEmpty)
+                    Text(
+                      "@${u.username}",
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Icon(Icons.chat_bubble_outline, size: 20, color: Colors.grey[500]),
+          ],
         ),
       ),
     );
@@ -196,7 +299,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -446,7 +549,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             ),
           ),
 
-          // search
+          // search (filters conversations + searches users to start new chat)
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: Container(
@@ -458,9 +561,20 @@ class _MessagesScreenState extends State<MessagesScreen> {
               ),
               child: TextField(
                 controller: _searchController,
-                onChanged: provider.setSearch,
+                onChanged: (v) {
+                  provider.setSearch(v);
+                  final auth = context.read<AuthProvider>();
+                  final token = auth.token;
+                  if (token != null) {
+                    if (v.trim().isEmpty) {
+                      context.read<DmSearchProvider>().clear();
+                    } else {
+                      context.read<DmSearchProvider>().search(token: token, query: v);
+                    }
+                  }
+                },
                 decoration: InputDecoration(
-                  hintText: 'Search messages',
+                  hintText: 'Search messages or users',
                   hintStyle: TextStyle(color: Colors.grey[600], fontSize: 15),
                   prefixIcon: Icon(Icons.search, size: 22, color: Colors.grey[600]),
                   border: InputBorder.none,
@@ -471,39 +585,75 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ),
 
           Expanded(
-            child: provider.loading
-                ? const Center(child: CircularProgressIndicator())
-                : provider.visibleConversations.isEmpty
-                    ? _buildEmptyState(provider.showArchived)
-                    : ListView(
-                        children: [
-                          if (!provider.showArchived && pinned.isNotEmpty) ...[
-                            const Padding(
-                              padding: EdgeInsets.only(left: 16, top: 6, bottom: 6),
-                              child: Text(
-                                "Pinned",
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            ...pinned.map(_tile),
-                            const SizedBox(height: 6),
-                          ],
-                          if (!provider.showArchived && normal.isNotEmpty) ...[
-                            const Padding(
-                              padding: EdgeInsets.only(left: 16, top: 6, bottom: 6),
-                              child: Text(
-                                "Messages",
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            ...normal.map(_tile),
-                          ],
-                          if (provider.showArchived) ...[
-                            ...provider.visibleConversations.map(_tile),
-                          ],
-                          const SizedBox(height: 10),
-                        ],
+            child: Builder(
+              builder: (context) {
+                final dmSearch = context.watch<DmSearchProvider>();
+                final searchQuery = provider.search.trim();
+                final hasSearch = searchQuery.isNotEmpty;
+
+                if (provider.loading && !hasSearch) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final showUserResults = hasSearch && (dmSearch.results.isNotEmpty || dmSearch.loading);
+                final showConversations = provider.visibleConversations.isNotEmpty || !hasSearch;
+
+                if (!showUserResults && !showConversations && provider.visibleConversations.isEmpty) {
+                  return _buildEmptyState(provider.showArchived);
+                }
+
+                return ListView(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  children: [
+                    if (showUserResults) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16, top: 6, bottom: 6),
+                        child: Text(
+                          "Start chat with",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[700],
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
+                      if (dmSearch.loading)
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(child: SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))),
+                        )
+                      else
+                        ...dmSearch.results.map((u) => _userSearchTile(u)),
+                      const SizedBox(height: 12),
+                    ],
+                    if (!provider.showArchived && pinned.isNotEmpty) ...[
+                      const Padding(
+                        padding: EdgeInsets.only(left: 16, top: 6, bottom: 6),
+                        child: Text(
+                          "Pinned",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      ...pinned.map(_tile),
+                      const SizedBox(height: 6),
+                    ],
+                    if (!provider.showArchived && normal.isNotEmpty) ...[
+                      const Padding(
+                        padding: EdgeInsets.only(left: 16, top: 6, bottom: 6),
+                        child: Text(
+                          "Messages",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      ...normal.map(_tile),
+                    ],
+                    if (provider.showArchived) ...[
+                      ...provider.visibleConversations.map(_tile),
+                    ],
+                  ],
+                );
+              },
+            ),
           ),
         ],
       ),

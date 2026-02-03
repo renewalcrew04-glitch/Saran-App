@@ -182,7 +182,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // KEEP THESE (not used now because camera icons removed)
   Future<void> _pickCoverImage() async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
+      final auth = context.read<AuthProvider>();
+      final token = auth.token;
+      if (token == null) throw Exception("No token");
+
       final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);
       if (picked == null) return;
 
@@ -191,32 +196,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
 
       setState(() => _uploadingCover = true);
-
-      final auth = context.read<AuthProvider>();
-      final token = auth.token;
-      if (token == null) throw Exception("No token");
-
       final url = await _uploadService.uploadSingle(
         token: token,
         file: File(picked.path),
       );
 
-      await _profileUpdateService.updateCover(url);
+      final res = await _profileUpdateService.updateCover(url, currentUserUid: auth.user?.uid);
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      final userMap = res?['user'];
+      if (userMap is Map<String, dynamic>) {
+        auth.updateUserFromMap(userMap);
+      } else {
+        await auth.loadUser();
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _uploadingCover = false;
+        _localCoverPreview = null;
+      });
+
+      messenger.showSnackBar(
         const SnackBar(content: Text("Cover updated")),
       );
-
-      setState(() => _uploadingCover = false);
-
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.loadUser();
     } catch (e) {
       if (!mounted) return;
       setState(() => _uploadingCover = false);
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!context.mounted) return;
+      messenger.showSnackBar(
         const SnackBar(content: Text("Failed to update cover")),
       );
     }
@@ -224,6 +233,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickAvatarImage() async {
     try {
+      final auth = context.read<AuthProvider>();
+      final token = auth.token;
+      if (token == null) throw Exception("No token");
+
       final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);
       if (picked == null) return;
 
@@ -233,16 +246,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       setState(() => _uploadingAvatar = true);
 
-      final auth = context.read<AuthProvider>();
-      final token = auth.token;
-      if (token == null) throw Exception("No token");
-
       final url = await _uploadService.uploadSingle(
         token: token,
         file: File(picked.path),
       );
 
-      await _profileUpdateService.updateAvatar(url);
+      await _profileUpdateService.updateAvatar(url, currentUserUid: auth.user?.uid);
 
       if (!mounted) return;
 
@@ -252,11 +261,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       setState(() => _uploadingAvatar = false);
 
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.loadUser();
+      await auth.loadUser();
     } catch (e) {
       if (!mounted) return;
       setState(() => _uploadingAvatar = false);
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Failed to update avatar")),
       );
@@ -357,7 +366,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ? Image.file(_localCoverPreview!, fit: BoxFit.cover)
                         : (user.coverImage != null && user.coverImage!.isNotEmpty
                             ? Image.network(
-                                user.coverImage!,
+                                ApiConfig.networkImageUrl(user.coverImage!) ?? user.coverImage!,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) {
                                   return const Center(
@@ -396,7 +405,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
+                            color: Colors.black.withValues(alpha: 0.08),
                             blurRadius: 12,
                             offset: const Offset(0, 6),
                           )
@@ -596,7 +605,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 10,
               offset: const Offset(0, 6),
             ),
@@ -836,7 +845,7 @@ class _PostGridTile extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.55),
+                  color: Colors.black.withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
@@ -849,7 +858,7 @@ class _PostGridTile extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.55),
+                  color: Colors.black.withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.repeat, color: Colors.white, size: 16),
@@ -964,7 +973,7 @@ class _MainTabChip extends StatelessWidget {
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 6),
                   ),

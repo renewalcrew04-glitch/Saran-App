@@ -187,7 +187,7 @@ class _SCycleScreenState extends State<SCycleScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.03),
+                              color: Colors.black.withValues(alpha: 0.03),
                               blurRadius: 10,
                               offset: const Offset(0, 6),
                             ),
@@ -439,6 +439,7 @@ class _SCycleScreenState extends State<SCycleScreen> {
   Future<void> _deleteLogFromHistory(Map<String, dynamic> item) async {
     final id = item["_id"]?.toString();
     if (id == null || id.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -459,17 +460,18 @@ class _SCycleScreenState extends State<SCycleScreen> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !context.mounted) return;
     try {
       await SCycleService.deleteLog(id);
       if (!mounted) return;
       await _loadAll();
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!mounted) return;
+      messenger.showSnackBar(
         const SnackBar(content: Text("Log deleted")),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(content: Text("Failed to delete: ${e.toString().replaceFirst('Exception: ', '')}")),
       );
     }
@@ -495,9 +497,11 @@ class _SCycleScreenState extends State<SCycleScreen> {
         moods: _moods,
         symptoms: _symptoms,
         onSaved: () async {
-          if (!mounted) return;
+          if (!context.mounted) return;
+          final messenger = ScaffoldMessenger.of(context);
           await _loadAll();
-          ScaffoldMessenger.of(context).showSnackBar(
+          if (!mounted) return;
+          messenger.showSnackBar(
             const SnackBar(content: Text("Log updated ✅")),
           );
         },
@@ -553,7 +557,7 @@ class _SCycleScreenState extends State<SCycleScreen> {
                                 border: Border.all(color: const Color(0xFFEDEDED)),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
+                                    color: Colors.black.withValues(alpha: 0.03),
                                     blurRadius: 10,
                                     offset: const Offset(0, 6),
                                   ),
@@ -653,7 +657,7 @@ class _SCycleScreenState extends State<SCycleScreen> {
                                 border: Border.all(color: const Color(0xFFEDEDED)),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
+                                    color: Colors.black.withValues(alpha: 0.03),
                                     blurRadius: 10,
                                     offset: const Offset(0, 6),
                                   ),
@@ -696,7 +700,7 @@ class _SCycleScreenState extends State<SCycleScreen> {
                                 border: Border.all(color: const Color(0xFFEDEDED)),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
+                                    color: Colors.black.withValues(alpha: 0.03),
                                     blurRadius: 10,
                                     offset: const Offset(0, 6),
                                   ),
@@ -783,7 +787,7 @@ class _SCycleScreenState extends State<SCycleScreen> {
                                       border: Border.all(color: const Color(0xFFEDEDED)),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.03),
+                                          color: Colors.black.withValues(alpha: 0.03),
                                           blurRadius: 10,
                                           offset: const Offset(0, 6),
                                         ),
@@ -1103,11 +1107,11 @@ class _EditLogSheetContentState extends State<_EditLogSheetContent> {
                     mood: selectedMood!,
                     symptoms: selectedSymptoms.toList(),
                   );
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   Navigator.pop(context);
                   widget.onSaved();
                 } catch (e) {
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text("Failed to update: ${e.toString().replaceFirst('Exception: ', '')}")),
                   );

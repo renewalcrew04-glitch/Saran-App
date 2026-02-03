@@ -140,11 +140,11 @@ class _PostCardState extends State<PostCard>
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.55),
+                color: Colors.black.withValues(alpha: 0.55),
                 borderRadius: BorderRadius.circular(22),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
+                    color: Colors.black.withValues(alpha: 0.4),
                     blurRadius: 18,
                     offset: const Offset(0, 8),
                   ),
@@ -400,7 +400,7 @@ class _PostOptions extends StatelessWidget {
       margin: const EdgeInsets.all(14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.9),
+        color: Colors.black.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(22),
       ),
       child: Column(

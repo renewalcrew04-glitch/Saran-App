@@ -54,7 +54,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _pickAvatar() async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
       final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);
       if (picked == null) return;
 
@@ -64,30 +66,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       });
 
       final url = await _uploadService.uploadMedia(picked.path);
-      await _profileUpdateService.updateAvatar(url);
-
       if (!mounted) return;
-
-      final auth = Provider.of<AuthProvider>(context, listen: false);
+      await _profileUpdateService.updateAvatar(url, currentUserUid: auth.user?.uid);
+      if (!mounted) return;
       await auth.loadUser();
 
       setState(() => _uploadingAvatar = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text("Avatar updated")),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _uploadingAvatar = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(content: Text("Avatar update failed: $e")),
       );
     }
   }
 
   Future<void> _pickCover() async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
       final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);
       if (picked == null) return;
 
@@ -97,23 +99,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       });
 
       final url = await _uploadService.uploadMedia(picked.path);
-      await _profileUpdateService.updateCover(url);
-
       if (!mounted) return;
-
-      final auth = Provider.of<AuthProvider>(context, listen: false);
-      await auth.loadUser();
+      final res = await _profileUpdateService.updateCover(url, currentUserUid: auth.user?.uid);
+      if (!mounted) return;
+      final userMap = res?['user'];
+      if (userMap is Map<String, dynamic>) {
+        auth.updateUserFromMap(userMap);
+      } else {
+        await auth.loadUser();
+      }
 
       setState(() => _uploadingCover = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text("Cover updated")),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _uploadingCover = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(content: Text("Cover update failed: $e")),
       );
     }

@@ -9,6 +9,7 @@ import {
   getUserProfile,
   searchUsers,
   unfollowUser,
+  updateMe,
   updateUserProfile,
 } from '../controllers/user.controller.js';
 
@@ -16,11 +17,12 @@ import { protect } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-// IMPORTANT: Specific routes (like /search, /suggestions) must come BEFORE parameterized routes (like /:uid)
+// IMPORTANT: Specific routes (like /search, /suggestions, /me) must come BEFORE parameterized routes (like /:uid)
 router.get('/search', protect, searchUsers);
 router.get('/suggestions', protect, getSuggestions);
 
-// ✅ keep ME routes here
+// ✅ ME routes (update profile / avatar / cover)
+router.put('/me', protect, updateMe);
 router.delete('/me/delete', protect, deleteMyAccount);
 router.delete('/me', protect, deleteMyAccount);
 

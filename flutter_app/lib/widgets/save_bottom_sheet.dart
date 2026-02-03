@@ -40,7 +40,7 @@ class _SheetState extends State<_Sheet> {
       margin: const EdgeInsets.all(14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.9),
+        color: Colors.black.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
@@ -62,6 +62,7 @@ class _SheetState extends State<_Sheet> {
               ),
               onTap: () async {
                 await service.toggleSave(widget.postId);
+                if (!context.mounted) return;
                 Navigator.pop(context);
               },
             ),

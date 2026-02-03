@@ -18,10 +18,11 @@ void showSeenModal(
             const Divider(color: Colors.white12),
         itemBuilder: (_, i) {
           final user = users[i];
+          final avatarUrl = user['photoURL'] ?? user['avatar'];
           return ListTile(
             leading: CircleAvatar(
-              backgroundImage: user['photoURL'] != null
-                  ? NetworkImage(user['photoURL'])
+              backgroundImage: avatarUrl != null
+                  ? NetworkImage(avatarUrl.toString())
                   : null,
               backgroundColor: Colors.white24,
             ),

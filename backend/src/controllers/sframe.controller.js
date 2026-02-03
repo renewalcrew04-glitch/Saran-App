@@ -72,7 +72,21 @@ export const getSFrames = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    return res.json(frames);
+    const ownerIds = [...new Set(frames.map((f) => f.uid.toString()))];
+    const owners = await User.find({ _id: { $in: ownerIds } })
+      .select('name avatar username')
+      .lean();
+    const ownerMap = Object.fromEntries(
+      owners.map((o) => [o._id.toString(), { name: o.name, avatar: o.avatar, username: o.username }])
+    );
+    const framesWithOwner = frames.map((f) => ({
+      ...f,
+      ownerName: ownerMap[f.uid.toString()]?.name,
+      ownerAvatar: ownerMap[f.uid.toString()]?.avatar,
+      ownerUsername: ownerMap[f.uid.toString()]?.username,
+    }));
+
+    return res.json(framesWithOwner);
   } catch (err) {
     console.error("getSFrames error:", err);
     return res.status(500).json({ message: "Failed to load S-Frames" });
@@ -90,15 +104,21 @@ export const getSFrame = async (req, res) => {
       return res.status(404).json({ message: "S-Frame not found" });
     }
 
-    // Populate viewers (name + photo)
-    const viewers = await User.find(
-      { _id: { $in: frame.views } },
-      { name: 1, photoURL: 1 }
-    );
+    const [owner, viewers] = await Promise.all([
+      User.findById(frame.uid).select("name avatar username").lean(),
+      User.find({ _id: { $in: frame.views } }, { name: 1, avatar: 1, photoURL: 1 }).lean(),
+    ]);
+    const viewersWithAvatar = viewers.map((v) => ({
+      ...v,
+      photoURL: v.photoURL || v.avatar,
+    }));
 
     return res.json({
       ...frame,
-      views: viewers,
+      ownerName: owner?.name,
+      ownerAvatar: owner?.avatar,
+      ownerUsername: owner?.username,
+      views: viewersWithAvatar,
     });
   } catch (err) {
     console.error("getSFrame error:", err);

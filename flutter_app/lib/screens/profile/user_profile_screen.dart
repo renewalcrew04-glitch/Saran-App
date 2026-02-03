@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../../config/api_config.dart';
 import '../../models/user_model.dart';
-import '../../services/feed_service.dart';
 import '../../models/post_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/dm_provider.dart';
+import '../../services/feed_service.dart';
+import '../../services/profile_service.dart';
+import '../messages/chat_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final User user;
@@ -14,14 +20,24 @@ class UserProfileScreen extends StatefulWidget {
 
 class _UserProfileScreenState extends State<UserProfileScreen> {
   final FeedService _feedService = FeedService();
+  final ProfileService _profileService = ProfileService();
 
   List<Post> _posts = [];
   bool _loading = true;
+  bool _isFollowing = false;
+  bool _followLoading = false;
 
   @override
   void initState() {
     super.initState();
     _loadPosts();
+  }
+
+  bool get _isOwnProfile {
+    final current = context.read<AuthProvider>().user;
+    return current != null &&
+        current.uid.isNotEmpty &&
+        current.uid == widget.user.uid;
   }
 
   Future<void> _loadPosts() async {
@@ -116,26 +132,151 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
               const SizedBox(height: 12),
 
-              // Follow button (future)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: SizedBox(
-                  height: 44,
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Follow system coming soon")),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              // Follow + Message (or Edit profile when own)
+              Builder(
+                builder: (context) {
+                  final isOwn = _isOwnProfile;
+                  if (isOwn) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: SizedBox(
+                        height: 44,
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            // Edit profile – could push to edit screen
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Edit profile")),
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.black,
+                            side: const BorderSide(color: Colors.black),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: const Text("Edit profile"),
+                        ),
+                      ),
+                    );
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 44,
+                            child: ElevatedButton(
+                              onPressed: _followLoading
+                                  ? null
+                                  : () async {
+                                      setState(() => _followLoading = true);
+                                      final ok = _isFollowing
+                                          ? await _profileService.unfollowUser(
+                                                widget.user.uid,
+                                              )
+                                          : await _profileService.followUser(
+                                                widget.user.uid,
+                                              );
+                                      if (!mounted) return;
+                                      setState(() {
+                                        _followLoading = false;
+                                        if (ok) _isFollowing = !_isFollowing;
+                                      });
+                                      if (ok && context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              _isFollowing
+                                                  ? "Following ${widget.user.name}"
+                                                  : "Unfollowed ${widget.user.name}",
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _isFollowing
+                                    ? Colors.grey
+                                    : Colors.black,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: _followLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(_isFollowing ? "Following" : "Follow"),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: SizedBox(
+                            height: 44,
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final auth = context.read<AuthProvider>();
+                                final token = auth.token;
+                                if (token == null || token.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text("Please log in to message")),
+                                  );
+                                  return;
+                                }
+                                final convoId = await context
+                                    .read<DmProvider>()
+                                    .openDm(
+                                      token: token,
+                                      otherUid: widget.user.uid,
+                                    );
+                                if (!context.mounted) return;
+                                if (convoId == null || convoId.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text("Could not start chat")),
+                                  );
+                                  return;
+                                }
+                                if (!context.mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ChatScreen(
+                                      conversationId: convoId,
+                                      otherUserId: widget.user.uid,
+                                      otherName: widget.user.name,
+                                      otherAvatar: widget.user.avatar,
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                              label: const Text("Message"),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.black,
+                                side: const BorderSide(color: Colors.black),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    child: const Text("Follow"),
-                  ),
-                ),
+                  );
+                },
               ),
 
               const SizedBox(height: 16),

@@ -390,7 +390,7 @@ class _BottlePainter extends CustomPainter {
 
     // wave effect
     final wavePaint = Paint()
-      ..color = Colors.white.withOpacity(0.10)
+      ..color = Colors.white.withValues(alpha: 0.10)
       ..style = PaintingStyle.fill;
 
     final wavePath = Path();
