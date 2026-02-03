@@ -13,6 +13,9 @@ class SFrameService {
       headers: await authHeaders(),
     );
 
+    if (res.statusCode != 200) {
+      return [];
+    }
     final body = res.body;
     if (body.isEmpty) return [];
     final data = jsonDecode(body);

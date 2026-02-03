@@ -81,6 +81,15 @@ export const getSFrames = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
+    // Debug: see why stories might not show for followers (check PM2 logs)
+    console.log(
+      "[getSFrames] viewerId=%s followingCount=%d allowedCount=%d framesCount=%d",
+      req.user._id?.toString(),
+      followingIds.length,
+      allowedUserIds.length,
+      frames.length
+    );
+
     const ownerIds = [...new Set(frames.map((f) => f.uid.toString()))];
     const owners = await User.find({ _id: { $in: ownerIds } })
       .select('name avatar username')

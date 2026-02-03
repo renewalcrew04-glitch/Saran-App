@@ -165,9 +165,11 @@ export const followUser = async (req, res, next) => {
     const { uid } = req.params;
     const currentUserId = req.user._id;
 
-    // Find target user
-    const targetUser = await User.findOne({ uid });
-
+    // Find target user by uid (string) or by _id if uid looks like ObjectId
+    let targetUser = await User.findOne({ uid });
+    if (!targetUser && mongoose.Types.ObjectId.isValid(uid)) {
+      targetUser = await User.findById(uid);
+    }
     if (!targetUser) {
       return res.status(404).json({
         success: false,

@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import Follow from '../models/Follow.model.js';
 import User from '../models/User.model.js';
 
 // Generate JWT Token
@@ -107,6 +108,12 @@ export const login = async (req, res, next) => {
 
     const uidValue = user.uid || user._id.toString();
 
+    // Live counts from Follow collection so profile shows correct numbers after login
+    const [followersCount, followingCount] = await Promise.all([
+      Follow.countDocuments({ following: user._id, status: 'accepted' }),
+      Follow.countDocuments({ follower: user._id, status: 'accepted' }),
+    ]);
+
     res.json({
       success: true,
       token: generateToken(user._id),
@@ -120,8 +127,8 @@ export const login = async (req, res, next) => {
         coverImage: user.coverImage,
         profileCompleted: user.profileCompleted,
         verified: user.verified,
-        followersCount: user.followersCount ?? 0,
-        followingCount: user.followingCount ?? 0,
+        followersCount,
+        followingCount,
         postsCount: user.postsCount ?? 0,
         wellnessStreak: user.wellnessStreak ?? 0
       }
@@ -141,6 +148,12 @@ export const getMe = async (req, res, next) => {
     // Ensure uid is always sent (fallback to _id for old users without uid)
     const uidValue = user.uid || user._id.toString();
 
+    // Live counts from Follow collection so profile always shows correct numbers
+    const [followersCount, followingCount] = await Promise.all([
+      Follow.countDocuments({ following: req.user._id, status: 'accepted' }),
+      Follow.countDocuments({ follower: req.user._id, status: 'accepted' }),
+    ]);
+
     res.json({
       success: true,
       user: {
@@ -153,8 +166,8 @@ export const getMe = async (req, res, next) => {
         coverImage: user.coverImage,
         profileCompleted: user.profileCompleted,
         verified: user.verified,
-        followersCount: user.followersCount ?? 0,
-        followingCount: user.followingCount ?? 0,
+        followersCount,
+        followingCount,
         postsCount: user.postsCount ?? 0,
         wellnessStreak: user.wellnessStreak ?? 0
       }
