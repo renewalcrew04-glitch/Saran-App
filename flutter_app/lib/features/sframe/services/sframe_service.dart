@@ -54,4 +54,16 @@ class SFrameService {
     if (views is! List) return [];
     return views.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
+
+  static Future<void> deleteFrame(String frameId) async {
+    final res = await http.delete(
+      Uri.parse('$_base/$frameId'),
+      headers: await authHeaders(),
+    );
+    if (res.statusCode != 204 && res.statusCode != 200) {
+      final data = jsonDecode(res.body) as Map<String, dynamic>?;
+      final msg = data?['message'] ?? res.body;
+      throw Exception(msg);
+    }
+  }
 }

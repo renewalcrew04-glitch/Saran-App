@@ -117,8 +117,13 @@ export const login = async (req, res, next) => {
         name: user.name,
         avatar: user.avatar,
         bio: user.bio,
+        coverImage: user.coverImage,
         profileCompleted: user.profileCompleted,
-        verified: user.verified
+        verified: user.verified,
+        followersCount: user.followersCount ?? 0,
+        followingCount: user.followingCount ?? 0,
+        postsCount: user.postsCount ?? 0,
+        wellnessStreak: user.wellnessStreak ?? 0
       }
     });
   } catch (error) {
@@ -145,12 +150,13 @@ export const getMe = async (req, res, next) => {
         name: user.name,
         avatar: user.avatar,
         bio: user.bio,
+        coverImage: user.coverImage,
         profileCompleted: user.profileCompleted,
         verified: user.verified,
-        followersCount: user.followersCount,
-        followingCount: user.followingCount,
-        postsCount: user.postsCount,
-        wellnessStreak: user.wellnessStreak
+        followersCount: user.followersCount ?? 0,
+        followingCount: user.followingCount ?? 0,
+        postsCount: user.postsCount ?? 0,
+        wellnessStreak: user.wellnessStreak ?? 0
       }
     });
   } catch (error) {

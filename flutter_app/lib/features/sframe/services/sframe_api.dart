@@ -53,10 +53,14 @@ class SFrameApi {
   }
 
   static Future<void> createFrame(Map<String, dynamic> payload) async {
-    await http.post(
+    final res = await http.post(
       Uri.parse(base),
       headers: await authHeaders(),
       body: jsonEncode(payload),
     );
+    if (res.statusCode != 201 && res.statusCode != 200) {
+      final msg = (jsonDecode(res.body) as Map<String, dynamic>?)?['message'] ?? res.body;
+      throw Exception('Failed to create story: $msg');
+    }
   }
 }

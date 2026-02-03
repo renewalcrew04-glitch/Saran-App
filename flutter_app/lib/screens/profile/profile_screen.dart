@@ -62,13 +62,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     _loadUserPosts();
     _loadWellnessStreak();
+    _refreshUserCounts();
     widget.tabIndexNotifier?.addListener(_onTabIndexChanged);
+  }
+
+  Future<void> _refreshUserCounts() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await authProvider.loadUser();
   }
 
   void _onTabIndexChanged() {
     if (widget.tabIndexNotifier?.value == kProfileTabIndex && mounted) {
-      _loadUserPosts();
+      _refreshProfile();
     }
+  }
+
+  Future<void> _refreshProfile() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await authProvider.loadUser();
+    if (mounted) _loadUserPosts();
   }
 
   @override
@@ -300,6 +312,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
+          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+          await authProvider.loadUser();
           await _loadUserPosts();
           await _loadWellnessStreak();
         },
@@ -905,6 +919,7 @@ class _StatButton extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
+                color: Colors.black,
               ),
             ),
             const SizedBox(height: 2),

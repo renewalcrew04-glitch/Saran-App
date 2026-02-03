@@ -20,6 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   String? _error;
   List<Post> _posts = [];
+  int _sframeRefresh = 0;
 
   String _selectedTab = 'For You';
 
@@ -185,7 +186,6 @@ class _HomeScreenState extends State<HomeScreen> {
         dark: false,
         unreadCount: 0,
         onOpenNotifications: () => context.push('/notifications'),
-        onOpenSearch: () => context.push('/explore'),
       ),
       body: RefreshIndicator(
         onRefresh: _loadFeed,
@@ -194,7 +194,10 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
             // S-Frame row (rectangular dashed create + user frames) — refresh when user shares a story
-            SFrameRow(onStoryCreated: () => setState(() {})),
+            SFrameRow(
+              key: ValueKey(_sframeRefresh),
+              onStoryCreated: () => setState(() => _sframeRefresh++),
+            ),
             _buildQuoteBanner(),
             const SizedBox(height: 16),
 

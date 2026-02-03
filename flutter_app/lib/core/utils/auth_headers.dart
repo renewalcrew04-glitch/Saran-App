@@ -1,6 +1,13 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 Future<Map<String, String>> authHeaders() async {
-  return {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token');
+  final headers = <String, String>{
     "Content-Type": "application/json",
-    // add Authorization later
   };
+  if (token != null && token.isNotEmpty) {
+    headers["Authorization"] = "Bearer $token";
+  }
+  return headers;
 }

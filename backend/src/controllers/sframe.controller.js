@@ -107,6 +107,28 @@ export const getSFrame = async (req, res) => {
 };
 
 /**
+ * DELETE S-FRAME (owner only)
+ * DELETE /api/sframes/:id
+ */
+export const deleteSFrame = async (req, res) => {
+  try {
+    const frame = await SFrame.findById(req.params.id);
+    if (!frame) {
+      return res.status(404).json({ message: "S-Frame not found" });
+    }
+    if (frame.uid.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Not authorized to delete this story" });
+    }
+    await SFrameReply.deleteMany({ frameId: frame._id });
+    await SFrame.deleteOne({ _id: frame._id });
+    return res.status(204).send();
+  } catch (err) {
+    console.error("deleteSFrame error:", err);
+    return res.status(500).json({ message: "Failed to delete S-Frame" });
+  }
+};
+
+/**
  * MARK VIEW + NOTIFICATION
  * POST /api/sframes/:id/view
  */

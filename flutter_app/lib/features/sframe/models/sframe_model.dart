@@ -17,15 +17,22 @@ class SFrame {
     required this.views,
   });
 
+  static String _stringId(dynamic v) {
+    if (v == null) return '';
+    if (v is String) return v;
+    if (v is Map && v['\$oid'] != null) return v['\$oid'].toString();
+    return v.toString();
+  }
+
   factory SFrame.fromJson(Map<String, dynamic> d) {
     return SFrame(
-      id: d['_id'],
-      uid: d['uid'],
-      mediaType: d['mediaType'],
-      mediaUrl: d['mediaUrl'],
-      textContent: d['textContent'],
-      filter: d['filter'],
-      views: d['views'] ?? [],
+      id: _stringId(d['_id']),
+      uid: _stringId(d['uid']),
+      mediaType: d['mediaType']?.toString() ?? 'text',
+      mediaUrl: d['mediaUrl']?.toString(),
+      textContent: d['textContent']?.toString(),
+      filter: d['filter']?.toString(),
+      views: d['views'] is List ? d['views'] as List<dynamic> : [],
     );
   }
 }

@@ -71,15 +71,17 @@ class SFrameRow extends StatelessWidget {
     return FutureBuilder<List<SFrame>>(
       future: SFrameService.loadFrames(),
       builder: (context, snapshot) {
-        // Always show at least the create S-Frame row — never a full-screen error.
-        List<SFrame> list = [];
+        // Full list from API; one-per-user list for row bubbles (latest per user).
+        List<SFrame> allFrames = [];
+        List<SFrame> onePerUser = [];
         if (!snapshot.hasError && snapshot.hasData) {
           final frames = snapshot.data ?? [];
+          allFrames = frames;
           final map = <String, SFrame>{};
           for (final f in frames) {
-            map[f.uid] = f;
+            if (!map.containsKey(f.uid)) map[f.uid] = f;
           }
-          list = map.values.toList();
+          onePerUser = map.values.toList();
         }
 
         final isLoading = snapshot.connectionState == ConnectionState.waiting;
@@ -109,21 +111,27 @@ class SFrameRow extends StatelessWidget {
                   ),
                 )
               else
-                ...list.asMap().entries.map((entry) {
+                ...onePerUser.asMap().entries.map((entry) {
                   final f = entry.value;
                   final seen = f.views.contains(uid);
                   final borderColor = darkTheme
                       ? (seen ? Colors.grey.shade600 : Colors.white)
                       : (seen ? Colors.grey : Colors.black);
+                  final userFrames = allFrames
+                      .where((x) => x.uid == f.uid)
+                      .toList()
+                      .reversed
+                      .toList();
                   return GestureDetector(
-                    onTap: () {
-                      context.push(
+                    onTap: () async {
+                      final result = await context.push<bool>(
                         '/sframe-viewer',
                         extra: {
-                          'frames': list,
-                          'startIndex': entry.key,
+                          'frames': userFrames,
+                          'startIndex': 0,
                         },
                       );
+                      if (result == true) onStoryCreated?.call();
                     },
                     child: Container(
                       width: 90,

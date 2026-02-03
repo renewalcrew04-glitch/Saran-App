@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import '../../../providers/auth_provider.dart';
 import '../models/sframe_model.dart';
 import '../services/sframe_service.dart';
 import '../utils/sframe_filters.dart';
@@ -87,9 +89,47 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
     super.dispose();
   }
 
+  Future<void> _onDeleteStory(SFrame frame) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('Delete story?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'This story will be removed. This cannot be undone.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await SFrameService.deleteFrame(frame.id);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not delete: ${e.toString().replaceFirst('Exception: ', '')}')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final frame = widget.frames[index];
+    final auth = context.watch<AuthProvider>();
+    final currentUid = auth.user?.uid ?? '';
+    final isOwnStory = currentUid.isNotEmpty && frame.uid == currentUid;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -257,13 +297,41 @@ Positioned(
             Positioned(
               top: 40,
               right: 16,
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: const Icon(
-                  Icons.close,
-                  color: Colors.white,
-                  size: 28,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isOwnStory)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_horiz, color: Colors.white, size: 28),
+                        color: Colors.grey[900],
+                        onSelected: (value) {
+                          if (value == 'delete') _onDeleteStory(frame);
+                        },
+                        itemBuilder: (ctx) => [
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete_outline, color: Colors.white70, size: 22),
+                                SizedBox(width: 12),
+                                Text('Delete story', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
