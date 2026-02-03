@@ -2,6 +2,26 @@ import jwt from 'jsonwebtoken';
 import Follow from '../models/Follow.model.js';
 import User from '../models/User.model.js';
 
+/** Count unique users who follow this user (accepted only). Duplicate Follow rows count as 1. */
+async function countDistinctFollowers(userId) {
+  const result = await Follow.aggregate([
+    { $match: { following: userId, status: 'accepted' } },
+    { $group: { _id: '$follower' } },
+    { $count: 'count' },
+  ]);
+  return result[0]?.count ?? 0;
+}
+
+/** Count unique users this user follows (accepted only). Duplicate Follow rows count as 1. */
+async function countDistinctFollowing(userId) {
+  const result = await Follow.aggregate([
+    { $match: { follower: userId, status: 'accepted' } },
+    { $group: { _id: '$following' } },
+    { $count: 'count' },
+  ]);
+  return result[0]?.count ?? 0;
+}
+
 // Generate JWT Token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'your-secret-key', {
@@ -108,10 +128,10 @@ export const login = async (req, res, next) => {
 
     const uidValue = user.uid || user._id.toString();
 
-    // Live counts from Follow collection so profile shows correct numbers after login
+    // Live counts: distinct followers/following so duplicates don't inflate the number
     const [followersCount, followingCount] = await Promise.all([
-      Follow.countDocuments({ following: user._id, status: 'accepted' }),
-      Follow.countDocuments({ follower: user._id, status: 'accepted' }),
+      countDistinctFollowers(user._id),
+      countDistinctFollowing(user._id),
     ]);
 
     res.json({
@@ -148,10 +168,10 @@ export const getMe = async (req, res, next) => {
     // Ensure uid is always sent (fallback to _id for old users without uid)
     const uidValue = user.uid || user._id.toString();
 
-    // Live counts from Follow collection so profile always shows correct numbers
+    // Live counts: distinct followers/following so duplicates don't inflate the number
     const [followersCount, followingCount] = await Promise.all([
-      Follow.countDocuments({ following: req.user._id, status: 'accepted' }),
-      Follow.countDocuments({ follower: req.user._id, status: 'accepted' }),
+      countDistinctFollowers(req.user._id),
+      countDistinctFollowing(req.user._id),
     ]);
 
     res.json({

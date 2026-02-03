@@ -53,10 +53,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserPosts();
-    _loadWellnessStreak();
-    _refreshUserCounts();
     widget.tabIndexNotifier?.addListener(_onTabIndexChanged);
+    // Defer so we don't call loadUser() (notifyListeners) during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _refreshUserCounts();
+      _loadUserPosts();
+      _loadWellnessStreak();
+    });
   }
 
   Future<void> _refreshUserCounts() async {
