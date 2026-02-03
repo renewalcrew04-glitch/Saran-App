@@ -56,13 +56,19 @@ class SFrameService {
   }
 
   static Future<void> deleteFrame(String frameId) async {
+    final id = frameId.trim();
+    if (id.isEmpty) throw Exception('Invalid story id');
+    final path = _base.endsWith('/') ? '${_base}$id' : '$_base/$id';
     final res = await http.delete(
-      Uri.parse('$_base/$frameId'),
+      Uri.parse(path),
       headers: await authHeaders(),
     );
     if (res.statusCode != 204 && res.statusCode != 200) {
-      final data = jsonDecode(res.body) as Map<String, dynamic>?;
-      final msg = data?['message'] ?? res.body;
+      String msg = res.body;
+      try {
+        final data = jsonDecode(res.body) as Map<String, dynamic>?;
+        msg = data?['message'] ?? msg;
+      } catch (_) {}
       throw Exception(msg);
     }
   }
