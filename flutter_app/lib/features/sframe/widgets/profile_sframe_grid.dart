@@ -53,6 +53,8 @@ class ProfileSFrameGrid extends StatelessWidget {
                 ? Image.network(
                     frame.mediaUrl!,
                     fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        const Center(child: Icon(Icons.broken_image, color: Colors.white54)),
                   )
                 : const Icon(
                     Icons.play_arrow,

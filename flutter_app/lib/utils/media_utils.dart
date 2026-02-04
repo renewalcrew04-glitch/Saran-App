@@ -10,7 +10,17 @@ Widget? buildPostMediaWidget(List<String>? mediaUrls) {
   final mediaUrl = mediaUrls != null && mediaUrls.isNotEmpty ? mediaUrls.first : null;
   if (mediaUrl == null) return null;
   if (isNetworkUrl(mediaUrl)) {
-    return Image.network(mediaUrl, fit: BoxFit.cover);
+    return Image.network(
+      mediaUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) =>
+          const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+    );
   }
-  return Image.file(File(mediaUrl), fit: BoxFit.cover);
+  return Image.file(
+    File(mediaUrl),
+    fit: BoxFit.cover,
+    errorBuilder: (_, __, ___) =>
+        const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+  );
 }

@@ -225,6 +225,33 @@ class _Header extends StatelessWidget {
   final VoidCallback? onPostDeleted;
   const _Header({required this.post, this.onPostDeleted});
 
+  Widget _buildAvatar(String? avatarUrl) {
+    final url = avatarUrl != null && avatarUrl.isNotEmpty
+        ? (ApiConfig.networkImageUrl(avatarUrl) ?? avatarUrl)
+        : null;
+    if (url == null) {
+      return CircleAvatar(
+        radius: 20,
+        backgroundColor: Colors.grey[800],
+        child: const Icon(Icons.person, color: Colors.white54),
+      );
+    }
+    return ClipOval(
+      child: Image.network(
+        url,
+        fit: BoxFit.cover,
+        width: 40,
+        height: 40,
+        errorBuilder: (_, __, ___) => Container(
+          width: 40,
+          height: 40,
+          color: Colors.grey[800],
+          child: const Icon(Icons.person, color: Colors.white54),
+        ),
+      ),
+    );
+  }
+
   void _openUserProfile(BuildContext context) {
     final user = User(
       uid: post.uid,
@@ -253,12 +280,7 @@ class _Header extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             child: Row(
               children: [
-                CircleAvatar(
-                radius: 20,
-                backgroundImage:
-                    post.userAvatar != null ? NetworkImage(post.userAvatar!) : null,
-                backgroundColor: Colors.grey[800],
-              ),
+                _buildAvatar(post.userAvatar),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(

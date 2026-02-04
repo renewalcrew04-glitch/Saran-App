@@ -478,24 +478,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 width: double.infinity,
                 color: Colors.grey.shade200,
                 child: user.coverImage != null
-                    ? Image.network(user.coverImage!, fit: BoxFit.cover)
+                    ? Image.network(
+                        user.coverImage!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            const Center(child: Icon(Icons.image, color: Colors.grey)),
+                      )
                     : const Center(child: Icon(Icons.image, color: Colors.grey)),
               ),
 
               const SizedBox(height: 12),
 
               // Avatar + name
-              CircleAvatar(
-                radius: 42,
-                backgroundColor: Colors.grey.shade300,
-                backgroundImage: user.avatar != null ? NetworkImage(user.avatar!) : null,
-                child: user.avatar == null
-                    ? Text(
-                        user.name.isNotEmpty ? user.name[0].toUpperCase() : "S",
-                        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-                      )
-                    : null,
-              ),
+              _UserProfileAvatar(avatarUrl: user.avatar, name: user.name),
 
               const SizedBox(height: 10),
 
@@ -913,6 +908,46 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         ),
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UserProfileAvatar extends StatelessWidget {
+  final String? avatarUrl;
+  final String name;
+
+  const _UserProfileAvatar({this.avatarUrl, required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = avatarUrl != null && avatarUrl!.isNotEmpty
+        ? (ApiConfig.networkImageUrl(avatarUrl!) ?? avatarUrl)
+        : null;
+    if (url == null) {
+      return CircleAvatar(
+        radius: 42,
+        backgroundColor: Colors.grey.shade300,
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : 'S',
+          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+        ),
+      );
+    }
+    return ClipOval(
+      child: Image.network(
+        url,
+        fit: BoxFit.cover,
+        width: 84,
+        height: 84,
+        errorBuilder: (_, __, ___) => CircleAvatar(
+          radius: 42,
+          backgroundColor: Colors.grey.shade300,
+          child: Text(
+            name.isNotEmpty ? name[0].toUpperCase() : 'S',
+            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
           ),
         ),
       ),
