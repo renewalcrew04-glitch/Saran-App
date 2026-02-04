@@ -59,12 +59,16 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Future<void> _onFollow(User user) async {
     final uid = user.uid;
     if (uid.isEmpty) return;
-    final ok = await _profileService.followUser(uid);
+    final error = await _profileService.followUser(uid);
     if (!mounted) return;
-    if (ok) {
+    if (error == null) {
       setState(() => _followingIds.add(uid));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Following ${user.name}')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.red.shade700),
       );
     }
   }

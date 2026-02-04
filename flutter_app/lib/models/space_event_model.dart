@@ -12,8 +12,10 @@ class SpaceEvent {
   final bool isJoined;
   
   // ✅ Added these to fix UI errors
-  final int price; 
+  final int price;
   final int capacity;
+  final String? coverUrl;
+  final DateTime? updatedAt;
 
   SpaceEvent({
     required this.id,
@@ -29,6 +31,8 @@ class SpaceEvent {
     this.isJoined = false,
     this.price = 0,      // Default to 0 (Free)
     this.capacity = 100, // Default capacity
+    this.coverUrl,
+    this.updatedAt,
   });
 
   // ✅ Getters: This maps the UI names to our actual data
@@ -55,9 +59,10 @@ class SpaceEvent {
       attendeesCount: json['attendeesCount'] ?? 0,
       isJoined: json['joinedByMe'] ?? false,
       
-      // Defaults since backend doesn't have these yet
       price: json['price'] ?? 0,
       capacity: json['capacity'] ?? 50,
+      coverUrl: json['coverUrl']?.toString(),
+      updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'].toString()) : null,
     );
   }
 
@@ -79,6 +84,8 @@ class SpaceEvent {
       isJoined: isJoined ?? this.isJoined,
       price: price,
       capacity: capacity,
+      coverUrl: coverUrl,
+      updatedAt: updatedAt,
     );
   }
 }

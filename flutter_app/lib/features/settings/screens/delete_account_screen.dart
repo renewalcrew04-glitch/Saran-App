@@ -16,6 +16,29 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   bool loading = false;
 
   Future<void> _delete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete account?"),
+        content: const Text(
+          "This will permanently delete your account and all your data. This cannot be undone.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
     final auth = Provider.of<AuthProvider>(context, listen: false);
     if (auth.token == null) return;
 

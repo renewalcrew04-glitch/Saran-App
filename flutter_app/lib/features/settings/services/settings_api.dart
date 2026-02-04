@@ -24,8 +24,17 @@ class SettingsApi {
   }
 
   // =========================
-  // DM + COMMENTS (FIXED)
+  // DM + COMMENTS
   // =========================
+  /// Get current DM and comment settings.
+  Future<Map<String, dynamic>> getMessagingSettings() async {
+    final res = await _dio.get('/settings/messaging');
+    return {
+      'dmSettings': res.data['dmSettings'] ?? 'everyone',
+      'commentSettings': res.data['commentSettings'] ?? 'everyone',
+    };
+  }
+
   Future<void> updateMessagingSettings({
     String? dmSettings,
     String? commentSettings,

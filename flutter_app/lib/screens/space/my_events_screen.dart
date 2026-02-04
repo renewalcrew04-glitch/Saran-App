@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../config/api_config.dart';
 import '../../models/space_event_model.dart';
 import '../../features/space/space_provider_riverpod.dart';
 
@@ -119,7 +121,13 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen> with SingleTick
       itemCount: events.length,
       itemBuilder: (context, index) {
         final event = events[index];
-        return _MyEventCard(event: event, isHosted: isHosted);
+        return _MyEventCard(
+          event: event,
+          isHosted: isHosted,
+          onReturnFromEdit: () {
+            if (mounted) _fetch();
+          },
+        );
       },
     );
   }
@@ -129,8 +137,21 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen> with SingleTick
 class _MyEventCard extends StatelessWidget {
   final SpaceEvent event;
   final bool isHosted;
+  final VoidCallback? onReturnFromEdit;
 
-  const _MyEventCard({required this.event, required this.isHosted});
+  const _MyEventCard({
+    required this.event,
+    required this.isHosted,
+    this.onReturnFromEdit,
+  });
+
+  static String _eventCoverUrl(SpaceEvent event) {
+    final base = ApiConfig.networkImageUrl(event.coverUrl!) ?? event.coverUrl!;
+    if (event.updatedAt != null) {
+      return '$base${base.contains('?') ? '&' : '?'}v=${event.updatedAt!.millisecondsSinceEpoch}';
+    }
+    return base;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -159,7 +180,17 @@ class _MyEventCard extends StatelessWidget {
               color: Colors.grey[200],
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.image, color: Colors.grey), 
+            clipBehavior: Clip.antiAlias,
+            child: event.coverUrl != null && event.coverUrl!.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: _eventCoverUrl(event),
+                    fit: BoxFit.cover,
+                    width: 80,
+                    height: 80,
+                    placeholder: (_, __) => const Center(child: Icon(Icons.image, color: Colors.grey)),
+                    errorWidget: (_, __, ___) => const Icon(Icons.image, color: Colors.grey),
+                  )
+                : const Icon(Icons.image, color: Colors.grey),
           ),
           const SizedBox(width: 12),
           
@@ -178,8 +209,18 @@ class _MyEventCard extends StatelessWidget {
                         maxLines: 1, overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (isHosted) 
-                      const Icon(Icons.edit, size: 16, color: Colors.black),
+                    if (isHosted)
+                      GestureDetector(
+                        onTap: () async {
+                          await context.push('/space/edit?id=${Uri.encodeComponent(event.id)}');
+                          onReturnFromEdit?.call();
+                        },
+                        behavior: HitTestBehavior.opaque,
+                        child: const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Icon(Icons.edit, size: 20, color: Colors.black),
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 4),

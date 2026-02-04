@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../config/api_config.dart';
 import '../../models/space_event_model.dart';
 import 'package:intl/intl.dart';
 
@@ -7,6 +9,15 @@ class SpaceEventCard extends StatelessWidget {
   final SpaceEvent event;
 
   const SpaceEventCard({super.key, required this.event});
+
+  /// Cover URL with cache-busting so updated image shows after edit.
+  static String _eventCoverUrl(SpaceEvent event) {
+    final base = ApiConfig.networkImageUrl(event.coverUrl!) ?? event.coverUrl!;
+    if (event.updatedAt != null) {
+      return '$base${base.contains('?') ? '&' : '?'}v=${event.updatedAt!.millisecondsSinceEpoch}';
+    }
+    return base;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +49,7 @@ class SpaceEventCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image Placeholder
+            // Cover image or placeholder
             Container(
               height: 140,
               width: double.infinity,
@@ -46,9 +57,17 @@ class SpaceEventCard extends StatelessWidget {
                 color: Colors.grey.shade100,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               ),
-              child: Center(
-                child: Icon(Icons.image, size: 40, color: Colors.grey.shade300),
-              ),
+              clipBehavior: Clip.antiAlias,
+              child: event.coverUrl != null && event.coverUrl!.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: _eventCoverUrl(event),
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: 140,
+                      placeholder: (_, __) => Center(child: Icon(Icons.image, size: 40, color: Colors.grey.shade300)),
+                      errorWidget: (_, __, ___) => Center(child: Icon(Icons.image, size: 40, color: Colors.grey.shade300)),
+                    )
+                  : Center(child: Icon(Icons.image, size: 40, color: Colors.grey.shade300)),
             ),
             
             Padding(

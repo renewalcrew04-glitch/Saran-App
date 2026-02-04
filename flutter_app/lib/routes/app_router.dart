@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:saran_app/models/post_model.dart';
 import 'package:saran_app/models/space_event_model.dart'; // ✅ Added for Detail Screen
 import 'package:saran_app/features/settings/settings_routes.dart';
+import 'package:saran_app/screens/auth/auth_loader_screen.dart';
 import 'package:saran_app/screens/auth/login_screen.dart';
 import 'package:saran_app/screens/auth/signup_screen.dart';
 
@@ -50,9 +51,16 @@ import 'package:saran_app/screens/space/event_details_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/',
     debugLogDiagnostics: kDebugMode,
     routes: [
+      // =========================
+      // INITIAL: restore session then redirect to /home or /login
+      // =========================
+      GoRoute(
+        path: '/',
+        builder: (context, state) => const AuthLoaderScreen(),
+      ),
       // =========================
       // AUTH
       // =========================
@@ -79,6 +87,13 @@ class AppRouter {
       GoRoute(
         path: '/space/create',
         builder: (context, state) => const CreateEventScreen(),
+      ),
+      GoRoute(
+        path: '/space/edit',
+        builder: (context, state) {
+          final id = state.uri.queryParameters['id'] ?? state.pathParameters['id'];
+          return CreateEventScreen(eventId: (id == null || id.isEmpty) ? null : id);
+        },
       ),
       GoRoute(
         path: '/space/my-events',

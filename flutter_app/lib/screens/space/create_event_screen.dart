@@ -3,12 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
+import '../../config/api_config.dart';
 import '../../features/space/space_provider_riverpod.dart';
 import '../../services/upload_service.dart';
 
 class CreateEventScreen extends ConsumerStatefulWidget {
-  const CreateEventScreen({super.key});
+  /// If set, screen is in edit mode and will load/update this event.
+  final String? eventId;
+
+  const CreateEventScreen({super.key, this.eventId});
 
   @override
   ConsumerState<CreateEventScreen> createState() => _CreateEventScreenState();
@@ -33,6 +38,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   // State
   String _selectedCategory = 'Social';
   File? _coverImage;
+  String? _existingCoverUrl; // existing cover URL when editing (so we can show/send it)
   File? _videoFile; // ✅ Video State
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _startTime = const TimeOfDay(hour: 18, minute: 0);
@@ -42,10 +48,63 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   final List<Map<String, String>> _faqs = [];
 
   bool _isLoading = false;
+  bool _isLoadingEvent = false;
 
   final List<String> _categories = [
     'Social', 'Wellness', 'Workshop', 'Tech', 'Art', 'Music', 'Business', 'Food', 'Travel'
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.eventId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadEvent());
+    }
+  }
+
+  Future<void> _loadEvent() async {
+    if (widget.eventId == null) return;
+    setState(() => _isLoadingEvent = true);
+    final service = ref.read(spaceServiceProvider);
+    final data = await service.getEventById(widget.eventId!);
+    if (!mounted || data == null) {
+      if (mounted) setState(() => _isLoadingEvent = false);
+      return;
+    }
+    _titleController.text = data['title']?.toString() ?? '';
+    _descController.text = data['description']?.toString() ?? '';
+    _locationController.text = (data['location'] is Map
+            ? (data['location']['address'] ?? '')
+            : data['location']?.toString()) ??
+        '';
+    _priceController.text = (data['price'] ?? 0).toString();
+    _capacityController.text = (data['capacity'] ?? 50).toString();
+    _instructionsController.text = data['instructions']?.toString() ?? '';
+    if (data['category'] != null && _categories.contains(data['category'])) {
+      _selectedCategory = data['category'] as String;
+    }
+    if (data['startDate'] != null) {
+      final start = DateTime.parse(data['startDate'].toString());
+      _selectedDate = start;
+      _startTime = TimeOfDay(hour: start.hour, minute: start.minute);
+    }
+    if (data['endDate'] != null) {
+      final end = DateTime.parse(data['endDate'].toString());
+      _endTime = TimeOfDay(hour: end.hour, minute: end.minute);
+    }
+    if (data['faqs'] is List) {
+      for (final faq in data['faqs'] as List) {
+        if (faq is Map && faq['question'] != null) {
+          _faqs.add({
+            'question': faq['question'].toString(),
+            'answer': (faq['answer'] ?? '').toString(),
+          });
+        }
+      }
+    }
+    _existingCoverUrl = data['coverUrl']?.toString();
+    if (mounted) setState(() => _isLoadingEvent = false);
+  }
 
   @override
   void dispose() {
@@ -92,12 +151,21 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Upload Media
+      // 1. Upload Media (new cover image when editing)
       String? coverUrl;
       String? videoUrl;
 
       if (_coverImage != null) {
-        coverUrl = await _uploadService.uploadMedia(_coverImage!.path);
+        try {
+          coverUrl = await _uploadService.uploadMedia(_coverImage!.path);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Cover image upload failed. Please try again.')),
+            );
+          }
+          return;
+        }
       }
       if (_videoFile != null) {
         videoUrl = await _uploadService.uploadMedia(_videoFile!.path);
@@ -113,7 +181,8 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         _endTime.hour, _endTime.minute,
       );
 
-      // 3. Payload
+      // 3. Payload – on edit without new image, keep existing coverUrl
+      final String? coverToSend = coverUrl ?? (widget.eventId != null ? _existingCoverUrl : null);
       final eventData = {
         "title": _titleController.text.trim(),
         "description": _descController.text.trim(),
@@ -125,27 +194,55 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         "price": int.tryParse(_priceController.text) ?? 0,
         "capacity": int.tryParse(_capacityController.text) ?? 50,
         "isPublic": true,
-        if (coverUrl != null) "coverUrl": coverUrl,
+        if (coverToSend != null && coverToSend.isNotEmpty) "coverUrl": coverToSend,
         if (videoUrl != null) "videoUrl": videoUrl,
         "faqs": _faqs, // ✅ Send FAQs
       };
 
       // 4. API Call
       final service = ref.read(spaceServiceProvider);
-      final success = await service.createEvent(eventData);
-
-      if (mounted) {
-        if (success) {
-          ref.read(spaceProvider.notifier).reset();
-          ref.read(spaceProvider.notifier).load();
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Event Created Successfully!")),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Failed to create event.")),
-          );
+      final isEdit = widget.eventId != null;
+      if (isEdit) {
+        final errorMsg = await service.updateEvent(widget.eventId!, eventData);
+        if (mounted) {
+          if (errorMsg == null) {
+            ref.read(spaceProvider.notifier).reset();
+            ref.read(spaceProvider.notifier).load();
+            // Evict cover image cache so list/details show the new image after refetch
+            if (_existingCoverUrl != null && _existingCoverUrl!.isNotEmpty) {
+              final oldUrl = ApiConfig.networkImageUrl(_existingCoverUrl!) ?? _existingCoverUrl!;
+              await CachedNetworkImage.evictFromCache(oldUrl);
+            }
+            if (coverToSend != null && coverToSend.isNotEmpty) {
+              final newUrl = ApiConfig.networkImageUrl(coverToSend) ?? coverToSend;
+              await CachedNetworkImage.evictFromCache(newUrl);
+            }
+            if (!context.mounted) return;
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Event updated successfully!")),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(errorMsg)),
+            );
+          }
+        }
+      } else {
+        final success = await service.createEvent(eventData);
+        if (mounted) {
+          if (success) {
+            ref.read(spaceProvider.notifier).reset();
+            ref.read(spaceProvider.notifier).load();
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Event created successfully!")),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Failed to create event.")),
+            );
+          }
         }
       }
     } catch (e) {
@@ -162,19 +259,24 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Create Event", style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+        title: Text(
+          widget.eventId != null ? "Edit Event" : "Create Event",
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w800),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
       ),
-      body: SingleChildScrollView(
+      body: _isLoadingEvent
+          ? const Center(child: CircularProgressIndicator(color: Colors.black))
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Cover Image
+              // Cover Image (new file, existing URL, or placeholder)
               GestureDetector(
                 onTap: _pickCover,
                 child: Container(
@@ -188,16 +290,18 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                         ? DecorationImage(image: FileImage(_coverImage!), fit: BoxFit.cover)
                         : null,
                   ),
-                  child: _coverImage == null
-                      ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.add_photo_alternate_outlined, size: 40, color: Colors.grey[500]),
-                            const SizedBox(height: 8),
-                            Text("Add Cover Image", style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
-                          ],
-                        )
-                      : null,
+                  child: _coverImage != null
+                      ? null
+                      : (_existingCoverUrl != null && _existingCoverUrl!.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: ApiConfig.networkImageUrl(_existingCoverUrl!) ?? _existingCoverUrl!,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: 180,
+                              placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: Colors.black)),
+                              errorWidget: (_, __, ___) => _coverPlaceholder(),
+                            )
+                          : _coverPlaceholder()),
                 ),
               ),
               const SizedBox(height: 24),
@@ -377,7 +481,10 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                   ),
                   child: _isLoading
                       ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text("Publish Event", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      : Text(
+                          widget.eventId != null ? "Update Event" : "Publish Event",
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -389,6 +496,17 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   }
 
   // --- Widgets ---
+
+  Widget _coverPlaceholder() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.add_photo_alternate_outlined, size: 40, color: Colors.grey[500]),
+        const SizedBox(height: 8),
+        Text("Add Cover Image", style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
+      ],
+    );
+  }
 
   Widget _sectionHeader(String title) {
     return Text(

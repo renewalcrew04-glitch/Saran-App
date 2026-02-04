@@ -4,15 +4,57 @@ import '../models/user_model.dart';
 class PeopleRow extends StatelessWidget {
   final User user;
   final VoidCallback onFollow;
+  final VoidCallback? onTap;
 
   const PeopleRow({
     super.key,
     required this.user,
     required this.onFollow,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final profileArea = Row(
+      children: [
+        CircleAvatar(
+          radius: 22,
+          backgroundColor: Colors.grey.shade300,
+          child: const Icon(Icons.person, color: Colors.white),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    user.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  if (user.verified)
+                    const Icon(Icons.verified, size: 16, color: Colors.black),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                "@${user.username} ${(user.isPrivate == true) ? "• Private" : ""}",
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.black54,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -23,43 +65,15 @@ class PeopleRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: Colors.grey.shade300,
-            child: const Icon(Icons.person, color: Colors.white),
-          ),
-          const SizedBox(width: 12),
-
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      user.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    if (user.verified)
-                      const Icon(Icons.verified, size: 16, color: Colors.black),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  "@${user.username} ${(user.isPrivate == true) ? "• Private" : ""}",
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
-            ),
+            child: onTap != null
+                ? GestureDetector(
+                    onTap: onTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: profileArea,
+                  )
+                : profileArea,
           ),
-
           ElevatedButton(
             onPressed: onFollow,
             style: ElevatedButton.styleFrom(

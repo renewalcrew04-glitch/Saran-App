@@ -1,5 +1,25 @@
 import User from "../models/User.model.js";
 
+/**
+ * GET /settings/messaging – return current user's dmSettings and commentSettings
+ */
+export const getMessagingSettings = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .select("dmSettings commentSettings");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    return res.json({
+      success: true,
+      dmSettings: user.dmSettings ?? "everyone",
+      commentSettings: user.commentSettings ?? "everyone",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const updateMessagingSettings = async (req, res, next) => {
   try {
     const { dmSettings, commentSettings } = req.body;

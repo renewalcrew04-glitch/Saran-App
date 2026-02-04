@@ -1,7 +1,21 @@
+import mongoose from 'mongoose';
+import Block from '../models/Block.model.js';
 import Follow from '../models/Follow.model.js';
 import Like from '../models/Like.model.js';
 import Post from '../models/Post.model.js';
 import User from '../models/User.model.js';
+
+/** Get user IDs (ObjectIds) that viewer cannot see (viewer blocked them or they blocked viewer). */
+async function getBlockedUserIdsForViewer(viewerId) {
+  const asBlocker = await Block.find({ blocker: viewerId }).select('blocked').lean();
+  const asBlocked = await Block.find({ blocked: viewerId }).select('blocker').lean();
+  const ids = [
+    ...asBlocker.map((b) => b.blocked.toString()),
+    ...asBlocked.map((b) => b.blocker.toString()),
+  ];
+  const unique = [...new Set(ids)];
+  return unique.map((id) => (mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id));
+}
 
 // @desc    Get home feed (posts from users you follow)
 // @route   GET /api/feed/home
@@ -14,9 +28,11 @@ export const getHomeFeed = async (req, res, next) => {
     const skip = (page - 1) * limit;
     const { category, followingOnly } = req.query;
 
-    let query = {
+    const blockedIds = await getBlockedUserIdsForViewer(userId);
+    const query = {
       isDeleted: false,
       visibility: 'public',
+      ...(blockedIds.length > 0 ? { uid: { $nin: blockedIds } } : {}),
     };
 
     // CATEGORY FILTER
@@ -93,6 +109,20 @@ export const getUserFeed = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'User not found'
+      });
+    }
+
+    // Block: if either has blocked the other, cannot view feed
+    const blockRelation = await Block.findOne({
+      $or: [
+        { blocker: userId, blocked: user._id },
+        { blocker: user._id, blocked: userId },
+      ],
+    });
+    if (blockRelation) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot view this profile',
       });
     }
 
@@ -174,11 +204,12 @@ export const getExploreFeed = async (req, res, next) => {
     const skip = (page - 1) * limit;
     const { type } = req.query; // Optional filter: text, photo, video
 
-    // Build query
+    const blockedIds = await getBlockedUserIdsForViewer(userId);
     const query = {
       isDeleted: false,
       visibility: 'public',
-      type: { $in: ['text', 'photo', 'video'] } // Exclude reposts and quotes from explore
+      type: { $in: ['text', 'photo', 'video'] },
+      ...(blockedIds.length > 0 ? { uid: { $nin: blockedIds } } : {}),
     };
 
     if (type && ['text', 'photo', 'video'].includes(type)) {

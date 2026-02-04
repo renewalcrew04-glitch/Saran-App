@@ -63,8 +63,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildChip(String label) {
+  Widget _buildChip(BuildContext context, String label) {
     final isActive = _selectedTab == label;
+    final theme = Theme.of(context);
 
     return Padding(
       padding: const EdgeInsets.only(right: 8),
@@ -80,17 +81,17 @@ class _HomeScreenState extends State<HomeScreen> {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             decoration: BoxDecoration(
-              color: isActive ? Colors.black : Colors.white,
+              color: isActive ? theme.colorScheme.primary : theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isActive ? Colors.black : Colors.grey.shade300,
+                color: isActive ? theme.colorScheme.primary : theme.colorScheme.outline,
                 width: 1,
               ),
             ),
             child: Text(
               label,
               style: TextStyle(
-                color: isActive ? Colors.white : Colors.black87,
+                color: isActive ? Colors.white : theme.colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
@@ -101,13 +102,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Black pill-shaped quote banner with white text.
+  /// Primary pill-shaped quote banner.
   Widget _buildQuoteBanner() {
+    final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: theme.colorScheme.primary,
         borderRadius: BorderRadius.circular(28),
       ),
       child: const Center(
@@ -124,36 +126,38 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Light gray post input row: avatar, "What's on your mind?", black Post button.
+  /// Post input row: avatar, "What's on your mind?", Post button.
   Widget _buildPostComposer() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return GestureDetector(
       onTap: () => context.push('/post-create'),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: colorScheme.outline),
         ),
         child: Row(
           children: [
             CircleAvatar(
               radius: 20,
-              backgroundColor: Colors.grey.shade300,
-              child: Icon(Icons.person, color: Colors.grey.shade600, size: 22),
+              backgroundColor: colorScheme.outlineVariant,
+              child: Icon(Icons.person, color: colorScheme.onSurfaceVariant, size: 22),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
                 "What's on your mind?",
                 style: TextStyle(
-                  color: Colors.black54,
+                  color: colorScheme.onSurfaceVariant,
                   fontSize: 15,
                 ),
               ),
             ),
             Material(
-              color: Colors.black,
+              color: colorScheme.primary,
               borderRadius: BorderRadius.circular(12),
               child: InkWell(
                 onTap: () => context.push('/post-create'),
@@ -179,8 +183,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppHeader(
         title: "SARAN",
         dark: false,
@@ -193,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
           await _loadFeed();
           if (mounted) setState(() => _sframeRefresh++);
         },
-        color: Colors.black,
+        color: theme.colorScheme.primary,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
@@ -205,12 +210,12 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildQuoteBanner(),
             const SizedBox(height: 16),
 
-            // Category tabs
+            // Category tabs (For You, Following, etc.)
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.only(bottom: 4),
               child: Row(
-                children: _homeTabs.map(_buildChip).toList(),
+                children: _homeTabs.map((label) => _buildChip(context, label)).toList(),
               ),
             ),
 
@@ -224,8 +229,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
                   _selectedTab,
-                  style: const TextStyle(
-                    color: Colors.black,
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
                   ),
@@ -246,7 +251,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       'Loading your feed…',
                       style: TextStyle(
-                        color: Colors.grey.shade600,
+                        color: theme.colorScheme.onSurfaceVariant,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -258,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
@@ -267,16 +272,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       offset: const Offset(0, 2),
                     ),
                   ],
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: theme.colorScheme.outline),
                 ),
                 child: Column(
                   children: [
-                    Icon(Icons.error_outline_rounded, size: 48, color: Colors.grey.shade400),
+                    Icon(Icons.error_outline_rounded, size: 48, color: theme.colorScheme.onSurfaceVariant),
                     const SizedBox(height: 12),
                     Text(
                       'Couldn’t load feed',
                       style: TextStyle(
-                        color: Colors.grey.shade800,
+                        color: theme.colorScheme.onSurface,
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
                       ),
@@ -287,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       textAlign: TextAlign.center,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
                     ),
                     const SizedBox(height: 16),
                     FilledButton.icon(
@@ -295,7 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: const Icon(Icons.refresh_rounded, size: 20),
                       label: const Text('Try again'),
                       style: FilledButton.styleFrom(
-                        backgroundColor: Colors.black,
+                        backgroundColor: theme.colorScheme.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       ),
@@ -311,16 +316,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
+                        color: theme.colorScheme.surfaceContainerHighest,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.article_outlined, size: 48, color: Colors.grey.shade400),
+                      child: Icon(Icons.article_outlined, size: 48, color: theme.colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 20),
                     Text(
                       'No posts yet',
                       style: TextStyle(
-                        color: Colors.grey.shade800,
+                        color: theme.colorScheme.onSurface,
                         fontWeight: FontWeight.w700,
                         fontSize: 18,
                       ),
@@ -329,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       'Follow people or share your first post',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                      style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 14),
                     ),
                     const SizedBox(height: 24),
                     Row(
@@ -340,7 +345,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           icon: const Icon(Icons.add_rounded, size: 20),
                           label: const Text('Create post'),
                           style: FilledButton.styleFrom(
-                            backgroundColor: Colors.black,
+                            backgroundColor: theme.colorScheme.primary,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                           ),
@@ -351,8 +356,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           icon: const Icon(Icons.explore_rounded, size: 20),
                           label: const Text('Explore'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.black87,
-                            side: BorderSide(color: Colors.grey.shade300),
+                            foregroundColor: theme.colorScheme.onSurface,
+                            side: BorderSide(color: theme.colorScheme.outline),
                           ),
                         ),
                       ],

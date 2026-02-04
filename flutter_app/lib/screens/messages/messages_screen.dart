@@ -9,7 +9,10 @@ import '../../providers/dm_search_provider.dart';
 import '../../providers/message_provider.dart';
 import '../../models/conversation_model.dart';
 import '../../models/dm_user_model.dart';
+import '../../models/user_lite_model.dart';
+import '../../models/user_model.dart';
 import '../../services/message_service.dart';
+import '../profile/user_profile_screen.dart';
 import 'chat_screen.dart';
 import 'new_message_screen.dart';
 
@@ -259,6 +262,25 @@ class _MessagesScreenState extends State<MessagesScreen> {
     );
   }
 
+  void _openProfile(UserLiteModel? other) {
+    if (other == null) return;
+    final user = User(
+      uid: other.id,
+      username: other.username ?? '',
+      email: '',
+      name: other.name,
+      avatar: other.avatar,
+      profileCompleted: true,
+      verified: false,
+    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UserProfileScreen(user: user),
+      ),
+    );
+  }
+
   Widget _tile(ConversationModel c) {
     final other = c.otherUser;
 
@@ -307,46 +329,50 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ),
           child: Row(
             children: [
-              Stack(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.grey[200]!, width: 2),
-                    ),
-                    child: CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Colors.grey[300],
-                      backgroundImage: avatarUrl != null
-                          ? CachedNetworkImageProvider(avatarUrl)
-                          : null,
-                      child: avatarUrl == null
-                          ? Text(
-                              name[0].toUpperCase(),
-                              style: TextStyle(
-                                color: Colors.grey[700],
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                            )
-                          : null,
-                    ),
-                  ),
-                  if (online)
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2.5),
-                        ),
+              GestureDetector(
+                onTap: () => _openProfile(other),
+                behavior: HitTestBehavior.opaque,
+                child: Stack(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey[200]!, width: 2),
+                      ),
+                      child: CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Colors.grey[300],
+                        backgroundImage: avatarUrl != null
+                            ? CachedNetworkImageProvider(avatarUrl)
+                            : null,
+                        child: avatarUrl == null
+                            ? Text(
+                                name[0].toUpperCase(),
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
+                              )
+                            : null,
                       ),
                     ),
-                ],
+                    if (online)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2.5),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(

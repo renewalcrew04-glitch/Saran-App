@@ -15,6 +15,31 @@ class _DMControlScreenState extends State<DMControlScreen> {
 
   String dmValue = "everyone";
   bool saving = false;
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.token == null) {
+      setState(() => loading = false);
+      return;
+    }
+    api.setToken(auth.token!);
+    try {
+      final data = await api.getMessagingSettings();
+      if (mounted) setState(() {
+        dmValue = (data['dmSettings'] ?? 'everyone') as String;
+        loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => loading = false);
+    }
+  }
 
   Future<void> _save() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
@@ -48,6 +73,18 @@ class _DMControlScreenState extends State<DMControlScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (loading) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: const Text("DM Controls"),
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 0,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -71,7 +108,7 @@ class _DMControlScreenState extends State<DMControlScreen> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            initialValue: dmValue,
+            value: dmValue,
             decoration: const InputDecoration(border: OutlineInputBorder()),
             items: const [
               DropdownMenuItem(value: "everyone", child: Text("Everyone")),

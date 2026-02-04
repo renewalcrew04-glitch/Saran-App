@@ -11,12 +11,20 @@ class NotificationSettingsProvider extends ChangeNotifier {
     _api.setToken(token);
   }
 
+  /// Call when token is missing so UI stops showing loading.
+  void clearLoading() {
+    loading = false;
+    notifyListeners();
+  }
+
   Future<void> load() async {
     loading = true;
     notifyListeners();
-
-    settings = await _api.getNotificationSettings();
-
+    try {
+      settings = await _api.getNotificationSettings();
+    } catch (_) {
+      settings = {};
+    }
     loading = false;
     notifyListeners();
   }

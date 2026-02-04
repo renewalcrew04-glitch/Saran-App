@@ -6,7 +6,9 @@ import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../config/api_config.dart';
+import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../screens/profile/user_profile_screen.dart';
 import '../models/sframe_model.dart';
 import '../services/sframe_service.dart';
 import '../utils/sframe_filters.dart';
@@ -291,105 +293,127 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
               ),
             ),
 
-            // ================= HEADER: Avatar + Name + Time =================
+            // ================= HEADER: Avatar + Name + Time (tap to open profile) =================
             Positioned(
               top: 56,
               left: 16,
               right: 80,
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Colors.white24,
-                    backgroundImage: frame.ownerAvatar != null &&
-                            frame.ownerAvatar!.isNotEmpty
-                        ? NetworkImage(
-                            ApiConfig.networkImageUrl(frame.ownerAvatar!) ?? frame.ownerAvatar!,
-                          )
-                        : null,
-                    child: frame.ownerAvatar == null || frame.ownerAvatar!.isEmpty
-                        ? const Icon(Icons.person, color: Colors.white70, size: 24)
-                        : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          frame.ownerName ?? 'Unknown',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (frame.createdAt != null)
-                          Text(
-                            _timeAgo(frame.createdAt),
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontSize: 12,
-                            ),
-                          ),
-                      ],
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  if (frame.uid.isEmpty) return;
+                  final user = User(
+                    uid: frame.uid,
+                    username: frame.ownerUsername ?? '',
+                    email: '',
+                    name: frame.ownerName ?? 'Unknown',
+                    avatar: frame.ownerAvatar,
+                    profileCompleted: false,
+                    verified: false,
+                  );
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => UserProfileScreen(user: user),
                     ),
-                  ),
-                ],
+                  );
+                },
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: frame.ownerAvatar != null &&
+                              frame.ownerAvatar!.isNotEmpty
+                          ? NetworkImage(
+                              ApiConfig.networkImageUrl(frame.ownerAvatar!) ?? frame.ownerAvatar!,
+                            )
+                          : null,
+                      child: frame.ownerAvatar == null || frame.ownerAvatar!.isEmpty
+                          ? const Icon(Icons.person, color: Colors.white70, size: 24)
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            frame.ownerName ?? 'Unknown',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (frame.createdAt != null)
+                            Text(
+                              _timeAgo(frame.createdAt),
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.8),
+                                fontSize: 12,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
-            // ================= ECHOS (likes) + VIEWS =================
-            Positioned(
-              bottom: 90,
-              right: 16,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Echos (likes) – tap to see who liked
-                  Padding(
-                    padding: const EdgeInsets.only(right: 16),
-                    child: GestureDetector(
+            // ================= ECHOS (likes) + VIEWS – only for story owner =================
+            if (isOwnStory)
+              Positioned(
+                bottom: 90,
+                right: 16,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Echos (likes) – tap to see who liked
+                    Padding(
+                      padding: const EdgeInsets.only(right: 16),
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _showLikedModal(context),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.favorite_border, color: Colors.white, size: 22),
+                            const SizedBox(width: 4),
+                            Text(
+                              '0',
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // View count + eye – tap to see who viewed
+                    GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTap: () => _showLikedModal(context),
+                      onTap: () async {
+                        final users = await SFrameService.getSeenUsers(frame.id);
+                        if (!context.mounted) return;
+                        showSeenModal(context, users);
+                      },
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.favorite_border, color: Colors.white, size: 22),
+                          const Icon(Icons.remove_red_eye, color: Colors.white, size: 22),
                           const SizedBox(width: 4),
                           Text(
-                            '0',
+                            '${frame.viewCount}',
                             style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  // View count + eye – tap to see who viewed
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () async {
-                      final users = await SFrameService.getSeenUsers(frame.id);
-                      if (!context.mounted) return;
-                      showSeenModal(context, users);
-                    },
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.remove_red_eye, color: Colors.white, size: 22),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${frame.viewCount}',
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
 
             // ================= REPLY =================
             Positioned(
@@ -408,14 +432,13 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
                     Expanded(
                       child: TextField(
                         controller: _replyCtrl,
-                        style: const TextStyle(
-                            color: Colors.white),
-                        decoration:
-                            const InputDecoration(
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
                           hintText: "Reply…",
-                          hintStyle: TextStyle(
-                              color: Colors.white38),
+                          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
                           border: InputBorder.none,
+                          filled: true,
+                          fillColor: Colors.transparent,
                         ),
                       ),
                     ),

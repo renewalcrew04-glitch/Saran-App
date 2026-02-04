@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../config/api_config.dart';
 import '../../models/space_event_model.dart';
 import '../../features/space/space_provider_riverpod.dart';
 
@@ -22,6 +24,14 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
   void initState() {
     super.initState();
     event = widget.event;
+  }
+
+  static String _eventCoverUrl(SpaceEvent event) {
+    final base = ApiConfig.networkImageUrl(event.coverUrl!) ?? event.coverUrl!;
+    if (event.updatedAt != null) {
+      return '$base${base.contains('?') ? '&' : '?'}v=${event.updatedAt!.millisecondsSinceEpoch}';
+    }
+    return base;
   }
 
   Future<void> _joinEvent() async {
@@ -78,9 +88,16 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
               height: 200,
               width: double.infinity,
               color: const Color(0xFFF5F5F5),
-              child: const Center(
-                child: Icon(Icons.event, size: 80, color: Colors.black12),
-              ),
+              child: event.coverUrl != null && event.coverUrl!.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: _eventCoverUrl(event),
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: 200,
+                      placeholder: (_, __) => const Center(child: Icon(Icons.event, size: 80, color: Colors.black12)),
+                      errorWidget: (_, __, ___) => const Center(child: Icon(Icons.event, size: 80, color: Colors.black12)),
+                    )
+                  : const Center(child: Icon(Icons.event, size: 80, color: Colors.black12)),
             ),
             Padding(
               padding: const EdgeInsets.all(20),

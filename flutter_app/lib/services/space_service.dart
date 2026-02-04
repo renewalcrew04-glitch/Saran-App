@@ -99,4 +99,50 @@ class SpaceService {
       return false;
     }
   }
+
+  /// Fetch full event by id (for edit screen).
+  Future<Map<String, dynamic>?> getEventById(String eventId) async {
+    try {
+      final options = await _getAuthOptions();
+      final response = await _dio.get('/space/events/$eventId', options: options);
+      if (response.statusCode == 200 && response.data is Map) {
+        return Map<String, dynamic>.from(response.data as Map);
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Error fetching event: $e");
+      return null;
+    }
+  }
+
+  /// Returns null on success, or an error message string on failure.
+  /// Uses PUT /api/events/:id (event routes) so update works even if /api/space PUT is not deployed.
+  Future<String?> updateEvent(String eventId, Map<String, dynamic> eventData) async {
+    try {
+      final options = await _getAuthOptions();
+      final url = ApiConfig.getUrl('events/$eventId');
+      final response = await _dio.put(
+        url,
+        data: eventData,
+        options: options,
+      );
+      if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
+        return null;
+      }
+      final msg = response.data is Map && response.data['message'] != null
+          ? response.data['message'].toString()
+          : 'Failed to update event';
+      return msg;
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map && e.response?.data['message'] != null
+          ? e.response?.data['message'].toString()
+          : (e.response?.statusMessage ?? e.message ?? 'Failed to update event');
+      debugPrint("Error updating event: $e");
+      debugPrint("Response: ${e.response?.data}");
+      return msg;
+    } catch (e) {
+      debugPrint("Error updating event: $e");
+      return e.toString();
+    }
+  }
 }

@@ -87,10 +87,13 @@ class _SFrameCreateScreenState extends State<SFrameCreateScreen> {
                         fontSize: 22,
                       ),
                       textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: "Write your moment…",
-                        hintStyle: TextStyle(color: Colors.white38),
+                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
                         border: InputBorder.none,
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        counterStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
                       ),
                     ),
             ),
@@ -108,16 +111,18 @@ class _SFrameCreateScreenState extends State<SFrameCreateScreen> {
                   onPressed: () => _pickMedia(ImageSource.gallery),
                 ),
                 const Spacer(),
-                ElevatedButton(
+                TextButton(
                   onPressed: _loading ? null : _share,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white70, width: 1.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
                   child: const Text(
                     "Share",
                     style: TextStyle(
-                      color: Colors.black,
                       fontWeight: FontWeight.w700,
+                      fontSize: 16,
                     ),
                   ),
                 ),

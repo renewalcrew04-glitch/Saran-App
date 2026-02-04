@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../services/upload_service.dart';
 import '../../services/voice_recorder_service.dart';
 import '../../widgets/chat/message_bubble.dart';
 import '../../widgets/chat/reaction_picker.dart';
+import '../profile/user_profile_screen.dart';
 import 'image_preview_screen.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -284,28 +286,48 @@ class _ChatScreenState extends State<ChatScreen> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.black12,
-              backgroundImage: (widget.otherAvatar != null && widget.otherAvatar!.isNotEmpty)
-                  ? NetworkImage(widget.otherAvatar!)
-                  : null,
-              child: (widget.otherAvatar == null || widget.otherAvatar!.isEmpty)
-                  ? const Icon(Icons.person, color: Colors.black)
-                  : null,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                widget.otherName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+        title: GestureDetector(
+          onTap: () {
+            final user = User(
+              uid: widget.otherUserId,
+              username: '',
+              email: '',
+              name: widget.otherName,
+              avatar: widget.otherAvatar,
+              profileCompleted: true,
+              verified: false,
+            );
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => UserProfileScreen(user: user),
               ),
-            ),
-          ],
+            );
+          },
+          behavior: HitTestBehavior.opaque,
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: Colors.black12,
+                backgroundImage: (widget.otherAvatar != null && widget.otherAvatar!.isNotEmpty)
+                    ? NetworkImage(widget.otherAvatar!)
+                    : null,
+                child: (widget.otherAvatar == null || widget.otherAvatar!.isEmpty)
+                    ? const Icon(Icons.person, color: Colors.black)
+                    : null,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  widget.otherName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       body: Column(

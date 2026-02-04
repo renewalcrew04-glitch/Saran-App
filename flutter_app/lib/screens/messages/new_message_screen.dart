@@ -3,10 +3,12 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../config/api_config.dart';
+import '../../models/dm_user_model.dart';
+import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dm_provider.dart';
 import '../../providers/dm_search_provider.dart';
-import '../../models/dm_user_model.dart';
+import '../profile/user_profile_screen.dart';
 import 'chat_screen.dart';
 
 class NewMessageScreen extends StatefulWidget {
@@ -23,6 +25,24 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  void _openProfile(DmUserModel u) {
+    final user = User(
+      uid: u.uid,
+      username: u.username,
+      email: '',
+      name: u.name,
+      avatar: u.avatar,
+      profileCompleted: true,
+      verified: false,
+    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UserProfileScreen(user: user),
+      ),
+    );
   }
 
   Future<void> _openDm(DmUserModel user) async {
@@ -109,7 +129,12 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
                           final u = search.results[index];
 
                           return ListTile(
-                            onTap: () => _openDm(u),
+                            onTap: () => _openProfile(u),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.chat_bubble_outline),
+                              onPressed: () => _openDm(u),
+                              tooltip: 'Message',
+                            ),
                             leading: CircleAvatar(
                               radius: 22,
                               backgroundColor: Colors.black12,

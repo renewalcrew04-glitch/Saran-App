@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/api_client.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -65,6 +66,7 @@ class AuthProvider extends ChangeNotifier {
       }
 
       _token = savedToken;
+      ApiClient.setToken(savedToken);
 
       final userJson = await _authService.getCurrentUser();
       final dynamic rawUser = userJson['user'] ?? userJson;
@@ -76,6 +78,7 @@ class AuthProvider extends ChangeNotifier {
       _token = null;
       _user = null;
       await _authService.clearToken();
+      ApiClient.clearToken();
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -104,6 +107,7 @@ class AuthProvider extends ChangeNotifier {
 
       await _authService.setToken(token);
       _token = token;
+      ApiClient.setToken(token);
 
       if (rawUser is Map<String, dynamic>) {
         _user = User.fromJson(rawUser);
@@ -150,6 +154,7 @@ class AuthProvider extends ChangeNotifier {
 
       await _authService.setToken(token);
       _token = token;
+      ApiClient.setToken(token);
 
       if (rawUser is Map<String, dynamic>) {
         _user = User.fromJson(rawUser);
@@ -178,6 +183,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     await _authService.clearToken();
+    ApiClient.clearToken();
     _token = null;
     _user = null;
 

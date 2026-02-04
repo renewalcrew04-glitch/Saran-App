@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import Block from '../models/Block.model.js';
 import Follow from '../models/Follow.model.js';
 import Post from '../models/Post.model.js';
 import User from '../models/User.model.js';
@@ -21,15 +22,38 @@ export const getUserProfile = async (req, res, next) => {
       });
     }
 
-    // Check if current user is following this user
+    // Block: viewer cannot see profile if either has blocked the other
+    const blocked = await Block.findOne({
+      $or: [
+        { blocker: currentUserId, blocked: user._id },
+        { blocker: user._id, blocked: currentUserId },
+      ],
+    });
+    if (blocked) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot view this profile',
+      });
+    }
+
+    // Check if current user is following this user (accepted) or has pending request
     let isFollowing = false;
+    let isFollowPending = false;
     if (currentUserId.toString() !== user._id.toString()) {
-      const follow = await Follow.findOne({
+      const accepted = await Follow.findOne({
         follower: currentUserId,
         following: user._id,
         status: 'accepted'
       });
-      isFollowing = !!follow;
+      isFollowing = !!accepted;
+      if (!isFollowing) {
+        const pending = await Follow.findOne({
+          follower: currentUserId,
+          following: user._id,
+          status: 'pending'
+        });
+        isFollowPending = !!pending;
+      }
     }
 
     // Check if this user is following current user
@@ -56,6 +80,7 @@ res.json({
     ...userObj,
     postsCount,     // ✅ injected, not mutated
     isFollowing,
+    isFollowPending,
     isFollowedBy,
   }
 });
@@ -254,9 +279,11 @@ export const unfollowUser = async (req, res, next) => {
     const { uid } = req.params;
     const currentUserId = req.user._id;
 
-    // Find target user
-    const targetUser = await User.findOne({ uid });
-
+    // Find target user by uid or by _id (same as followUser)
+    let targetUser = await User.findOne({ uid });
+    if (!targetUser && mongoose.Types.ObjectId.isValid(uid)) {
+      targetUser = await User.findById(uid);
+    }
     if (!targetUser) {
       return res.status(404).json({
         success: false,
@@ -299,6 +326,7 @@ export const unfollowUser = async (req, res, next) => {
 // @desc    Get user's followers
 // @route   GET /api/users/:uid/followers
 // @access  Private
+// For private accounts: only owner or accepted followers can see the list.
 export const getFollowers = async (req, res, next) => {
   try {
     const { uid } = req.params;
@@ -318,6 +346,48 @@ export const getFollowers = async (req, res, next) => {
       });
     }
 
+    const viewerId = req.user._id;
+    const isOwner = viewerId.toString() === user._id.toString();
+
+    const blockRelation = await Block.findOne({
+      $or: [
+        { blocker: viewerId, blocked: user._id },
+        { blocker: user._id, blocked: viewerId },
+      ],
+    });
+    if (blockRelation) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot view this profile',
+      });
+    }
+
+    if (user.isPrivate && !isOwner) {
+      const accepted = await Follow.findOne({
+        follower: viewerId,
+        following: user._id,
+        status: 'accepted',
+      });
+      if (!accepted) {
+        return res.json({
+          success: true,
+          followers: [],
+          restricted: true,
+          pagination: { page: 1, limit, total: 0, pages: 0 },
+        });
+      }
+    }
+
+    const viewerBlockedIds = await Block.find({ $or: [{ blocker: viewerId }, { blocked: viewerId }] })
+      .select('blocker blocked')
+      .lean();
+    const hideFromViewer = new Set();
+    viewerBlockedIds.forEach((b) => {
+      hideFromViewer.add(b.blocker.toString());
+      hideFromViewer.add(b.blocked.toString());
+    });
+    hideFromViewer.delete(viewerId.toString());
+
     // Get followers
     const follows = await Follow.find({
       following: user._id,
@@ -329,13 +399,12 @@ export const getFollowers = async (req, res, next) => {
       .limit(limit);
 
     const followers = follows
-      .filter((f) => f.follower)
+      .filter((f) => f.follower && !hideFromViewer.has(f.follower._id.toString()))
       .map((follow) => ({
         ...follow.follower.toObject(),
         followedAt: follow.createdAt
       }));
 
-    // Get total count
     const total = await Follow.countDocuments({
       following: user._id,
       status: 'accepted'
@@ -359,6 +428,7 @@ export const getFollowers = async (req, res, next) => {
 // @desc    Get users that a user is following
 // @route   GET /api/users/:uid/following
 // @access  Private
+// For private accounts: only owner or accepted followers can see the list.
 export const getFollowing = async (req, res, next) => {
   try {
     const { uid } = req.params;
@@ -378,6 +448,48 @@ export const getFollowing = async (req, res, next) => {
       });
     }
 
+    const viewerId = req.user._id;
+    const isOwner = viewerId.toString() === user._id.toString();
+
+    const blockRelation = await Block.findOne({
+      $or: [
+        { blocker: viewerId, blocked: user._id },
+        { blocker: user._id, blocked: viewerId },
+      ],
+    });
+    if (blockRelation) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot view this profile',
+      });
+    }
+
+    if (user.isPrivate && !isOwner) {
+      const accepted = await Follow.findOne({
+        follower: viewerId,
+        following: user._id,
+        status: 'accepted',
+      });
+      if (!accepted) {
+        return res.json({
+          success: true,
+          following: [],
+          restricted: true,
+          pagination: { page: 1, limit, total: 0, pages: 0 },
+        });
+      }
+    }
+
+    const viewerBlockedIds = await Block.find({ $or: [{ blocker: viewerId }, { blocked: viewerId }] })
+      .select('blocker blocked')
+      .lean();
+    const hideFromViewer = new Set();
+    viewerBlockedIds.forEach((b) => {
+      hideFromViewer.add(b.blocker.toString());
+      hideFromViewer.add(b.blocked.toString());
+    });
+    hideFromViewer.delete(viewerId.toString());
+
     // Get following
     const follows = await Follow.find({
       follower: user._id,
@@ -389,13 +501,12 @@ export const getFollowing = async (req, res, next) => {
       .limit(limit);
 
     const following = follows
-      .filter((f) => f.following)
+      .filter((f) => f.following && !hideFromViewer.has(f.following._id.toString()))
       .map((follow) => ({
         ...follow.following.toObject(),
         followedAt: follow.createdAt
       }));
 
-    // Get total count
     const total = await Follow.countDocuments({
       follower: user._id,
       status: 'accepted'
@@ -440,7 +551,14 @@ export const getSuggestions = async (req, res, next) => {
       .select('following')
       .lean();
     const followingIds = following.map((f) => f.following);
-    const excludeIds = [currentUserId, ...followingIds];
+
+    const asBlocker = await Block.find({ blocker: currentUserId }).select('blocked').lean();
+    const asBlocked = await Block.find({ blocked: currentUserId }).select('blocker').lean();
+    const blockedIds = [
+      ...asBlocker.map((b) => b.blocked),
+      ...asBlocked.map((b) => b.blocker),
+    ];
+    const excludeIds = [currentUserId, ...followingIds, ...blockedIds];
 
     const users = await User.find({
       _id: { $nin: excludeIds }
@@ -473,27 +591,30 @@ export const searchUsers = async (req, res, next) => {
       });
     }
 
-    // Search users by username or name
+    // Search users by username or name; exclude blocked users (either direction)
     const searchRegex = new RegExp(q.trim(), 'i');
-    
-    const users = await User.find({
+    const currentUserId = req.user._id;
+    const asBlocker = await Block.find({ blocker: currentUserId }).select('blocked').lean();
+    const asBlocked = await Block.find({ blocked: currentUserId }).select('blocker').lean();
+    const blockedIds = [
+      ...asBlocker.map((b) => b.blocked),
+      ...asBlocked.map((b) => b.blocker),
+    ];
+    const baseQuery = {
       $or: [
         { username: searchRegex },
         { name: searchRegex }
-      ]
-    })
+      ],
+      ...(blockedIds.length ? { _id: { $nin: blockedIds } } : {}),
+    };
+
+    const users = await User.find(baseQuery)
       .select('uid username name avatar bio verified followersCount followingCount postsCount')
       .sort({ followersCount: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    // Get total count
-    const total = await User.countDocuments({
-      $or: [
-        { username: searchRegex },
-        { name: searchRegex }
-      ]
-    });
+    const total = await User.countDocuments(baseQuery);
 
     res.json({
       success: true,
@@ -512,6 +633,7 @@ export const searchUsers = async (req, res, next) => {
 // @desc    Get posts of a user
 // @route   GET /api/users/:uid/posts
 // @access  Private
+// For private accounts: returns posts only if viewer is owner or has accepted follow.
 export const getUserPosts = async (req, res, next) => {
   try {
     const { uid } = req.params;
@@ -532,6 +654,32 @@ export const getUserPosts = async (req, res, next) => {
         success: false,
         message: 'User not found',
       });
+    }
+
+    const viewerId = req.user._id;
+    const isOwner = viewerId.toString() === user._id.toString();
+
+    // Block: if either has blocked the other, return no posts
+    const blocked = await Block.findOne({
+      $or: [
+        { blocker: viewerId, blocked: user._id },
+        { blocker: user._id, blocked: viewerId },
+      ],
+    });
+    if (blocked) {
+      return res.json({ success: true, posts: [] });
+    }
+
+    // Private account: allow only owner or accepted followers
+    if (user.isPrivate && !isOwner) {
+      const accepted = await Follow.findOne({
+        follower: viewerId,
+        following: user._id,
+        status: 'accepted',
+      });
+      if (!accepted) {
+        return res.json({ success: true, posts: [] });
+      }
     }
 
     const posts = await Post.find({

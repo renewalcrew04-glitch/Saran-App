@@ -28,12 +28,14 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = dark ? Colors.white : Colors.black;
+    final colorScheme = Theme.of(context).colorScheme;
+    final fg = dark ? Colors.white : colorScheme.onSurface;
+    final bg = dark ? Colors.black : colorScheme.surface;
 
     return AppBar(
-      backgroundColor: dark ? Colors.black : Colors.white,
+      backgroundColor: bg,
       elevation: 0,
-      surfaceTintColor: dark ? Colors.black : Colors.white,
+      surfaceTintColor: bg,
       centerTitle: false,
       titleSpacing: 16,
       leading: showBack
@@ -82,14 +84,14 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                         width: 18,
                         height: 18,
                         alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: dark ? Colors.white : Colors.black,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          unreadCount > 99 ? "99+" : unreadCount.toString(),
-                          style: TextStyle(
-                            color: dark ? Colors.black : Colors.white,
+                  decoration: BoxDecoration(
+                    color: dark ? Colors.white : colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    unreadCount > 99 ? "99+" : unreadCount.toString(),
+                    style: TextStyle(
+                      color: dark ? Colors.black : Colors.white,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),
@@ -116,7 +118,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
               preferredSize: const Size.fromHeight(1),
               child: Container(
                 height: 1,
-                color: Colors.black12,
+                color: colorScheme.outline.withValues(alpha: 0.5),
               ),
             ),
     );

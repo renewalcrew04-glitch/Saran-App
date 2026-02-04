@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../config/api_config.dart';
 import '../models/post_model.dart';
+import '../models/user_model.dart';
 import '../utils/time_formatter.dart';
 import '../utils/category_gradients.dart';
 import '../services/post_service.dart';
 import 'repost_bottom_sheet.dart';
 import '../screens/post/post_analytics_screen.dart';
+import '../screens/profile/user_profile_screen.dart';
 import 'save_bottom_sheet.dart';
 import '../screens/comments/comments_screen.dart';
 
@@ -210,19 +212,43 @@ class _Header extends StatelessWidget {
   final Post post;
   const _Header(this.post);
 
+  void _openUserProfile(BuildContext context) {
+    final user = User(
+      uid: post.uid,
+      username: post.username,
+      email: '',
+      name: post.userName ?? post.username,
+      avatar: post.userAvatar,
+      profileCompleted: true,
+      verified: post.userVerified ?? false,
+    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UserProfileScreen(user: user),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        CircleAvatar(
-          radius: 20,
-          backgroundImage:
-              post.userAvatar != null ? NetworkImage(post.userAvatar!) : null,
-          backgroundColor: Colors.grey[800],
-        ),
-        const SizedBox(width: 10),
         Expanded(
-          child: Column(
+          child: GestureDetector(
+            onTap: () => _openUserProfile(context),
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              children: [
+                CircleAvatar(
+                radius: 20,
+                backgroundImage:
+                    post.userAvatar != null ? NetworkImage(post.userAvatar!) : null,
+                backgroundColor: Colors.grey[800],
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
                if (post.repostedByName != null)
@@ -264,6 +290,10 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+              ],
+            ),
           ),
         ),
 

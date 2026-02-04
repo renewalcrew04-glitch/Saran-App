@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import Block from "../models/Block.model.js";
 import Follow from "../models/Follow.model.js";
 import Notification from "../models/Notification.model.js";
 import SFrame from "../models/SFrame.model.js";
@@ -67,12 +68,28 @@ export const getSFrames = async (req, res) => {
     const selfId = mongoose.Types.ObjectId.isValid(req.user._id)
       ? new mongoose.Types.ObjectId(req.user._id)
       : req.user._id;
-    const allowedUserIds = [
+    let allowedUserIds = [
       selfId,
       ...followingIds.map((id) =>
         mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id
       ),
     ].filter(Boolean);
+
+    // Exclude blocked users: viewer blocked them or they blocked viewer (no stories from them)
+    const asBlocker = await Block.find({ blocker: req.user._id }).select("blocked").lean();
+    const asBlocked = await Block.find({ blocked: req.user._id }).select("blocker").lean();
+    const blockedIds = new Set([
+      ...asBlocker.map((b) => b.blocked.toString()),
+      ...asBlocked.map((b) => b.blocker.toString()),
+    ]);
+    if (blockedIds.size > 0) {
+      const blockedObjectIds = [...blockedIds]
+        .filter((id) => mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id));
+      allowedUserIds = allowedUserIds.filter(
+        (id) => !blockedObjectIds.some((bid) => bid.equals(id))
+      );
+    }
 
     const frames = await SFrame.find({
       uid: { $in: allowedUserIds },
@@ -114,12 +131,25 @@ export const getSFrames = async (req, res) => {
 /**
  * GET SINGLE S-FRAME
  * GET /api/sframes/:id
+ * Blocked users cannot view each other's stories.
  */
 export const getSFrame = async (req, res) => {
   try {
     const frame = await SFrame.findById(req.params.id).lean();
     if (!frame) {
       return res.status(404).json({ message: "S-Frame not found" });
+    }
+
+    const viewerId = req.user._id;
+    const ownerId = frame.uid;
+    const blockRelation = await Block.findOne({
+      $or: [
+        { blocker: viewerId, blocked: ownerId },
+        { blocker: ownerId, blocked: viewerId },
+      ],
+    });
+    if (blockRelation) {
+      return res.status(403).json({ message: "Cannot view this story" });
     }
 
     const [owner, viewers] = await Promise.all([
