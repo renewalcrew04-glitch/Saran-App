@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.compile.JavaCompile
+
 allprojects {
     repositories {
         google()
@@ -17,6 +19,17 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+}
+
+// Suppress Java 8 "obsolete options" warnings from plugins (register before any project is evaluated)
+gradle.projectsLoaded {
+    rootProject.allprojects {
+        afterEvaluate {
+            tasks.withType<JavaCompile>().configureEach {
+                options.compilerArgs.add("-Xlint:-options")
+            }
+        }
+    }
 }
 
 tasks.register<Delete>("clean") {

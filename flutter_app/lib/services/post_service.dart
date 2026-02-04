@@ -180,6 +180,29 @@ class PostService {
     return res.data['collections'] ?? [];
   }
 
+  /// Returns posts in the default "Saved" collection for the current user.
+  Future<List<Post>> getSavedPosts() async {
+    final collections = await getSaveCollections();
+    for (final c in collections) {
+      if (c is Map<String, dynamic> && c['name'] == 'Saved') {
+        final postsRaw = c['posts'];
+        if (postsRaw is! List || postsRaw.isEmpty) return [];
+        final list = <Post>[];
+        for (final p in postsRaw) {
+          if (p is Map<String, dynamic>) {
+            try {
+              list.add(Post.fromJson(p));
+            } catch (_) {
+              // skip malformed post
+            }
+          }
+        }
+        return list;
+      }
+    }
+    return [];
+  }
+
   Future<void> createSaveCollection(String name) async {
     final headers = await _getAuthHeaders();
     await _dio.post(

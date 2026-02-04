@@ -102,63 +102,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Connect Echo — link or open Echo feature.
-  Widget _buildConnectEcho() {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: 12, bottom: 4),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Connect Echo — coming soon')),
-            );
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-              border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.volume_up_rounded, color: theme.colorScheme.primary, size: 28),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Connect Echo',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Link your Echo to stay in sync',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant, size: 24),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   /// Primary pill-shaped quote banner.
   Widget _buildQuoteBanner() {
     final theme = Theme.of(context);
@@ -264,7 +207,6 @@ class _HomeScreenState extends State<HomeScreen> {
               key: ValueKey(_sframeRefresh),
               onStoryCreated: () => setState(() => _sframeRefresh++),
             ),
-            _buildConnectEcho(),
             _buildQuoteBanner(),
             const SizedBox(height: 16),
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/api_config.dart';
 import '../../models/post_model.dart';
 
@@ -47,10 +46,11 @@ class _LikedPostsScreenState extends State<LikedPostsScreen> {
         child: const Center(child: Icon(Icons.broken_image)),
       );
     }
-    return CachedNetworkImage(
-      imageUrl: url,
+    return Image.network(
+      url,
       fit: BoxFit.cover,
-      errorWidget: (_, __, ___) => const Center(child: Icon(Icons.broken_image)),
+      errorBuilder: (_, __, ___) =>
+          const Center(child: Icon(Icons.broken_image)),
     );
   }
 

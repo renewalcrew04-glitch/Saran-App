@@ -42,8 +42,11 @@ class SFrameViewerScreen extends StatefulWidget {
 class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
   late int index;
   Timer? timer;
+  Timer? _progressTimer;
   bool paused = false;
   Duration? _videoDuration;
+  double _currentProgress = 0.0;
+  DateTime _storyStartedAt = DateTime.now();
 
   final TextEditingController _replyCtrl = TextEditingController();
 
@@ -52,11 +55,46 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
     super.initState();
     index = widget.startIndex;
     _markViewed();
+    _storyStartedAt = DateTime.now();
     _startTimer();
+    _startProgressUpdates();
   }
 
   void _markViewed() {
     SFrameService.markViewed(widget.frames[index].id);
+  }
+
+  /// Current user's block in the combined list: [startOfBlock, endOfBlock] (inclusive).
+  void _currentUserBlock(int currentIndex, void Function(int start, int end) out) {
+    if (widget.frames.isEmpty) return;
+    final uid = widget.frames[currentIndex].uid;
+    int start = currentIndex;
+    while (start > 0 && widget.frames[start - 1].uid == uid) start--;
+    int end = currentIndex;
+    while (end < widget.frames.length - 1 && widget.frames[end + 1].uid == uid) end++;
+    out(start, end);
+  }
+
+  Duration get _currentStoryDuration {
+    final frame = widget.frames[index];
+    if (frame.mediaType == "video" && _videoDuration != null) {
+      return _videoDuration!;
+    }
+    return const Duration(seconds: 5);
+  }
+
+  void _startProgressUpdates() {
+    _progressTimer?.cancel();
+    _storyStartedAt = DateTime.now();
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
+      if (!mounted || paused) return;
+      final elapsed = DateTime.now().difference(_storyStartedAt);
+      final duration = _currentStoryDuration;
+      final progress = duration.inMilliseconds > 0
+          ? (elapsed.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
+          : 1.0;
+      if (mounted) setState(() => _currentProgress = progress);
+    });
   }
 
   void _startTimer() {
@@ -73,34 +111,70 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
   }
 
   void _next() {
+    _progressTimer?.cancel();
     if (index < widget.frames.length - 1) {
       setState(() {
         index++;
         _videoDuration = null;
+        _currentProgress = 0.0;
       });
+      _storyStartedAt = DateTime.now();
       _markViewed();
       _startTimer();
+      _startProgressUpdates();
     } else {
       Navigator.pop(context);
     }
   }
 
   void _prev() {
+    _progressTimer?.cancel();
     if (index > 0) {
       setState(() {
         index--;
         _videoDuration = null;
+        _currentProgress = 0.0;
       });
+      _storyStartedAt = DateTime.now();
       _markViewed();
       _startTimer();
+      _startProgressUpdates();
     }
   }
 
   @override
   void dispose() {
     timer?.cancel();
+    _progressTimer?.cancel();
     _replyCtrl.dispose();
     super.dispose();
+  }
+
+  Widget _buildStoryAvatar(String? ownerAvatar) {
+    final url = ownerAvatar != null && ownerAvatar.isNotEmpty
+        ? (ApiConfig.networkImageUrl(ownerAvatar) ?? ownerAvatar)
+        : null;
+    if (url == null) {
+      return CircleAvatar(
+        radius: 20,
+        backgroundColor: Colors.white24,
+        child: const Icon(Icons.person, color: Colors.white70, size: 24),
+      );
+    }
+    return ClipOval(
+      child: Image.network(
+        url,
+        fit: BoxFit.cover,
+        width: 40,
+        height: 40,
+        errorBuilder: (_, __, ___) => Container(
+          width: 40,
+          height: 40,
+          color: Colors.white24,
+          child: const Icon(Icons.person, color: Colors.white70, size: 24),
+        ),
+      ),
+    );
   }
 
   Future<void> _onDeleteStory(SFrame frame) async {
@@ -182,35 +256,22 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
     final currentUid = auth.user?.uid ?? '';
     final isOwnStory = currentUid.isNotEmpty && frame.uid == currentUid;
 
-    final size = MediaQuery.of(context).size;
     const topBarHeight = 100.0;
     const bottomBarHeight = 140.0;
-    const headerRightWidth = 80.0;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
-        onTapDown: (d) {
-          final pos = d.localPosition;
-          // Don't advance/close when tapping header, options, heart/eye, or reply bar
-          if (pos.dy < topBarHeight) return;
-          if (pos.dy > size.height - bottomBarHeight) return;
-          if (pos.dx > size.width - headerRightWidth && pos.dy < topBarHeight) return;
-          HapticFeedback.lightImpact();
-          final w = size.width;
-          if (pos.dx > w / 2) {
-            _next();
-          } else {
-            _prev();
-          }
-        },
         onLongPressStart: (_) {
           setState(() => paused = true);
           timer?.cancel();
+          _progressTimer?.cancel();
         },
         onLongPressEnd: (_) {
           setState(() => paused = false);
+          _storyStartedAt = DateTime.now();
           _startTimer();
+          _startProgressUpdates();
         },
         child: Stack(
           children: [
@@ -273,23 +334,84 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
               ),
             ),
 
-            // ================= PROGRESS BARS (top) =================
+            // ================= SEGMENTED PROGRESS BAR (one segment per story for current user only) =================
             Positioned(
               top: 44,
               left: 16,
               right: 16,
+              child: Builder(
+                builder: (context) {
+                  int blockStart = index;
+                  int blockEnd = index;
+                  _currentUserBlock(index, (s, e) {
+                    blockStart = s;
+                    blockEnd = e;
+                  });
+                  final segmentCount = blockEnd - blockStart + 1;
+                  final indexInBlock = index - blockStart;
+                  return Row(
+                    children: List.generate(segmentCount, (i) {
+                      final isCurrent = i == indexInBlock;
+                      final isPast = i < indexInBlock;
+                      final progress = isPast ? 1.0 : (isCurrent ? _currentProgress.clamp(0.0, 1.0) : 0.0);
+                      return Expanded(
+                        child: Container(
+                          margin: EdgeInsets.only(right: i < segmentCount - 1 ? 4 : 0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(1),
+                            child: SizedBox(
+                              height: 2,
+                              child: Stack(
+                                children: [
+                                  SizedBox.expand(child: Container(color: Colors.white24)),
+                                  LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return Container(
+                                        width: constraints.maxWidth * progress,
+                                        height: 2,
+                                        color: Colors.white,
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  );
+                },
+              ),
+            ),
+
+            // ================= LEFT / RIGHT TAP ZONES: tap left = previous, tap right = next =================
+            Positioned(
+              top: topBarHeight,
+              left: 0,
+              right: 0,
+              bottom: bottomBarHeight,
               child: Row(
-                children: List.generate(
-                  widget.frames.length,
-                  (i) => Expanded(
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      height: 2,
-                      color: i <= index ? Colors.white : Colors.white24,
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _prev();
+                      },
                     ),
                   ),
-                ),
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _next();
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -320,19 +442,7 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
                 },
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: Colors.white24,
-                      backgroundImage: frame.ownerAvatar != null &&
-                              frame.ownerAvatar!.isNotEmpty
-                          ? NetworkImage(
-                              ApiConfig.networkImageUrl(frame.ownerAvatar!) ?? frame.ownerAvatar!,
-                            )
-                          : null,
-                      child: frame.ownerAvatar == null || frame.ownerAvatar!.isEmpty
-                          ? const Icon(Icons.person, color: Colors.white70, size: 24)
-                          : null,
-                    ),
+                    _buildStoryAvatar(frame.ownerAvatar),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(

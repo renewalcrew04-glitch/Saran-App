@@ -82,11 +82,17 @@ class SFrameRow extends StatelessWidget {
     BuildContext context, {
     required SFrame f,
     required List<SFrame> userFrames,
+    required List<SFrame> allFramesCombined,
+    required int startIndexInCombined,
     required String? currentUid,
     required String? avatarUrl,
     required bool darkTheme,
   }) {
     final isMe = currentUid != null && f.uid == currentUid;
+    // Use current user's avatar for my story, otherwise use frame's ownerAvatar (from API)
+    final avatarToShow = (isMe && avatarUrl != null && avatarUrl.isNotEmpty)
+        ? avatarUrl
+        : (f.ownerAvatar != null && f.ownerAvatar!.isNotEmpty ? f.ownerAvatar : null);
     final viewIds = f.views.map((v) => v.toString()).toList();
     final seen = currentUid != null && viewIds.contains(currentUid);
     final borderColor = darkTheme
@@ -94,41 +100,65 @@ class SFrameRow extends StatelessWidget {
         : (seen ? Colors.grey : Colors.black);
     final iconColor = darkTheme ? Colors.white70 : Colors.black54;
 
+    final displayName = f.ownerName ?? f.ownerUsername ?? 'Unknown';
     return GestureDetector(
       onTap: () async {
+        // Combined list so tapping right on last story of user 1 goes to first story of user 2
         final result = await context.push<bool>(
           '/sframe-viewer',
           extra: {
-            'frames': userFrames,
-            'startIndex': 0,
+            'frames': allFramesCombined,
+            'startIndex': startIndexInCombined,
           },
         );
         if (result == true) onStoryCreated?.call();
       },
-      child: Container(
-        width: _frameWidth,
-        height: _frameHeight,
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: borderColor, width: 2),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: isMe && avatarUrl != null && avatarUrl.isNotEmpty
-              ? Image.network(
-                  ApiConfig.networkImageUrl(avatarUrl) ?? avatarUrl,
-                  fit: BoxFit.cover,
-                  width: _frameWidth,
-                  height: _frameHeight,
-                  errorBuilder: (_, __, ___) => Center(
-                    child: Icon(Icons.person, color: iconColor, size: 36),
-                  ),
-                )
-              : Center(
-                  child: Icon(Icons.person, color: iconColor, size: 36),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: _frameWidth,
+            height: _frameHeight,
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: borderColor, width: 2),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: avatarToShow != null
+                  ? Image.network(
+                      ApiConfig.networkImageUrl(avatarToShow) ?? avatarToShow,
+                      fit: BoxFit.cover,
+                      width: _frameWidth,
+                      height: _frameHeight,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Icon(Icons.person, color: iconColor, size: 36),
+                      ),
+                    )
+                  : Center(
+                      child: Icon(Icons.person, color: iconColor, size: 36),
+                    ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 0, bottom: 8),
+            child: SizedBox(
+              width: _frameWidth + 16,
+              child: Text(
+                displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: darkTheme ? Colors.white70 : Colors.black87,
                 ),
-        ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -144,6 +174,8 @@ class SFrameRow extends StatelessWidget {
       builder: (context, snapshot) {
         List<SFrame> allFrames = [];
         List<SFrame> onePerUser = [];
+        List<SFrame> allFramesCombined = [];
+        List<int> startIndices = [];
         if (!snapshot.hasError && snapshot.hasData) {
           final frames = snapshot.data ?? [];
           allFrames = frames;
@@ -152,12 +184,22 @@ class SFrameRow extends StatelessWidget {
             if (!map.containsKey(f.uid)) map[f.uid] = f;
           }
           onePerUser = _orderWithMeFirst(map.values.toList(), currentUid);
+          startIndices = [0];
+          for (final f in onePerUser) {
+            final ufs = allFrames
+                .where((x) => x.uid == f.uid)
+                .toList()
+                .reversed
+                .toList();
+            allFramesCombined.addAll(ufs);
+            startIndices.add(allFramesCombined.length);
+          }
         }
 
         final isLoading = snapshot.connectionState == ConnectionState.waiting;
 
         return SizedBox(
-          height: 114,
+          height: 138,
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -181,16 +223,21 @@ class SFrameRow extends StatelessWidget {
                   ),
                 )
               else
-                ...onePerUser.map((f) {
+                ...onePerUser.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final f = entry.value;
                   final userFrames = allFrames
                       .where((x) => x.uid == f.uid)
                       .toList()
                       .reversed
                       .toList();
+                  final startIndexInCombined = i < startIndices.length ? startIndices[i] : 0;
                   return _buildStoryBubble(
                     context,
                     f: f,
                     userFrames: userFrames,
+                    allFramesCombined: allFramesCombined,
+                    startIndexInCombined: startIndexInCombined,
                     currentUid: currentUid,
                     avatarUrl: isMe(f.uid, currentUid) ? avatarUrl : null,
                     darkTheme: darkTheme,

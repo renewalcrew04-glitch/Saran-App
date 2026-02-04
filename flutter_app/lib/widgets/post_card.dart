@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import '../config/api_config.dart';
 import '../models/post_model.dart';
@@ -10,7 +9,6 @@ import '../services/post_service.dart';
 import 'repost_bottom_sheet.dart';
 import '../screens/post/post_analytics_screen.dart';
 import '../screens/profile/user_profile_screen.dart';
-import 'save_bottom_sheet.dart';
 import '../screens/comments/comments_screen.dart';
 
 class PostCard extends StatefulWidget {
@@ -18,8 +16,19 @@ class PostCard extends StatefulWidget {
   final VoidCallback? onTap;
   /// Called after this post is successfully deleted (e.g. to refresh list or pop screen).
   final VoidCallback? onPostDeleted;
+  /// Initial saved state (e.g. true when showing in profile Saved tab).
+  final bool? initialIsSaved;
+  /// Called when user toggles save/unsave (e.g. to refresh saved list).
+  final VoidCallback? onSavedChanged;
 
-  const PostCard({super.key, required this.post, this.onTap, this.onPostDeleted});
+  const PostCard({
+    super.key,
+    required this.post,
+    this.onTap,
+    this.onPostDeleted,
+    this.initialIsSaved,
+    this.onSavedChanged,
+  });
 
   @override
   State<PostCard> createState() => _PostCardState();
@@ -33,6 +42,7 @@ class _PostCardState extends State<PostCard>
   int _commentsCount = 0;
   int _repostsCount = 0;
   bool _hasReposted = false;
+  late bool _isSaved;
 
   @override
   void initState() {
@@ -47,6 +57,7 @@ class _PostCardState extends State<PostCard>
     _likesCount = widget.post.likesCount;
     _commentsCount = widget.post.commentsCount;
     _repostsCount = widget.post.repostsCount;
+    _isSaved = widget.initialIsSaved ?? false;
   }
 
   @override
@@ -58,6 +69,19 @@ class _PostCardState extends State<PostCard>
       _commentsCount = widget.post.commentsCount;
       _repostsCount = widget.post.repostsCount;
       _hasReposted = false;
+      _isSaved = widget.initialIsSaved ?? false;
+    }
+  }
+
+  Future<void> _handleSaveToggle() async {
+    final post = widget.post;
+    try {
+      final nowSaved = await PostService().toggleSave(post.id);
+      if (!mounted) return;
+      setState(() => _isSaved = nowSaved);
+      widget.onSavedChanged?.call();
+    } catch (_) {
+      // Toggle failed; state unchanged
     }
   }
 
@@ -135,15 +159,18 @@ class _PostCardState extends State<PostCard>
     if (url == null) {
       return Container(
         height: 200,
-        color: Colors.grey[800],
-        child: const Center(child: Icon(Icons.broken_image, color: Colors.white54)),
+        color: Colors.grey[300],
+        child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
       );
     }
-    return CachedNetworkImage(
-      imageUrl: url,
+    return Image.network(
+      url,
       fit: BoxFit.cover,
-      errorWidget: (_, __, ___) =>
-          const Center(child: Icon(Icons.broken_image, color: Colors.white54)),
+      errorBuilder: (_, __, ___) => Container(
+        height: 200,
+        color: Colors.grey[300],
+        child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
+      ),
     );
   }
 
@@ -155,14 +182,14 @@ class _PostCardState extends State<PostCard>
       onTap: widget.onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.black,
+        decoration: const BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.zero,
         ),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: const BoxDecoration(
-            color: Colors.black,
+            color: Colors.white,
             borderRadius: BorderRadius.zero,
           ),
           child: Column(
@@ -174,7 +201,7 @@ class _PostCardState extends State<PostCard>
                     Text(
                       post.text,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: Colors.black87,
                         fontSize: 15,
                         height: 1.4,
                         fontWeight: FontWeight.w500,
@@ -197,6 +224,8 @@ class _PostCardState extends State<PostCard>
                     commentsCountOverride: _commentsCount,
                     repostsCountOverride: _repostsCount,
                     hasRepostedOverride: _hasReposted,
+                    isSavedOverride: _isSaved,
+                    onSaveTap: _handleSaveToggle,
                     onRepost: _handleRepost,
                     onUndoRepost: _handleUndoRepost,
                     onLikeTap: _handleLike,
@@ -232,8 +261,8 @@ class _Header extends StatelessWidget {
     if (url == null) {
       return CircleAvatar(
         radius: 20,
-        backgroundColor: Colors.grey[800],
-        child: const Icon(Icons.person, color: Colors.white54),
+        backgroundColor: Colors.grey[300],
+        child: const Icon(Icons.person, color: Colors.black45),
       );
     }
     return ClipOval(
@@ -245,8 +274,8 @@ class _Header extends StatelessWidget {
         errorBuilder: (_, __, ___) => Container(
           width: 40,
           height: 40,
-          color: Colors.grey[800],
-          child: const Icon(Icons.person, color: Colors.white54),
+          color: Colors.grey[300],
+          child: const Icon(Icons.person, color: Colors.black45),
         ),
       ),
     );
@@ -292,7 +321,7 @@ class _Header extends StatelessWidget {
     child: Text(
       '${post.repostedByName} reposted',
       style: const TextStyle(
-        color: Colors.white54,
+        color: Colors.black54,
         fontSize: 11,
         fontWeight: FontWeight.w500,
       ),
@@ -303,7 +332,7 @@ class _Header extends StatelessWidget {
                   Text(
                     post.userName ?? post.username,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Colors.black87,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -311,7 +340,7 @@ class _Header extends StatelessWidget {
                   Text(
                     '• ${TimeFormatter.format(post.createdAt)}',
                     style: const TextStyle(
-                      color: Colors.white54,
+                      color: Colors.black54,
                       fontSize: 12,
                     ),
                   ),
@@ -320,7 +349,7 @@ class _Header extends StatelessWidget {
               Text(
                 '@${post.username}',
                 style: const TextStyle(
-                  color: Colors.white38,
+                  color: Colors.black54,
                   fontSize: 12,
                 ),
               ),
@@ -338,7 +367,7 @@ class _Header extends StatelessWidget {
     child: Text(
       "Edited",
       style: TextStyle(
-        color: Colors.white38,
+        color: Colors.black45,
         fontSize: 11,
       ),
     ),
@@ -351,7 +380,7 @@ class _Header extends StatelessWidget {
   ),
 
 IconButton(
-  icon: const Icon(Icons.more_horiz, color: Colors.white70),
+  icon: const Icon(Icons.more_horiz, color: Colors.black87),
   onPressed: () {
     showModalBottomSheet(
       context: context,
@@ -373,6 +402,8 @@ class _Actions extends StatelessWidget {
   final int? commentsCountOverride;
   final int? repostsCountOverride;
   final bool? hasRepostedOverride;
+  final bool? isSavedOverride;
+  final VoidCallback? onSaveTap;
   final Future<void> Function()? onRepost;
   final Future<void> Function()? onUndoRepost;
   final VoidCallback? onLikeTap;
@@ -386,6 +417,8 @@ class _Actions extends StatelessWidget {
     this.commentsCountOverride,
     this.repostsCountOverride,
     this.hasRepostedOverride,
+    this.isSavedOverride,
+    this.onSaveTap,
     this.onRepost,
     this.onUndoRepost,
     this.onLikeTap,
@@ -403,7 +436,7 @@ class _Actions extends StatelessWidget {
         _IconAction(
           icon: _isLiked ? Icons.favorite : Icons.favorite_border,
           label: post.hideLikeCount ? "" : _likesCount.toString(),
-          color: _isLiked ? Colors.white : Colors.white70,
+          color: _isLiked ? Colors.red : Colors.black54,
           onTap: onLikeTap ?? () => likeController.forward(from: 0.9),
           scale: likeController,
         ),
@@ -422,7 +455,7 @@ class _Actions extends StatelessWidget {
         _IconAction(
   icon: Icons.repeat,
   label: (repostsCountOverride ?? post.repostsCount).toString(),
-  color: (hasRepostedOverride ?? post.repostedByUid != null) ? Colors.green : Colors.white,
+  color: (hasRepostedOverride ?? post.repostedByUid != null) ? Colors.green : Colors.black54,
   onTap: () {
     RepostBottomSheet.show(
       context: context,
@@ -444,11 +477,10 @@ class _Actions extends StatelessWidget {
           label: '',
         ),
         _IconAction(
-          icon: Icons.bookmark_border,
+          icon: (isSavedOverride ?? false) ? Icons.bookmark : Icons.bookmark_border,
           label: '',
-          onTap: () {
-            SaveBottomSheet.show(context, post.id);
-          },
+          color: (isSavedOverride ?? false) ? Colors.black87 : Colors.black54,
+          onTap: onSaveTap ?? () {},
         ),
       ],
     );
@@ -619,7 +651,7 @@ class _IconAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconWidget = Icon(icon, color: color ?? Colors.white, size: 20);
+    final iconWidget = Icon(icon, color: color ?? Colors.black87, size: 20);
 
     return GestureDetector(
       onTap: onTap,
@@ -632,7 +664,7 @@ class _IconAction extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
+              style: const TextStyle(color: Colors.black54, fontSize: 12),
             ),
           ]
         ],

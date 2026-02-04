@@ -9,7 +9,7 @@ class PostDetailScreen extends StatelessWidget {
   final List<Post>? posts;
   final int initialIndex;
 
-  PostDetailScreen({
+  const PostDetailScreen({
     super.key,
     this.post,
     this.posts,

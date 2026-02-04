@@ -11,8 +11,10 @@ import '../../models/post_model.dart';
 import '../../config/api_config.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/feed_service.dart';
+import '../../services/post_service.dart';
 import '../../services/profile_update_service.dart';
 import '../../services/upload_service.dart';
+import '../../widgets/post_card.dart';
 import 'edit_profile_screen.dart';
 import 'followers_list_screen.dart';
 import 'following_list_screen.dart';
@@ -47,6 +49,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Tabs: Post, Wellness, Games, Saved
   String _activeMainTab = 'post';
+
+  List<Post> _savedPosts = [];
+  bool _savedLoading = false;
 
   File? _localAvatarPreview;
   bool _uploadingAvatar = false;
@@ -215,50 +220,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.add, color: Colors.black, size: 28),
-          onPressed: () => context.push('/post/create'),
-        ),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.lock_outline, color: Colors.grey[800], size: 18),
-            const SizedBox(width: 6),
-            Text(
-              user.username,
-              style: const TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.w700,
-                fontSize: 18,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.keyboard_arrow_down, color: Colors.grey[800], size: 22),
-          ],
-        ),
+        title: const SizedBox.shrink(),
         centerTitle: true,
         actions: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              IconButton(
-                icon: Icon(Icons.notifications_none, color: Colors.grey[800], size: 26),
-                onPressed: () => context.push('/notifications'),
-              ),
-              Positioned(
-                right: 10,
-                top: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Text('9+', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ],
-          ),
           IconButton(
             icon: Icon(Icons.menu, color: Colors.grey[800], size: 24),
             onPressed: () => MenuSheet.open(context),
@@ -616,7 +580,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               label: 'Saved',
               icon: Icons.bookmark_border,
               isActive: _activeMainTab == 'saved',
-              onTap: () => setState(() => _activeMainTab = 'saved'),
+              onTap: () {
+                setState(() {
+                  _activeMainTab = 'saved';
+                  _savedLoading = true;
+                });
+                _loadSavedPosts();
+              },
             ),
           ),
         ],
@@ -752,11 +722,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _loadSavedPosts() async {
+    if (_savedLoading) return;
+    setState(() => _savedLoading = true);
+    try {
+      final list = await PostService().getSavedPosts();
+      if (mounted) setState(() {
+        _savedPosts = list;
+        _savedLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() {
+        _savedPosts = [];
+        _savedLoading = false;
+      });
+    }
+  }
+
   Widget _buildSavedTabContent() {
-    return _buildEmptySection(
-      icon: Icons.bookmark_border,
-      title: 'No saved posts',
-      subtitle: 'Posts you save will appear here.',
+    if (_savedLoading) {
+      return const SizedBox(
+        height: 200,
+        child: Center(child: CircularProgressIndicator(color: Colors.black54)),
+      );
+    }
+    if (_savedPosts.isEmpty) {
+      return _buildEmptySection(
+        icon: Icons.bookmark_border,
+        title: 'No saved posts',
+        subtitle: 'Posts you save will appear here.',
+      );
+    }
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      itemCount: _savedPosts.length,
+      itemBuilder: (context, i) {
+        final post = _savedPosts[i];
+        return PostCard(
+          post: post,
+          initialIsSaved: true,
+          onSavedChanged: _loadSavedPosts,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PostDetailScreen(post: post),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
