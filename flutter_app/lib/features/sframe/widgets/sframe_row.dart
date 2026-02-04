@@ -14,6 +14,9 @@ class SFrameRow extends StatelessWidget {
 
   const SFrameRow({super.key, this.darkTheme = false, this.onStoryCreated});
 
+  static const double _frameWidth = 72;
+  static const double _frameHeight = 96;
+
   /// Always show the create S-Frame slot (dashed). On error/empty, show only this — no big error block.
   Widget _buildCreateFrame(BuildContext context) {
     final fg = darkTheme ? Colors.white : Colors.black;
@@ -26,17 +29,17 @@ class SFrameRow extends StatelessWidget {
         onStoryCreated?.call();
       },
       child: Container(
-        width: 90,
-        height: 94,
+        width: _frameWidth,
+        height: _frameHeight,
         margin: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6),
           color: Colors.transparent,
         ),
         child: Stack(
           children: [
             CustomPaint(
-              size: const Size(90, 94),
+              size: const Size(_frameWidth, _frameHeight),
               painter: _DashedRectPainter(color: fg),
             ),
             Center(
@@ -103,21 +106,21 @@ class SFrameRow extends StatelessWidget {
         if (result == true) onStoryCreated?.call();
       },
       child: Container(
-        width: 90,
-        height: 94,
+        width: _frameWidth,
+        height: _frameHeight,
         margin: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(color: borderColor, width: 2),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(4),
           child: isMe && avatarUrl != null && avatarUrl.isNotEmpty
               ? Image.network(
                   ApiConfig.networkImageUrl(avatarUrl) ?? avatarUrl,
                   fit: BoxFit.cover,
-                  width: 90,
-                  height: 94,
+                  width: _frameWidth,
+                  height: _frameHeight,
                   errorBuilder: (_, __, ___) => Center(
                     child: Icon(Icons.person, color: iconColor, size: 36),
                   ),
@@ -154,7 +157,7 @@ class SFrameRow extends StatelessWidget {
         final isLoading = snapshot.connectionState == ConnectionState.waiting;
 
         return SizedBox(
-          height: 110,
+          height: 114,
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -164,7 +167,7 @@ class SFrameRow extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(left: 8, top: 8, bottom: 8),
                   child: SizedBox(
-                    width: 90,
+                    width: _frameWidth,
                     child: Center(
                       child: SizedBox(
                         width: 24,
@@ -223,7 +226,7 @@ class _DashedRectPainter extends CustomPainter {
     final rrect = RRect.fromRectAndRadius(
       Rect.fromLTWH(strokeWidth / 2, strokeWidth / 2,
           size.width - strokeWidth, size.height - strokeWidth),
-      const Radius.circular(10),
+      const Radius.circular(4),
     );
     final path = Path()..addRRect(rrect);
 

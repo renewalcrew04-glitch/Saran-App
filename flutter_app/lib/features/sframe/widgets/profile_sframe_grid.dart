@@ -47,7 +47,7 @@ class ProfileSFrameGrid extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               color: Colors.black,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: frame.mediaType == "photo"
                 ? Image.network(

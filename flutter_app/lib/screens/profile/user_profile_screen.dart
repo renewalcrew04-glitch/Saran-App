@@ -10,6 +10,9 @@ import '../../services/feed_service.dart';
 import '../../services/profile_service.dart';
 import '../../features/settings/services/settings_api.dart';
 import '../messages/chat_screen.dart';
+import '../post/post_detail_screen.dart';
+import 'followers_list_screen.dart';
+import 'following_list_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final User user;
@@ -33,10 +36,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _isBlocked = false;
   bool _isMuted = false;
   bool _isBlockedView = false;
+  int _followersCount = 0;
+  int _followingCount = 0;
+  String _contentFilter = 'All'; // All, Texts, Photos, Videos, Reposts
 
   @override
   void initState() {
     super.initState();
+    _followersCount = widget.user.followersCount;
+    _followingCount = widget.user.followingCount;
     _loadPosts();
     _loadFollowState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadRelationshipState());
@@ -97,9 +105,21 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         return;
       }
       if (profile != null) {
+        final isPublic = widget.user.isPrivate != true;
+        bool following = profile['isFollowing'] == true;
+        bool pending = profile['isFollowPending'] == true;
+        // Public accounts: direct follow only, never show "Requested"
+        if (isPublic && pending) {
+          following = true;
+          pending = false;
+        }
+        final fc = (profile['followersCount'] as num?)?.toInt();
+        final fg = (profile['followingCount'] as num?)?.toInt();
         setState(() {
-          _isFollowing = profile['isFollowing'] == true;
-          _isFollowPending = profile['isFollowPending'] == true;
+          _isFollowing = following;
+          _isFollowPending = pending;
+          if (fc != null) _followersCount = fc;
+          if (fg != null) _followingCount = fg;
         });
       }
     } catch (_) {}
@@ -117,6 +137,26 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _isOwnProfile ||
       (widget.user.isPrivate != true) ||
       (widget.user.isPrivate == true && _isFollowing);
+
+  static const List<String> _contentFilters = ['All', 'Texts', 'Photos', 'Videos', 'Reposts'];
+
+  List<Post> get _filteredPosts {
+    switch (_contentFilter) {
+      case 'Texts':
+        return _posts.where((p) => p.type == 'text' || p.media.isEmpty).toList();
+      case 'Photos':
+        return _posts.where((p) {
+          if (p.type == 'video') return false;
+          return p.type == 'photo' || p.type == 'image' || p.media.isNotEmpty;
+        }).toList();
+      case 'Videos':
+        return _posts.where((p) => p.type == 'video').toList();
+      case 'Reposts':
+        return _posts.where((p) => p.type == 'repost' || (p.repostedByUid != null && p.repostedByUid!.isNotEmpty)).toList();
+      default:
+        return _posts;
+    }
+  }
 
   Future<void> _loadPosts() async {
     setState(() => _loading = true);
@@ -469,6 +509,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 style: TextStyle(color: Colors.grey[700]),
               ),
 
+              if (user.bio != null && user.bio!.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    user.bio!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[800],
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 12),
 
               // Follow + Message (or Edit profile when own)
@@ -555,7 +611,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                         : () async {
                                             final wasFollowing = _isFollowing;
                                             final isPrivate = widget.user.isPrivate == true;
-                                            // Optimistic: update button state immediately
+                                            // Optimistic: public = direct follow (Following); private = request (Requested)
                                             setState(() {
                                               _followLoading = true;
                                               if (wasFollowing) {
@@ -564,7 +620,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                                 if (isPrivate) {
                                                   _isFollowPending = true;
                                                 } else {
+                                                  // Public account: direct follow, no request
                                                   _isFollowing = true;
+                                                  _isFollowPending = false;
                                                 }
                                               }
                                             });
@@ -576,20 +634,26 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                                       widget.user.uid,
                                                     );
                                             if (!mounted) return;
-                                            setState(() => _followLoading = false);
-                                            if (error != null) {
-                                              setState(() {
+                                            setState(() {
+                                              _followLoading = false;
+                                              if (error == null) {
+                                                if (wasFollowing) {
+                                                  _followersCount = (_followersCount - 1).clamp(0, 1 << 30);
+                                                } else if (!_isFollowPending) {
+                                                  _followersCount++;
+                                                }
+                                              } else {
                                                 _isFollowing = wasFollowing;
                                                 _isFollowPending = wasFollowing ? _isFollowPending : false;
-                                              });
-                                              if (context.mounted) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(error),
-                                                    backgroundColor: Colors.red.shade700,
-                                                  ),
-                                                );
                                               }
+                                            });
+                                            if (error != null && context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(error),
+                                                  backgroundColor: Colors.red.shade700,
+                                                ),
+                                              );
                                             } else if (context.mounted) {
                                               ScaffoldMessenger.of(context).showSnackBar(
                                                 SnackBar(
@@ -679,6 +743,83 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
               const SizedBox(height: 16),
 
+              // Followers / Following counts (tappable)
+              Row(
+                children: [
+                  Expanded(
+                    child: _ProfileStat(
+                      count: _followersCount,
+                      label: 'followers',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => FollowersListScreen(
+                              userId: user.uid,
+                              username: user.username,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: _ProfileStat(
+                      count: _followingCount,
+                      label: 'following',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => FollowingListScreen(
+                              userId: user.uid,
+                              username: user.username,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // Content filter tabs: All, Texts, Photos, Videos, Reposts
+              if (_canSeePosts && !_loading && _posts.isNotEmpty)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    children: _contentFilters.map((f) {
+                      final isActive = _contentFilter == f;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _contentFilter = f),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isActive ? Colors.black : Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: Text(
+                              f,
+                              style: TextStyle(
+                                color: isActive ? Colors.white : Colors.grey[800],
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+              if (_canSeePosts && !_loading && _posts.isNotEmpty) const SizedBox(height: 12),
+
               if (!_canSeePosts)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
@@ -721,32 +862,98 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               else
                 Padding(
                   padding: const EdgeInsets.all(10),
-                  child: GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _posts.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 6,
-                      mainAxisSpacing: 6,
-                    ),
-                    itemBuilder: (context, index) {
-                      final post = _posts[index];
-
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          color: Colors.grey.shade200,
-                          child: post.media.isNotEmpty
-                              ? _buildPostMedia(post.media.first)
-                              : const Center(child: Icon(Icons.text_fields)),
+                  child: _filteredPosts.isEmpty
+                      ? SizedBox(
+                          height: 120,
+                          child: Center(
+                            child: Text(
+                              'No $_contentFilter yet',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        )
+                      : GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _filteredPosts.length,
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 6,
+                            mainAxisSpacing: 6,
+                          ),
+                          itemBuilder: (context, index) {
+                            final post = _filteredPosts[index];
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => PostDetailScreen(post: post),
+                                  ),
+                                );
+                              },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  color: Colors.grey.shade200,
+                                  child: post.media.isNotEmpty
+                                      ? _buildPostMedia(post.media.first)
+                                      : const Center(child: Icon(Icons.text_fields)),
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileStat extends StatelessWidget {
+  final int count;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ProfileStat({
+    required this.count,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Column(
+          children: [
+            Text(
+              count.toString(),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
         ),
       ),
     );

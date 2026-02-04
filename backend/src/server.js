@@ -52,12 +52,13 @@ connectDB();
 app.use(helmet());
 app.use(cors({ origin: '*', credentials: true }));
 
-// Rate limit
+// Rate limit: 500 requests per 15 min per IP (so login/usage isn't blocked)
 app.use(
   '/api/',
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 500,
+    message: { success: false, message: 'Too many requests, please try again later.' },
   })
 );
 

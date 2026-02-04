@@ -205,7 +205,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
       body: RefreshIndicator(
         onRefresh: _loadExplore,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
           children: [
             ExploreSearchBar(
               controller: _searchController,
@@ -430,29 +430,37 @@ class _ExploreScreenState extends State<ExploreScreen> {
       );
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.only(top: 6),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: posts.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 6,
-        mainAxisSpacing: 6,
-        childAspectRatio: 1,
+    // Same 3-column grid as profile Post tab: tight spacing, grey background, same tile style
+    return Padding(
+      padding: const EdgeInsets.all(2),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: posts.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
+        ),
+        itemBuilder: (context, index) {
+          final post = posts[index];
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => PostDetailScreen(post: post)),
+              );
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.zero,
+              child: Container(
+                color: Colors.grey.shade200,
+                child: _ExploreTile(post: post),
+              ),
+            ),
+          );
+        },
       ),
-      itemBuilder: (context, index) {
-        final post = posts[index];
-        return _ExploreTile(
-          post: post,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => PostDetailScreen(post: post)),
-            );
-          },
-        );
-      },
     );
   }
 }
@@ -611,58 +619,73 @@ class _SuggestionCard extends StatelessWidget {
   }
 }
 
+/// Same tile style as profile Post tab: image with video/repost badges, or text-only cell.
 class _ExploreTile extends StatelessWidget {
   final Post post;
-  final VoidCallback onTap;
 
-  const _ExploreTile({required this.post, required this.onTap});
+  const _ExploreTile({required this.post});
 
   @override
   Widget build(BuildContext context) {
-    final hasMedia = post.media.isNotEmpty;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: hasMedia ? _media(post.media.first) : _fallback(post.text),
-      ),
-    );
-  }
-
-  Widget _media(String path) {
-    final url = ApiConfig.networkImageUrl(path);
-    if (url == null) return _fallback('');
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => _fallback(''),
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return Container(
-          color: Colors.black12,
-          alignment: Alignment.center,
-          child: const SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _fallback(String text) {
+    if (post.media.isNotEmpty) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          _buildImage(post.media.first),
+          if (post.type == 'video')
+            Positioned(
+              right: 8,
+              top: 8,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
+              ),
+            ),
+          if (post.type == 'repost')
+            Positioned(
+              left: 8,
+              top: 8,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.repeat, color: Colors.white, size: 16),
+              ),
+            ),
+        ],
+      );
+    }
     return Container(
-      color: Colors.black12,
       padding: const EdgeInsets.all(10),
       alignment: Alignment.topLeft,
       child: Text(
-        text.isNotEmpty ? text : 'Post',
-        maxLines: 4,
+        post.text.isNotEmpty ? post.text : 'Text',
+        maxLines: 5,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
+    );
+  }
+
+  Widget _buildImage(String path) {
+    final url = ApiConfig.networkImageUrl(path);
+    if (url == null) {
+      return const Center(child: Icon(Icons.broken_image));
+    }
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) =>
+          const Center(child: Icon(Icons.broken_image)),
     );
   }
 }

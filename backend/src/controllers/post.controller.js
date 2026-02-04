@@ -376,6 +376,53 @@ export const repost = async (req, res, next) => {
   }
 };
 
+// @desc    Undo repost (remove repost)
+// @route   DELETE /api/posts/:id/repost
+// @access  Private
+export const unrepost = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const originalPost = await Post.findById(id);
+
+    if (!originalPost || originalPost.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    const repostDoc = await Post.findOne({
+      uid: userId,
+      type: 'repost',
+      originalPostId: originalPost._id,
+      isDeleted: false
+    });
+
+    if (!repostDoc) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have not reposted this post'
+      });
+    }
+
+    repostDoc.isDeleted = true;
+    await repostDoc.save();
+
+    originalPost.repostsCount = Math.max(0, originalPost.repostsCount - 1);
+    await originalPost.save();
+
+    res.json({
+      success: true,
+      message: 'Repost removed',
+      repostsCount: originalPost.repostsCount
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Quote repost a post
 // @route   POST /api/posts/:id/quote
 // @access  Private

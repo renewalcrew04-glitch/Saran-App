@@ -44,8 +44,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<String> _wellnessHistory = [];
   bool _wellnessLoading = true;
 
-  // Main Tabs (like reference: grid = posts, video = reels, person = tagged)
-  String _activeMainTab = 'posts'; // posts, reels, tagged
+  // Tabs: Post, Wellness, Games, Saved
+  String _activeMainTab = 'post';
 
   File? _localAvatarPreview;
   bool _uploadingAvatar = false;
@@ -288,301 +288,294 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildHeader(dynamic user) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          // Row: Avatar (left) + Name & Stats (right)
-          Row(
+    final coverUrl = user.coverImage != null && user.coverImage!.isNotEmpty
+        ? (ApiConfig.networkImageUrl(user.coverImage!) ?? user.coverImage)
+        : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Cover photo (full width)
+        GestureDetector(
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+            );
+            if (!mounted) return;
+            final auth = Provider.of<AuthProvider>(context, listen: false);
+            await auth.loadUser();
+          },
+          child: Container(
+            height: 160,
+            width: double.infinity,
+            color: Colors.grey.shade200,
+            child: coverUrl != null
+                ? Image.network(
+                    coverUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Center(
+                      child: Icon(Icons.photo_camera_outlined, size: 48, color: Colors.grey[500]),
+                    ),
+                  )
+                : Center(
+                    child: Icon(Icons.add_photo_alternate_outlined, size: 48, color: Colors.grey[500]),
+                  ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Avatar (tap to change) + small add circle
-              GestureDetector(
-                onTap: _pickAvatarImage,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.grey.shade300),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: CircleAvatar(
-                        radius: 48,
-                        backgroundColor: Colors.grey.shade200,
-                        backgroundImage: _localAvatarPreview != null
-                            ? FileImage(_localAvatarPreview!)
-                            : (user.avatar != null && user.avatar!.isNotEmpty
-                                ? NetworkImage(user.avatar!)
-                                : null) as ImageProvider?,
-                        child: ((user.avatar == null || user.avatar!.isEmpty) &&
-                                _localAvatarPreview == null)
-                            ? Text(
-                                user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-                                style: TextStyle(
-                                  fontSize: 32,
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            : null,
-                      ),
-                    ),
-                    if (_uploadingAvatar)
-                      Positioned.fill(
-                        child: Container(
+              // Avatar overlapping cover (negative margin)
+              Transform.translate(
+                offset: const Offset(0, -44),
+                child: Center(
+                  child: GestureDetector(
+                    onTap: _pickAvatarImage,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: Colors.black26,
+                            color: Colors.white,
                             shape: BoxShape.circle,
+                            border: Border.all(color: Colors.grey.shade300),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 12,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                          child: const Center(
-                            child: SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircleAvatar(
+                            radius: 48,
+                            backgroundColor: Colors.grey.shade200,
+                            backgroundImage: _localAvatarPreview != null
+                                ? FileImage(_localAvatarPreview!)
+                                : (user.avatar != null && user.avatar!.isNotEmpty
+                                    ? NetworkImage(user.avatar!)
+                                    : null) as ImageProvider?,
+                            child: ((user.avatar == null || user.avatar!.isEmpty) &&
+                                    _localAvatarPreview == null)
+                                ? Text(
+                                    user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                                    style: TextStyle(
+                                      fontSize: 32,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        ),
+                        if (_uploadingAvatar)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black26,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: const Icon(Icons.add, color: Colors.black, size: 18),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 24),
-              // Name + Stats
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      user.name.toUpperCase().replaceAll(' ', ' '),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.black,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _StatButton(
-                            count: _posts.length,
-                            label: 'posts',
-                            onTap: () => setState(() => _activeMainTab = 'posts'),
-                          ),
-                        ),
-                        Expanded(
-                          child: _StatButton(
-                            count: user.followersCount,
-                            label: 'followers',
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => FollowersListScreen(
-                                    userId: user.uid,
-                                    username: user.username,
-                                  ),
-                                ),
-                              ).then((_) {
-                                if (mounted) _refreshUserCounts();
-                              });
-                            },
-                          ),
-                        ),
-                        Expanded(
-                          child: _StatButton(
-                            count: user.followingCount,
-                            label: 'following',
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => FollowingListScreen(
-                                    userId: user.uid,
-                                    username: user.username,
-                                  ),
-                                ),
-                              ).then((_) {
-                                if (mounted) _refreshUserCounts();
-                              });
-                            },
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: const Icon(Icons.add, color: Colors.black, size: 18),
                           ),
                         ),
                       ],
                     ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Name
+              Center(
+                child: Text(
+                  user.name,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Center(
+                child: Text(
+                  '@${user.username}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ),
+              if (user.bio != null && user.bio!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Center(
+                  child: Text(
+                    user.bio!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[800],
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 8),
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Add location in Edit profile',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          // Edit profile | Share profile | Add friend icon
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 40,
-                  child: OutlinedButton(
-                    onPressed: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                      );
-                      if (!mounted) return;
-                      final auth = Provider.of<AuthProvider>(context, listen: false);
-                      await auth.loadUser();
-                      await _loadUserPosts();
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.black,
-                      side: BorderSide(color: Colors.grey.shade400),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    child: const Text('Edit profile', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: SizedBox(
-                  height: 40,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      // Share profile - copy link or share sheet
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Share profile')),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.black,
-                      side: BorderSide(color: Colors.grey.shade400),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    child: const Text('Share profile', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                height: 40,
-                width: 40,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  icon: Icon(Icons.person_add_alt_1_outlined, color: Colors.grey[800], size: 20),
-                  onPressed: () => context.push('/explore'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _buildWellnessPreviewCard(),
-          const SizedBox(height: 12),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWellnessPreviewCard() {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: () async {
-        await _loadWellnessStreak();
-        if (!mounted) return;
-        context.push('/wellness');
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFEDEDED)),
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(Icons.favorite, color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 20),
+              // Stats row
+              Row(
                 children: [
-                  const Text(
-                    "Wellness",
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 14,
-                      color: Colors.black,
+                  Expanded(
+                    child: _StatButton(
+                      count: _posts.length,
+                      label: 'posts',
+                      onTap: () => setState(() => _activeMainTab = 'post'),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  _wellnessLoading
-                      ? const Text(
-                          "Loading...",
-                          style: TextStyle(
-                            color: Colors.black54,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: _StatButton(
+                      count: user.followersCount,
+                      label: 'followers',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => FollowersListScreen(
+                              userId: user.uid,
+                              username: user.username,
+                            ),
                           ),
-                        )
-                      : Text(
-                          "Streak: $_wellnessStreak day${_wellnessStreak == 1 ? '' : 's'} • Activities: ${_wellnessHistory.length}",
-                          style: const TextStyle(
-                            color: Colors.black54,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                        ).then((_) {
+                          if (mounted) _refreshUserCounts();
+                        });
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: _StatButton(
+                      count: user.followingCount,
+                      label: 'following',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => FollowingListScreen(
+                              userId: user.uid,
+                              username: user.username,
+                            ),
                           ),
-                        ),
+                        ).then((_) {
+                          if (mounted) _refreshUserCounts();
+                        });
+                      },
+                    ),
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(width: 10),
-            const Icon(Icons.chevron_right, color: Colors.black),
-          ],
+              const SizedBox(height: 16),
+              // Edit | Share | Add
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                          );
+                          if (!mounted) return;
+                          final auth = Provider.of<AuthProvider>(context, listen: false);
+                          await auth.loadUser();
+                          await _loadUserPosts();
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.black,
+                          side: BorderSide(color: Colors.grey.shade400),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: const Text('Edit profile', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: OutlinedButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Share profile')),
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.black,
+                          side: BorderSide(color: Colors.grey.shade400),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: const Text('Share profile', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    height: 40,
+                    width: 40,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      icon: Icon(Icons.person_add_alt_1_outlined, color: Colors.grey[800], size: 20),
+                      onPressed: () => context.push('/explore'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -594,24 +587,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         children: [
           Expanded(
-            child: _ProfileIconTab(
+            child: _ProfileLabelTab(
+              label: 'Post',
               icon: Icons.grid_on,
-              isActive: _activeMainTab == 'posts',
-              onTap: () => setState(() => _activeMainTab = 'posts'),
+              isActive: _activeMainTab == 'post',
+              onTap: () => setState(() => _activeMainTab = 'post'),
             ),
           ),
           Expanded(
-            child: _ProfileIconTab(
-              icon: Icons.play_circle_outline,
-              isActive: _activeMainTab == 'reels',
-              onTap: () => setState(() => _activeMainTab = 'reels'),
+            child: _ProfileLabelTab(
+              label: 'Wellness',
+              icon: Icons.favorite_border,
+              isActive: _activeMainTab == 'wellness',
+              onTap: () => setState(() => _activeMainTab = 'wellness'),
             ),
           ),
           Expanded(
-            child: _ProfileIconTab(
-              icon: Icons.person_outline,
-              isActive: _activeMainTab == 'tagged',
-              onTap: () => setState(() => _activeMainTab = 'tagged'),
+            child: _ProfileLabelTab(
+              label: 'Games',
+              icon: Icons.sports_esports_outlined,
+              isActive: _activeMainTab == 'games',
+              onTap: () => setState(() => _activeMainTab = 'games'),
+            ),
+          ),
+          Expanded(
+            child: _ProfileLabelTab(
+              label: 'Saved',
+              icon: Icons.bookmark_border,
+              isActive: _activeMainTab == 'saved',
+              onTap: () => setState(() => _activeMainTab = 'saved'),
             ),
           ),
         ],
@@ -620,7 +624,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildBodyContent(dynamic user) {
-    if (_activeMainTab == 'posts') {
+    if (_activeMainTab == 'post') {
       if (_isLoading) {
         return const SizedBox(
           height: 280,
@@ -630,23 +634,129 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return _buildPostsSection();
     }
 
-    if (_activeMainTab == 'reels') {
-      return _buildEmptySection(
-        icon: Icons.play_circle_outline,
-        title: 'No reels yet',
-        subtitle: 'Videos you share will appear here.',
-      );
+    if (_activeMainTab == 'wellness') {
+      return _buildWellnessTabContent();
     }
 
-    if (_activeMainTab == 'tagged') {
-      return _buildEmptySection(
-        icon: Icons.person_outline,
-        title: 'No tags yet',
-        subtitle: 'Photos and videos you\'re tagged in will appear here.',
-      );
+    if (_activeMainTab == 'games') {
+      return _buildGamesTabContent();
+    }
+
+    if (_activeMainTab == 'saved') {
+      return _buildSavedTabContent();
     }
 
     return const SizedBox.shrink();
+  }
+
+  Widget _buildWellnessTabContent() {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () => context.push('/wellness'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(Icons.favorite, color: Colors.white, size: 36),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Wellness',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _wellnessLoading
+                  ? 'Loading…'
+                  : 'Streak: $_wellnessStreak day${_wellnessStreak == 1 ? '' : 's'} • ${_wellnessHistory.length} activities',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Tap to open Wellness',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[500],
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGamesTabContent() {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () => context.push('/games'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade700,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(Icons.sports_esports, color: Colors.white, size: 36),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Games',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Play wellness games',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Tap to open Games',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[500],
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSavedTabContent() {
+    return _buildEmptySection(
+      icon: Icons.bookmark_border,
+      title: 'No saved posts',
+      subtitle: 'Posts you save will appear here.',
+    );
   }
 
   Widget _buildEmptySection({
@@ -887,12 +997,14 @@ class _StatButton extends StatelessWidget {
   }
 }
 
-class _ProfileIconTab extends StatelessWidget {
+class _ProfileLabelTab extends StatelessWidget {
+  final String label;
   final IconData icon;
   final bool isActive;
   final VoidCallback onTap;
 
-  const _ProfileIconTab({
+  const _ProfileLabelTab({
+    required this.label,
     required this.icon,
     required this.isActive,
     required this.onTap,
@@ -903,7 +1015,7 @@ class _ProfileIconTab extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
@@ -912,10 +1024,24 @@ class _ProfileIconTab extends StatelessWidget {
             ),
           ),
         ),
-        child: Icon(
-          icon,
-          size: 26,
-          color: isActive ? Colors.black : Colors.grey[600],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 22,
+              color: isActive ? Colors.black : Colors.grey[600],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                color: isActive ? Colors.black : Colors.grey[600],
+              ),
+            ),
+          ],
         ),
       ),
     );

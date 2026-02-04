@@ -1,11 +1,9 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../config/api_config.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 import '../utils/time_formatter.dart';
-import '../utils/category_gradients.dart';
 import '../services/post_service.dart';
 import 'repost_bottom_sheet.dart';
 import '../screens/post/post_analytics_screen.dart';
@@ -99,6 +97,29 @@ class _PostCardState extends State<PostCard>
     }
   }
 
+  Future<void> _handleUndoRepost() async {
+    final post = widget.post;
+    try {
+      await PostService().undoRepost(post.id);
+      if (!mounted) return;
+      setState(() {
+        _repostsCount = (_repostsCount - 1).clamp(0, _repostsCount);
+        _hasReposted = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Repost removed')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.black,
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _likeController.dispose();
@@ -129,30 +150,18 @@ class _PostCardState extends State<PostCard>
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
         decoration: BoxDecoration(
-          gradient: CategoryGradients.forCategories(post.hashtags),
-          borderRadius: BorderRadius.circular(22),
+          color: Colors.black,
+          borderRadius: BorderRadius.zero,
         ),
-        padding: const EdgeInsets.all(1.2),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.55),
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.4),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: const BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.zero,
+          ),
+          child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _Header(post),
@@ -171,7 +180,7 @@ class _PostCardState extends State<PostCard>
                   if (post.media.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.zero,
                       child: _buildPostMedia(post.media.first),
                     ),
                   ],
@@ -185,6 +194,7 @@ class _PostCardState extends State<PostCard>
                     repostsCountOverride: _repostsCount,
                     hasRepostedOverride: _hasReposted,
                     onRepost: _handleRepost,
+                    onUndoRepost: _handleUndoRepost,
                     onLikeTap: _handleLike,
                     onCommentsTap: () async {
                       final newCount = await Navigator.push<int>(
@@ -200,8 +210,6 @@ class _PostCardState extends State<PostCard>
                   ),
                 ],
               ),
-            ),
-          ),
         ),
       ),
     );
@@ -339,6 +347,7 @@ class _Actions extends StatelessWidget {
   final int? repostsCountOverride;
   final bool? hasRepostedOverride;
   final Future<void> Function()? onRepost;
+  final Future<void> Function()? onUndoRepost;
   final VoidCallback? onLikeTap;
   final VoidCallback? onCommentsTap;
 
@@ -351,6 +360,7 @@ class _Actions extends StatelessWidget {
     this.repostsCountOverride,
     this.hasRepostedOverride,
     this.onRepost,
+    this.onUndoRepost,
     this.onLikeTap,
     this.onCommentsTap,
   });
@@ -391,9 +401,7 @@ class _Actions extends StatelessWidget {
       context: context,
       alreadyReposted: hasRepostedOverride ?? post.repostedByUid != null,
       onRepost: onRepost ?? () async {},
-      onUndo: () {
-        // undo repost (later phase)
-      },
+      onUndo: onUndoRepost ?? () async {},
       onQuote: () {
         Navigator.pushNamed(
           context,

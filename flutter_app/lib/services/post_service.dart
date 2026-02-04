@@ -112,6 +112,22 @@ class PostService {
     }
   }
 
+  /// Undo repost. Throws on failure.
+  Future<void> undoRepost(String postId) async {
+    try {
+      final headers = await _getAuthHeaders();
+      await _dio.delete(
+        '${ApiConfig.posts}/$postId/repost',
+        options: Options(headers: headers),
+      );
+    } on DioException catch (e) {
+      final message = e.response?.data is Map
+          ? (e.response!.data['message'] ?? e.response!.data['error'])
+          : null;
+      throw Exception(message?.toString() ?? 'Failed to undo repost');
+    }
+  }
+
   // =========================
   // QUOTE REPOST
   // =========================
