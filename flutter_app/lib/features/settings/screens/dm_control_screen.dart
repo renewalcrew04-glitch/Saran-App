@@ -32,12 +32,16 @@ class _DMControlScreenState extends State<DMControlScreen> {
     api.setToken(auth.token!);
     try {
       final data = await api.getMessagingSettings();
-      if (mounted) setState(() {
-        dmValue = (data['dmSettings'] ?? 'everyone') as String;
-        loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          dmValue = (data['dmSettings'] ?? 'everyone') as String;
+          loading = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => loading = false);
+      if (mounted) {
+        setState(() => loading = false);
+      }
     }
   }
 
@@ -108,7 +112,7 @@ class _DMControlScreenState extends State<DMControlScreen> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            value: dmValue,
+            initialValue: dmValue,
             decoration: const InputDecoration(border: OutlineInputBorder()),
             items: const [
               DropdownMenuItem(value: "everyone", child: Text("Everyone")),

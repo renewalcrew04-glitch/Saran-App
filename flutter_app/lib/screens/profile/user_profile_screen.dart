@@ -73,18 +73,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         final uid = (u is Map ? (u['uid'] ?? u['_id']) : u)?.toString() ?? '';
         if (uid == targetUid) { isMute = true; break; }
       }
-      if (mounted) setState(() {
-        _isCloseFriend = isClose;
-        _isBlocked = isBlock;
-        _isMuted = isMute;
-      });
+      if (mounted) {
+        setState(() {
+          _isCloseFriend = isClose;
+          _isBlocked = isBlock;
+          _isMuted = isMute;
+        });
+      }
     } catch (_) {}
   }
 
   /// Load initial follow state from API so button shows "Follow" / "Following" / "Requested" correctly.
   Future<void> _loadFollowState() async {
     final uid = widget.user.uid.trim();
-    if (uid.isEmpty) return;
+    if (uid.isEmpty) {
+      return;
+    }
     try {
       final profile = await _profileService.getUserProfile(uid);
       if (!mounted) return;
@@ -164,48 +168,72 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         try {
           if (_isCloseFriend) {
             await _settingsApi.removeCloseFriend(uid);
-            if (mounted) setState(() => _isCloseFriend = false);
-            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${widget.user.name} removed from Close Friends')),
-            );
+            if (mounted) {
+              setState(() => _isCloseFriend = false);
+            }
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('${widget.user.name} removed from Close Friends')),
+              );
+            }
           } else {
             await _settingsApi.addCloseFriend(uid);
-            if (mounted) setState(() => _isCloseFriend = true);
-            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${widget.user.name} added to Close Friends')),
-            );
+            if (mounted) {
+              setState(() => _isCloseFriend = true);
+            }
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('${widget.user.name} added to Close Friends')),
+              );
+            }
           }
         } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed: ${e.toString().replaceFirst('Exception: ', '')}'), backgroundColor: Colors.red.shade700),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed: ${e.toString().replaceFirst('Exception: ', '')}'), backgroundColor: Colors.red.shade700),
+            );
+          }
         }
         break;
       case 'block':
         try {
           await _settingsApi.blockUser(uid);
-          if (mounted) setState(() => _isBlocked = true);
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${widget.user.name} blocked')),
-          );
-          if (mounted) Navigator.of(context).pop();
+          if (mounted) {
+            setState(() => _isBlocked = true);
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('${widget.user.name} blocked')),
+            );
+          }
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
         } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to block'), backgroundColor: Colors.red.shade700),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to block'), backgroundColor: Colors.red.shade700),
+            );
+          }
         }
         break;
       case 'unblock':
         try {
           await _settingsApi.unblockUser(uid);
-          if (mounted) setState(() => _isBlocked = false);
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${widget.user.name} unblocked')),
-          );
+          if (mounted) {
+            setState(() => _isBlocked = false);
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('${widget.user.name} unblocked')),
+            );
+          }
         } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to unblock'), backgroundColor: Colors.red.shade700),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to unblock'), backgroundColor: Colors.red.shade700),
+            );
+          }
         }
         break;
       case 'report':
@@ -214,27 +242,39 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       case 'mute':
         try {
           await _settingsApi.muteUser(uid);
-          if (mounted) setState(() => _isMuted = true);
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Muted ${widget.user.name}'s messages")),
-          );
+          if (mounted) {
+            setState(() => _isMuted = true);
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Muted ${widget.user.name}'s messages")),
+            );
+          }
         } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to mute'), backgroundColor: Colors.red.shade700),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to mute'), backgroundColor: Colors.red.shade700),
+            );
+          }
         }
         break;
       case 'unmute':
         try {
           await _settingsApi.unmuteUser(uid);
-          if (mounted) setState(() => _isMuted = false);
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Unmuted ${widget.user.name}'s messages")),
-          );
+          if (mounted) {
+            setState(() => _isMuted = false);
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Unmuted ${widget.user.name}'s messages")),
+            );
+          }
         } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to unmute'), backgroundColor: Colors.red.shade700),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to unmute'), backgroundColor: Colors.red.shade700),
+            );
+          }
         }
         break;
     }
@@ -270,13 +310,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               _settingsApi.setToken(token);
               try {
                 await _settingsApi.reportUser(uid: widget.user.uid, reason: reason);
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Report submitted')),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Report submitted')),
+                  );
+                }
               } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to submit report'), backgroundColor: Colors.red.shade700),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to submit report'), backgroundColor: Colors.red.shade700),
+                  );
+                }
               }
             },
             child: const Text('Submit'),

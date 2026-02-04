@@ -204,29 +204,29 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
       final isEdit = widget.eventId != null;
       if (isEdit) {
         final errorMsg = await service.updateEvent(widget.eventId!, eventData);
-        if (mounted) {
-          if (errorMsg == null) {
-            ref.read(spaceProvider.notifier).reset();
-            ref.read(spaceProvider.notifier).load();
-            // Evict cover image cache so list/details show the new image after refetch
-            if (_existingCoverUrl != null && _existingCoverUrl!.isNotEmpty) {
-              final oldUrl = ApiConfig.networkImageUrl(_existingCoverUrl!) ?? _existingCoverUrl!;
-              await CachedNetworkImage.evictFromCache(oldUrl);
-            }
-            if (coverToSend != null && coverToSend.isNotEmpty) {
-              final newUrl = ApiConfig.networkImageUrl(coverToSend) ?? coverToSend;
-              await CachedNetworkImage.evictFromCache(newUrl);
-            }
-            if (!context.mounted) return;
-            Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Event updated successfully!")),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(errorMsg)),
-            );
+        if (!context.mounted) return;
+        final ctx = context;
+        if (errorMsg == null) {
+          ref.read(spaceProvider.notifier).reset();
+          ref.read(spaceProvider.notifier).load();
+          // Evict cover image cache so list/details show the new image after refetch
+          if (_existingCoverUrl != null && _existingCoverUrl!.isNotEmpty) {
+            final oldUrl = ApiConfig.networkImageUrl(_existingCoverUrl!) ?? _existingCoverUrl!;
+            await CachedNetworkImage.evictFromCache(oldUrl);
           }
+          if (coverToSend != null && coverToSend.isNotEmpty) {
+            final newUrl = ApiConfig.networkImageUrl(coverToSend) ?? coverToSend;
+            await CachedNetworkImage.evictFromCache(newUrl);
+          }
+          if (!ctx.mounted) return;
+          Navigator.pop(ctx);
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            const SnackBar(content: Text("Event updated successfully!")),
+          );
+        } else {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(errorMsg)),
+          );
         }
       } else {
         final success = await service.createEvent(eventData);

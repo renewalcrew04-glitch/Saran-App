@@ -407,7 +407,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     username: user.username,
                                   ),
                                 ),
-                              );
+                              ).then((_) {
+                                if (mounted) _refreshUserCounts();
+                              });
                             },
                           ),
                         ),
@@ -424,7 +426,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     username: user.username,
                                   ),
                                 ),
-                              );
+                              ).then((_) {
+                                if (mounted) _refreshUserCounts();
+                              });
                             },
                           ),
                         ),

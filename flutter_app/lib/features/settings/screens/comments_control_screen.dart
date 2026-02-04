@@ -32,12 +32,16 @@ class _CommentsControlScreenState extends State<CommentsControlScreen> {
     api.setToken(auth.token!);
     try {
       final data = await api.getMessagingSettings();
-      if (mounted) setState(() {
-        commentValue = (data['commentSettings'] ?? 'everyone') as String;
-        loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          commentValue = (data['commentSettings'] ?? 'everyone') as String;
+          loading = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => loading = false);
+      if (mounted) {
+        setState(() => loading = false);
+      }
     }
   }
 
@@ -108,7 +112,7 @@ class _CommentsControlScreenState extends State<CommentsControlScreen> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            value: commentValue,
+            initialValue: commentValue,
             decoration: const InputDecoration(border: OutlineInputBorder()),
             items: const [
               DropdownMenuItem(value: "everyone", child: Text("Everyone")),

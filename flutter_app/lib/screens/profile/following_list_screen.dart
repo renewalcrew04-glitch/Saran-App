@@ -83,6 +83,8 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
 
   Future<void> _toggleFollow(String uid, bool currentlyFollowing) async {
     if (_buttonLoading[uid] == true) return;
+    final currentUid = context.read<AuthProvider>().user?.uid;
+    final isOwnList = currentUid != null && widget.userId == currentUid;
     setState(() {
       _buttonLoading[uid] = true;
       _isFollowing[uid] = !currentlyFollowing;
@@ -91,14 +93,20 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
         ? await _profileService.unfollowUser(uid)
         : await _profileService.followUser(uid);
     if (!mounted) return;
-    setState(() => _buttonLoading[uid] = false);
-    if (error != null) {
-      setState(() => _isFollowing[uid] = currentlyFollowing);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error), backgroundColor: Colors.red.shade700),
-        );
+    setState(() {
+      _buttonLoading[uid] = false;
+      if (error != null) {
+        _isFollowing[uid] = currentlyFollowing;
+      } else if (currentlyFollowing && isOwnList) {
+        // Unfollowed from our own following list: remove from list so count stays correct
+        _following.removeWhere((u) => (u['uid'] ?? u['_id'] ?? '').toString() == uid);
+        _isFollowing.remove(uid);
       }
+    });
+    if (error != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.red.shade700),
+      );
     }
   }
 
