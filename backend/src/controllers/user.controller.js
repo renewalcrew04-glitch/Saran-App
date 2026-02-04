@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import Block from '../models/Block.model.js';
+import CloseFriend from '../models/CloseFriend.model.js';
 import Follow from '../models/Follow.model.js';
+import Mute from '../models/Mute.model.js';
 import Post from '../models/Post.model.js';
 import User from '../models/User.model.js';
 
@@ -529,11 +531,17 @@ export const getFollowing = async (req, res, next) => {
 
 export const deleteMyAccount = async (req, res, next) => {
   try {
-    const currentUserId = req.user._id;
+    const userId = req.user._id;
 
-    await User.deleteOne({ _id: currentUserId });
+    // Remove relations so no orphaned documents remain
+    await Follow.deleteMany({ $or: [{ follower: userId }, { following: userId }] });
+    await Block.deleteMany({ $or: [{ blocker: userId }, { blocked: userId }] });
+    await Mute.deleteMany({ $or: [{ muter: userId }, { muted: userId }] });
+    await CloseFriend.deleteMany({ $or: [{ owner: userId }, { friend: userId }] });
 
-    return res.json({ success: true, message: "Account deleted" });
+    await User.findByIdAndDelete(userId);
+
+    return res.json({ success: true, message: "Account deleted successfully" });
   } catch (err) {
     next(err);
   }

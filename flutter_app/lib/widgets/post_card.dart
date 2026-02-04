@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import '../config/api_config.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
+import '../providers/auth_provider.dart';
 import '../utils/time_formatter.dart';
 import '../services/post_service.dart';
 import 'repost_bottom_sheet.dart';
@@ -14,8 +16,10 @@ import '../screens/comments/comments_screen.dart';
 class PostCard extends StatefulWidget {
   final Post post;
   final VoidCallback? onTap;
+  /// Called after this post is successfully deleted (e.g. to refresh list or pop screen).
+  final VoidCallback? onPostDeleted;
 
-  const PostCard({super.key, required this.post, this.onTap});
+  const PostCard({super.key, required this.post, this.onTap, this.onPostDeleted});
 
   @override
   State<PostCard> createState() => _PostCardState();
@@ -164,7 +168,7 @@ class _PostCardState extends State<PostCard>
           child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _Header(post),
+                  _Header(post: post, onPostDeleted: widget.onPostDeleted),
                   if (post.text.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     Text(
@@ -218,7 +222,8 @@ class _PostCardState extends State<PostCard>
 
 class _Header extends StatelessWidget {
   final Post post;
-  const _Header(this.post);
+  final VoidCallback? onPostDeleted;
+  const _Header({required this.post, this.onPostDeleted});
 
   void _openUserProfile(BuildContext context) {
     final user = User(
@@ -329,7 +334,7 @@ IconButton(
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => _PostOptions(post: post),
+      builder: (_) => _PostOptions(post: post, onDeleted: onPostDeleted),
     );
   },
 ),
@@ -430,10 +435,15 @@ class _Actions extends StatelessWidget {
 
 class _PostOptions extends StatelessWidget {
   final Post post;
-  const _PostOptions({required this.post});
+  final VoidCallback? onDeleted;
+
+  const _PostOptions({required this.post, this.onDeleted});
 
   @override
   Widget build(BuildContext context) {
+    final currentUid = context.watch<AuthProvider>().user?.uid ?? '';
+    final isOwnPost = currentUid.isNotEmpty && post.uid == currentUid;
+
     return Container(
       margin: const EdgeInsets.all(14),
       padding: const EdgeInsets.all(16),
@@ -444,65 +454,129 @@ class _PostOptions extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ListTile(
-            leading: const Icon(Icons.analytics, color: Colors.white),
-            title: const Text(
-              "View analytics",
-              style: TextStyle(color: Colors.white),
+          if (isOwnPost) ...[
+            ListTile(
+              leading: const Icon(Icons.analytics, color: Colors.white),
+              title: const Text(
+                "View analytics",
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PostAnalyticsScreen(post: post),
+                  ),
+                );
+              },
             ),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PostAnalyticsScreen(post: post),
-                ),
-              );
-            },
-          ),
-          ListTile(
-  leading: const Icon(Icons.visibility_off, color: Colors.white),
-  title: Text(
-    post.hideLikeCount ? "Show like count" : "Hide like count",
-    style: const TextStyle(color: Colors.white),
-  ),
-  onTap: () async {
-    Navigator.pop(context);
-    await PostService().toggleHideLikeCount(post.id);
-  },
-),
-          ListTile(
-  leading: const Icon(Icons.edit, color: Colors.white),
-  title: const Text(
-    "Edit post",
-    style: TextStyle(color: Colors.white),
-  ),
-  onTap: () {
-    Navigator.pop(context);
-    Navigator.pushNamed(
-      context,
-      '/post-edit',
-      arguments: post,
+            ListTile(
+              leading: const Icon(Icons.visibility_off, color: Colors.white),
+              title: Text(
+                post.hideLikeCount ? "Show like count" : "Hide like count",
+                style: const TextStyle(color: Colors.white),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                await PostService().toggleHideLikeCount(post.id);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit, color: Colors.white),
+              title: const Text(
+                "Edit post",
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(
+                  context,
+                  '/post-edit',
+                  arguments: post,
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                post.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                color: Colors.white,
+              ),
+              title: Text(
+                post.isPinned ? "Unpin post" : "Pin post",
+                style: const TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                // backend hook later
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text(
+                "Delete post",
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+              ),
+              onTap: () => _confirmAndDeletePost(context),
+            ),
+          ] else ...[
+            ListTile(
+              leading: const Icon(Icons.flag_outlined, color: Colors.white),
+              title: const Text(
+                "Report",
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                // report flow
+              },
+            ),
+          ],
+        ],
+      ),
     );
-  },
-),
-          ListTile(
-            leading: Icon(
-              post.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-              color: Colors.white,
-            ),
-            title: Text(
-              post.isPinned ? "Unpin post" : "Pin post",
-              style: const TextStyle(color: Colors.white),
-            ),
-            onTap: () {
-              Navigator.pop(context);
-              // backend hook later
-            },
+  }
+
+  Future<void> _confirmAndDeletePost(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete post?"),
+        content: const Text(
+          "This post will be permanently deleted. This cannot be undone.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text("Delete"),
           ),
         ],
       ),
     );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await PostService().deletePost(post.id);
+      if (!context.mounted) return;
+      Navigator.pop(context); // close options sheet
+      onDeleted?.call();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Post deleted")),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 }
 

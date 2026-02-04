@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -52,15 +53,27 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
 
       if (!mounted) return;
       context.go('/login');
-    } catch (_) {
+    } on DioException catch (e) {
       if (!mounted) return;
+      setState(() => loading = false);
+      final data = e.response?.data;
+      final message = data is Map ? (data['message'] ?? data['error'])?.toString() : null;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to delete account")),
+        SnackBar(
+          content: Text(message ?? "Failed to delete account"),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red.shade700,
+        ),
       );
     }
-
-    if (!mounted) return;
-    setState(() => loading = false);
   }
 
   @override

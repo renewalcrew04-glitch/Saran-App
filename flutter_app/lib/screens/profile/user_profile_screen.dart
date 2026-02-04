@@ -892,7 +892,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => PostDetailScreen(post: post),
+                                    builder: (_) => PostDetailScreen(
+                                      posts: _filteredPosts,
+                                      initialIndex: index,
+                                    ),
                                   ),
                                 );
                               },

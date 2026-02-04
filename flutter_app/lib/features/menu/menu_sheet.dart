@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../settings/screens/delete_account_screen.dart';
 
 class MenuSheet extends StatelessWidget {
   const MenuSheet({super.key});
@@ -49,6 +50,28 @@ class MenuSheet extends StatelessWidget {
               onTap: () {
                 Navigator.pop(context);
                 context.push('/settings');
+              },
+            ),
+
+            const Divider(height: 1),
+
+            ListTile(
+              leading: const Icon(Icons.delete_forever, color: Colors.red),
+              title: const Text(
+                "Delete account",
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: Colors.red,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const DeleteAccountScreen(),
+                  ),
+                );
               },
             ),
 

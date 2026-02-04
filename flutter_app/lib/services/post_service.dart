@@ -128,6 +128,22 @@ class PostService {
     }
   }
 
+  /// Delete own post (soft delete). Throws on failure. Only post owner can delete.
+  Future<void> deletePost(String postId) async {
+    try {
+      final headers = await _getAuthHeaders();
+      await _dio.delete(
+        '${ApiConfig.posts}/$postId',
+        options: Options(headers: headers),
+      );
+    } on DioException catch (e) {
+      final message = e.response?.data is Map
+          ? (e.response!.data['message'] ?? e.response!.data['error'])
+          : null;
+      throw Exception(message?.toString() ?? 'Failed to delete post');
+    }
+  }
+
   // =========================
   // QUOTE REPOST
   // =========================

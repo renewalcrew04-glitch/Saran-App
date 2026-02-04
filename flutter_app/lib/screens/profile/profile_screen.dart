@@ -16,6 +16,7 @@ import '../../services/upload_service.dart';
 import 'edit_profile_screen.dart';
 import 'followers_list_screen.dart';
 import 'following_list_screen.dart';
+import '../post/post_detail_screen.dart';
 
 /// When this notifier's value equals [kProfileTabIndex], profile will refresh posts.
 const int kProfileTabIndex = 4;
@@ -861,7 +862,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         itemBuilder: (context, index) {
           final post = list[index];
           return GestureDetector(
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PostDetailScreen(
+                    posts: list,
+                    initialIndex: index,
+                  ),
+                ),
+              );
+            },
             child: ClipRRect(
               borderRadius: BorderRadius.zero,
               child: Container(
