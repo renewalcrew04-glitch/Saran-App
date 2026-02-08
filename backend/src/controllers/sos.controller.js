@@ -31,19 +31,20 @@ export const createSOS = async (req, res) => {
       });
     }
 
-    const sos = await SOS.create({
+    const createPayload = {
       userId: req.user._id,
       message,
       sendToCloseFriends,
       sendToNearby,
       radiusKm,
-      location: location
-        ? {
-            type: 'Point',
-            coordinates: [location.lng, location.lat],
-          }
-        : undefined,
-    });
+    };
+    if (location && typeof location.lng === 'number' && typeof location.lat === 'number') {
+      createPayload.location = {
+        type: 'Point',
+        coordinates: [location.lng, location.lat],
+      };
+    }
+    const sos = await SOS.create(createPayload);
 
     /* --------------------------------
        NEARBY USERS (2km GEO QUERY)

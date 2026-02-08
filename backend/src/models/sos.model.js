@@ -65,6 +65,17 @@ const sosSchema = new mongoose.Schema(
   }
 );
 
+// Never persist invalid location (avoids "Can't extract geo keys")
+sosSchema.pre('save', function (next) {
+  if (this.location && this.location.type === 'Point') {
+    const coords = this.location.coordinates;
+    if (!Array.isArray(coords) || coords.length !== 2) {
+      this.location = undefined;
+    }
+  }
+  next();
+});
+
 // 🔥 Required for geo queries
 sosSchema.index({ location: '2dsphere' });
 
