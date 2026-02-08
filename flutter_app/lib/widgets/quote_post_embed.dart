@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../config/api_config.dart';
 import '../models/post_model.dart';
 import '../utils/time_formatter.dart';
+import '../utils/media_utils.dart';
 
 class QuotePostEmbed extends StatelessWidget {
   final Post originalPost;
@@ -98,18 +99,13 @@ class _QuoteMedia extends StatelessWidget {
         child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
       );
     }
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      height: maxHeight,
-      width: double.infinity,
-      errorBuilder: (_, __, ___) => Container(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: safeNetworkImage(
+        url: url,
+        fit: BoxFit.cover,
         height: maxHeight,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade300,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
+        width: double.infinity,
       ),
     );
   }

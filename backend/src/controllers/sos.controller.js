@@ -16,16 +16,18 @@ export const createSOS = async (req, res) => {
       radiusKm = 2,
     } = req.body;
 
-    // Prevent multiple active SOS from same user
+    // Prevent multiple active SOS from same user (select only _id to avoid loading invalid geo)
     const existing = await SOS.findOne({
       userId: req.user._id,
       status: 'active',
-    });
+    })
+      .select('_id')
+      .lean();
 
     if (existing) {
       return res.status(400).json({
         message: 'An SOS is already active',
-        sosId: existing._id,
+        sosId: existing._id.toString(),
       });
     }
 
@@ -89,7 +91,7 @@ export const createSOS = async (req, res) => {
     });
   } catch (error) {
     console.error('CREATE SOS ERROR:', error);
-    return res.status(500).json({ message: error?.message || 'Failed to create SOS' });
+    return res.status(500).json({ message: 'Failed to create SOS' });
   }
 };
 
@@ -115,7 +117,11 @@ export const getSOS = async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    return res.json(sos);
+    const out = sos.toObject ? sos.toObject() : sos;
+    if (out.location && (!out.location.coordinates || !Array.isArray(out.location.coordinates))) {
+      out.location = undefined;
+    }
+    return res.json(out);
   } catch (error) {
     return res.status(500).json({ message: 'Failed to fetch SOS' });
   }

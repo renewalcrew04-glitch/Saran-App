@@ -18,8 +18,9 @@ export const protect = async (req, res, next) => {
     }
 
     try {
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      // Verify token (use same default as auth.controller.js if not set)
+      const secret = process.env.JWT_SECRET || 'your-secret-key';
+      const decoded = jwt.verify(token, secret);
 
       // Get user from token
       req.user = await User.findById(decoded.id).select('-password');
@@ -57,7 +58,8 @@ export const optionalAuth = async (req, res, next) => {
       
       if (token) {
         try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          const secret = process.env.JWT_SECRET || 'your-secret-key';
+          const decoded = jwt.verify(token, secret);
           req.user = await User.findById(decoded.id).select('-password');
         } catch (error) {
           // Ignore invalid token for optional auth

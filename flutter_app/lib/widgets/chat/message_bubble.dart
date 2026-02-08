@@ -35,6 +35,7 @@ class MessageBubble extends StatelessWidget {
             width: 200,
             height: 200,
             fit: BoxFit.cover,
+            errorWidget: (_, __, ___) => const Icon(Icons.broken_image, size: 48, color: Colors.grey),
           ),
         ),
       );

@@ -6,7 +6,9 @@ const router = express.Router();
 
 router.get('/', adminProtect, async (req, res) => {
   const list = await SOS.find({ status: 'active' })
-    .populate('userId', 'username name');
+    .select('-location')
+    .populate('userId', 'username name')
+    .lean();
 
   res.json(list);
 });

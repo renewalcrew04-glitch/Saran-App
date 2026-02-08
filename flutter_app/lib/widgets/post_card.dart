@@ -6,6 +6,7 @@ import '../models/post_model.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../utils/time_formatter.dart';
+import '../utils/media_utils.dart';
 import '../services/post_service.dart';
 import 'repost_bottom_sheet.dart';
 import '../screens/post/post_analytics_screen.dart';
@@ -165,15 +166,7 @@ class _PostCardState extends State<PostCard>
         child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
       );
     }
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => Container(
-        height: 200,
-        color: Colors.grey[300],
-        child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
-      ),
-    );
+    return safeNetworkImage(url: url, fit: BoxFit.cover, height: 200);
   }
 
   @override

@@ -4,8 +4,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Load .env from backend root (one level up from src/)
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// Load .env from backend root (one level up from src/); fallback to cwd (e.g. when PM2 runs from backend)
+const envPathBackend = path.resolve(__dirname, '../../.env');
+const envPathCwd = path.resolve(process.cwd(), '.env');
+const result = dotenv.config({ path: envPathBackend }) ?? dotenv.config({ path: envPathCwd });
+if (!process.env.MONGODB_URI && result?.error) {
+  console.warn('⚠️ Could not load .env from', envPathBackend, 'or', envPathCwd);
+}
 
 export const connectDB = async () => {
   try {

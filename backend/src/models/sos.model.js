@@ -29,7 +29,7 @@ const sosSchema = new mongoose.Schema(
       type: {
         type: String,
         enum: ['Point'],
-        default: 'Point',
+        // no default: only set when we have coordinates
       },
       coordinates: {
         type: [Number], // [lng, lat]

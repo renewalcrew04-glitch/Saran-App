@@ -200,7 +200,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         child: _localCover != null
                             ? Image.file(_localCover!, fit: BoxFit.cover)
                             : (user?.coverImage != null
-                                ? Image.network(user!.coverImage!, fit: BoxFit.cover)
+                                ? Image.network(user!.coverImage!, fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.image, color: Colors.grey)))
                                 : const SizedBox.shrink()),
                       ),
                       Positioned(

@@ -129,6 +129,22 @@ class _SosScreenState extends State<SosScreen> {
       );
     } catch (e) {
       final msg = e is Exception ? e.toString().replaceFirst("Exception: ", "").trim() : "Failed to send SOS";
+      if (msg.startsWith("ALREADY_ACTIVE:")) {
+        final id = msg.replaceFirst("ALREADY_ACTIVE:", "").trim();
+        if (id.isNotEmpty) {
+          sosProvider.activate(id);
+          if (mounted) {
+            setState(() {});
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text("You have an active SOS. Tap Cancel SOS to end it."),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+        return;
+      }
       _error(msg);
     } finally {
       if (mounted) setState(() => isSending = false);
@@ -161,8 +177,10 @@ class _SosScreenState extends State<SosScreen> {
   }
 
   void _error(String msg) {
+    // Keep message short so SnackBar doesn't cover Cancel SOS button
+    final short = msg.length > 100 ? '${msg.substring(0, 100)}…' : msg;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red),
+      SnackBar(content: Text(short), backgroundColor: Colors.red),
     );
   }
 
