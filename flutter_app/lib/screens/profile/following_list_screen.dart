@@ -25,7 +25,9 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
   bool _loading = true;
   List<Map<String, dynamic>> _following = [];
   final Map<String, bool> _isFollowing = {};
+  final Map<String, bool> _isFollowPending = {};
   final Map<String, bool> _buttonLoading = {};
+  bool _isCurrentRoute = true;
 
   @override
   void initState() {
@@ -36,32 +38,29 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
   bool _restricted = false;
 
   Future<void> _loadFollowing() async {
+    if (!mounted) return;
     final currentUid = context.read<AuthProvider>().user?.uid;
+    final isOwnList = currentUid != null &&
+        currentUid.isNotEmpty &&
+        widget.userId == currentUid;
+
     setState(() => _loading = true);
     try {
       final result = await _profileService.getFollowing(widget.userId);
       final data = List<Map<String, dynamic>>.from(result['following'] ?? []);
       final restricted = result['restricted'] == true;
-      // Resolve who *we* follow so the button shows "Following" vs "Follow" correctly
-      final Set<String> myFollowingUids = {};
-      if (currentUid != null && currentUid.isNotEmpty && !restricted) {
-        final myResult = await _profileService.getFollowing(currentUid);
-        final myFollowing = List<Map<String, dynamic>>.from(myResult['following'] ?? []);
-        myFollowingUids.addAll(
-          myFollowing
-              .map((u) => (u['uid'] ?? u['_id'] ?? '').toString())
-              .where((s) => s.isNotEmpty),
-        );
-      }
       if (mounted) {
         setState(() {
           _following = data;
           _restricted = restricted;
           for (final u in data) {
             final uid = (u['uid'] ?? u['_id'] ?? '').toString();
-            if (uid.isNotEmpty) {
-              _isFollowing[uid] = myFollowingUids.contains(uid);
-            }
+            if (uid.isEmpty) continue;
+            // When viewing our own following list, everyone here is someone we follow
+            final rawFollowing = u['isFollowing'] == true;
+            final rawPending = u['isFollowPending'] == true;
+            _isFollowing[uid] = rawFollowing || (isOwnList && !rawPending);
+            _isFollowPending[uid] = rawPending;
           }
           _loading = false;
         });
@@ -81,37 +80,72 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
     );
   }
 
-  Future<void> _toggleFollow(String uid, bool currentlyFollowing) async {
+  Future<void> _toggleFollow(String uid, bool currentlyFollowing, bool currentlyPending) async {
     if (_buttonLoading[uid] == true) return;
     final currentUid = context.read<AuthProvider>().user?.uid;
     final isOwnList = currentUid != null && widget.userId == currentUid;
     setState(() {
       _buttonLoading[uid] = true;
-      _isFollowing[uid] = !currentlyFollowing;
+      if (currentlyFollowing || currentlyPending) {
+        _isFollowing[uid] = false;
+        _isFollowPending[uid] = false;
+      }
     });
-    final error = currentlyFollowing
-        ? await _profileService.unfollowUser(uid)
-        : await _profileService.followUser(uid);
+    String? error;
+    String? followStatusResult;
+    if (currentlyFollowing || currentlyPending) {
+      error = await _profileService.unfollowUser(uid);
+    } else {
+      final res = await _profileService.followUser(uid);
+      error = res.error;
+      followStatusResult = res.status;
+    }
     if (!mounted) return;
     setState(() {
       _buttonLoading[uid] = false;
-      if (error != null) {
+      if (error == null) {
+        if (currentlyFollowing || currentlyPending) {
+          if (currentlyFollowing && isOwnList) {
+            _following.removeWhere((u) => (u['uid'] ?? u['_id'] ?? '').toString() == uid);
+            _isFollowing.remove(uid);
+            _isFollowPending.remove(uid);
+          } else {
+            _isFollowing[uid] = false;
+            _isFollowPending[uid] = false;
+          }
+        } else {
+          _isFollowing[uid] = followStatusResult == 'accepted';
+          _isFollowPending[uid] = followStatusResult == 'pending';
+        }
+      } else {
         _isFollowing[uid] = currentlyFollowing;
-      } else if (currentlyFollowing && isOwnList) {
-        // Unfollowed from our own following list: remove from list so count stays correct
-        _following.removeWhere((u) => (u['uid'] ?? u['_id'] ?? '').toString() == uid);
-        _isFollowing.remove(uid);
+        _isFollowPending[uid] = currentlyPending;
       }
     });
     if (error != null && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.red.shade700),
-      );
+      final lower = error.toLowerCase();
+      if (!lower.contains('pending') && !lower.contains('request already') && !lower.contains('already following')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error), backgroundColor: Colors.red.shade700),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isCurrent = ModalRoute.of(context)?.isCurrent ?? false;
+    if (!isCurrent) {
+      _isCurrentRoute = false;
+    } else {
+      if (!_isCurrentRoute) {
+        _isCurrentRoute = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _loadFollowing();
+        });
+      }
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -153,7 +187,47 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
                     final username = (u['username'] ?? '').toString();
                     final avatar = u['avatar']?.toString();
                     final isFollowing = _isFollowing[uid] ?? false;
+                    final isFollowPending = _isFollowPending[uid] ?? false;
                     final loading = _buttonLoading[uid] ?? false;
+
+                    Widget trailingButton;
+                    if (isFollowing) {
+                      trailingButton = OutlinedButton(
+                        onPressed: loading ? null : () => _toggleFollow(uid, true, false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.black,
+                          side: BorderSide(color: Colors.grey.shade400),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          minimumSize: const Size(100, 36),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text("Following", maxLines: 1, overflow: TextOverflow.visible),
+                      );
+                    } else if (isFollowPending) {
+                      trailingButton = OutlinedButton(
+                        onPressed: loading ? null : () => _toggleFollow(uid, false, true),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.grey.shade700,
+                          side: BorderSide(color: Colors.grey.shade400),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          minimumSize: const Size(100, 36),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text("Requested", maxLines: 1, overflow: TextOverflow.visible),
+                      );
+                    } else {
+                      trailingButton = ElevatedButton(
+                        onPressed: loading ? null : () => _toggleFollow(uid, false, false),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          minimumSize: const Size(100, 36),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text("Follow", maxLines: 1, overflow: TextOverflow.visible),
+                      );
+                    }
 
                     return ListTile(
                       onTap: () => _openProfile(u),
@@ -179,43 +253,7 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
                       subtitle: Text("@$username"),
                       trailing: ConstrainedBox(
                         constraints: const BoxConstraints(minWidth: 100),
-                        child: isFollowing
-                            ? OutlinedButton(
-                                onPressed: loading
-                                    ? null
-                                    : () => _toggleFollow(uid, true),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.black,
-                                  side: BorderSide(color: Colors.grey.shade400),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 8),
-                                  minimumSize: const Size(100, 36),
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: const Text(
-                                  "Following",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.visible,
-                                ),
-                              )
-                            : ElevatedButton(
-                                onPressed: loading
-                                    ? null
-                                    : () => _toggleFollow(uid, false),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 8),
-                                  minimumSize: const Size(100, 36),
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: const Text(
-                                  "Follow",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.visible,
-                                ),
-                              ),
+                        child: trailingButton,
                       ),
                     );
                   },

@@ -47,58 +47,49 @@ class _CommentsScreenState extends State<CommentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.grey.shade50,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back_ios_new, size: 20, color: theme.iconTheme.color),
           onPressed: () => Navigator.pop(context, comments.length),
         ),
-        title: const Text("Comments"),
+        title: Text(
+          'Comments',
+          style: TextStyle(
+            color: theme.textTheme.titleLarge?.color ?? Colors.black87,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+        ),
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          error!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white70),
-                        ),
-                        const SizedBox(height: 16),
-                        TextButton(
-                          onPressed: _load,
-                          child: const Text('Retry'),
-                        ),
-                      ],
+              ? _buildError(theme)
+              : comments.isEmpty
+                  ? _buildEmptyState(theme)
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
+                      itemCount: comments.length,
+                      itemBuilder: (_, i) => CommentTile(
+                        postId: widget.postId,
+                        comment: comments[i],
+                        onReply: _load,
+                      ),
                     ),
-                  ),
-                )
-              : ListView.builder(
-              padding: const EdgeInsets.only(bottom: 90),
-              itemCount: comments.length,
-              itemBuilder: (_, i) => CommentTile(
-                postId: widget.postId,
-                comment: comments[i],
-                onReply: _load,
-              ),
-            ),
       bottomSheet: CommentInputBar(
         onSend: (text) async {
           try {
             final newComment = await service.addComment(widget.postId, text);
             if (!mounted) return;
-            // Show new comment immediately (optimistic update)
             if (newComment != null) {
-              setState(() {
-                comments = [newComment, ...comments];
-              });
+              setState(() => comments = [newComment, ...comments]);
             } else {
               await _load();
             }
@@ -109,6 +100,67 @@ class _CommentsScreenState extends State<CommentsScreen> {
             );
           }
         },
+      ),
+    );
+  }
+
+  Widget _buildError(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 56, color: theme.colorScheme.error.withValues(alpha: 0.8)),
+            const SizedBox(height: 16),
+            Text(
+              error!,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: theme.textTheme.bodyLarge?.color?.withValues(alpha: 0.8), fontSize: 15),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: _load,
+              icon: const Icon(Icons.refresh, size: 20),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.chat_bubble_outline_rounded,
+              size: 72,
+              color: theme.iconTheme.color?.withValues(alpha: 0.4) ?? Colors.grey,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'No comments yet',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: theme.textTheme.titleLarge?.color ?? Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Be the first to comment',
+              style: TextStyle(
+                fontSize: 14,
+                color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7) ?? Colors.black54,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

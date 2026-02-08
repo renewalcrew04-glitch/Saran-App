@@ -5,12 +5,18 @@ class PeopleRow extends StatelessWidget {
   final User user;
   final VoidCallback onFollow;
   final VoidCallback? onTap;
+  /// When true, show "Following" and disable button. Use for consistent state across app.
+  final bool? isFollowing;
+  /// When true, show "Requested". Use for consistent state across app.
+  final bool? isFollowPending;
 
   const PeopleRow({
     super.key,
     required this.user,
     required this.onFollow,
     this.onTap,
+    this.isFollowing,
+    this.isFollowPending,
   });
 
   @override
@@ -75,16 +81,22 @@ class PeopleRow extends StatelessWidget {
                 : profileArea,
           ),
           ElevatedButton(
-            onPressed: onFollow,
+            onPressed: (isFollowing == true) ? null : onFollow,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
+              backgroundColor: (isFollowing == true || isFollowPending == true) ? Colors.grey : Colors.black,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
             child: Text(
-              (user.isPrivate == true) ? "Request" : "Follow",
+              isFollowing == true
+                  ? 'Following'
+                  : isFollowPending == true
+                      ? 'Requested'
+                      : (user.isPrivate == true)
+                          ? 'Request'
+                          : 'Follow',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w800,

@@ -195,7 +195,10 @@ class AppRouter {
       // =========================
       GoRoute(
         path: '/post-edit',
-        builder: (context, state) => const EditPostScreen(),
+        builder: (context, state) {
+          final post = state.extra is Post ? state.extra as Post : null;
+          return EditPostScreen(post: post);
+        },
       ),
 
       // =========================
@@ -230,7 +233,10 @@ class AppRouter {
       // =========================
       GoRoute(
         path: '/post-create',
-        builder: (context, state) => const CreatePostScreen(),
+        builder: (context, state) {
+          final quotedPost = state.extra is Post ? state.extra as Post : null;
+          return CreatePostScreen(quotedPost: quotedPost);
+        },
       ),
       GoRoute(
         path: '/post',

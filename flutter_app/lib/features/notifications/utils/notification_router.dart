@@ -32,6 +32,14 @@ class NotificationRouter {
         }
         break;
 
+      case "follow_request":
+      case "follow_accept":
+        final uid = notification.actor?['uid']?.toString();
+        if (uid != null && uid.isNotEmpty) {
+          context.go('/profile/$uid');
+        }
+        break;
+
       default:
         context.go('/notifications');
     }

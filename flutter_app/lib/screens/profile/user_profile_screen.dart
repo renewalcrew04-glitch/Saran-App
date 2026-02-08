@@ -105,11 +105,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         return;
       }
       if (profile != null) {
-        final isPublic = widget.user.isPrivate != true;
+        // Use API profile's isPrivate so we don't wrongly treat private accounts as public
+        // (widget.user may come from a list that doesn't include isPrivate)
+        final isPrivateAccount = profile['isPrivate'] == true;
         bool following = profile['isFollowing'] == true;
         bool pending = profile['isFollowPending'] == true;
         // Public accounts: direct follow only, never show "Requested"
-        if (isPublic && pending) {
+        if (!isPrivateAccount && pending) {
           following = true;
           pending = false;
         }
@@ -575,7 +577,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                             setState(() => _followLoading = false);
                                             if (error != null) {
                                               setState(() => _isFollowPending = true);
-                                              if (context.mounted) {
+                                              final lower = error.toLowerCase();
+                                              if (context.mounted &&
+                                                  !lower.contains('pending') &&
+                                                  !lower.contains('request already') &&
+                                                  !lower.contains('already following')) {
                                                 ScaffoldMessenger.of(context).showSnackBar(
                                                   SnackBar(
                                                     content: Text(error),
@@ -621,34 +627,49 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                                 }
                                               }
                                             });
-                                            final error = wasFollowing
-                                                ? await _profileService.unfollowUser(
-                                                      widget.user.uid,
-                                                    )
-                                                : await _profileService.followUser(
-                                                      widget.user.uid,
-                                                    );
+                                            final unfollowError = wasFollowing
+                                                ? await _profileService.unfollowUser(widget.user.uid)
+                                                : null;
+                                            final followResult = wasFollowing ? null : await _profileService.followUser(widget.user.uid);
+                                            final error = wasFollowing ? unfollowError : followResult?.error;
+                                            final followStatus = followResult?.status;
                                             if (!mounted) return;
                                             setState(() {
                                               _followLoading = false;
                                               if (error == null) {
                                                 if (wasFollowing) {
                                                   _followersCount = (_followersCount - 1).clamp(0, 1 << 30);
-                                                } else if (!_isFollowPending) {
-                                                  _followersCount++;
+                                                } else {
+                                                  _isFollowPending = followStatus == 'pending';
+                                                  _isFollowing = followStatus == 'accepted';
+                                                  if (!_isFollowPending) _followersCount++;
                                                 }
                                               } else {
-                                                _isFollowing = wasFollowing;
-                                                _isFollowPending = wasFollowing ? _isFollowPending : false;
+                                                final lower = error.toLowerCase();
+                                                if (lower.contains('pending') || lower.contains('request already')) {
+                                                  _isFollowPending = true;
+                                                  _isFollowing = false;
+                                                } else if (lower.contains('already following')) {
+                                                  _isFollowing = true;
+                                                  _isFollowPending = false;
+                                                } else {
+                                                  _isFollowing = wasFollowing;
+                                                  _isFollowPending = wasFollowing ? _isFollowPending : false;
+                                                }
                                               }
                                             });
                                             if (error != null && context.mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(error),
-                                                  backgroundColor: Colors.red.shade700,
-                                                ),
-                                              );
+                                              final lower = error.toLowerCase();
+                                              if (!lower.contains('pending') &&
+                                                  !lower.contains('request already') &&
+                                                  !lower.contains('already following')) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(error),
+                                                    backgroundColor: Colors.red.shade700,
+                                                  ),
+                                                );
+                                              }
                                             } else if (context.mounted) {
                                               ScaffoldMessenger.of(context).showSnackBar(
                                                 SnackBar(

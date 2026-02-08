@@ -1,15 +1,21 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/post_model.dart';
 import '../../services/post_service.dart';
 import '../../services/upload_service.dart';
 import '../../widgets/category_multi_select_sheet.dart';
 import '../../widgets/quote_post_embed.dart';
+import '../../providers/auth_provider.dart';
+import '../../config/api_config.dart';
 
 class CreatePostScreen extends StatefulWidget {
-  const CreatePostScreen({super.key});
+  /// When set (e.g. from Quote flow), show quoted post and publish as quote.
+  final Post? quotedPost;
+
+  const CreatePostScreen({super.key, this.quotedPost});
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -17,7 +23,7 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final PostService _postService = PostService();
-  final UploadService _uploadService = UploadService(); // ✅ Init Upload Service
+  final UploadService _uploadService = UploadService();
 
   final TextEditingController _textController = TextEditingController();
   final TextEditingController _hashtagsController = TextEditingController();
@@ -33,10 +39,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Post? _quotedPost;
 
   @override
+  void initState() {
+    super.initState();
+    _quotedPost = widget.quotedPost;
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final args = ModalRoute.of(context)?.settings.arguments;
-    if (args is Post) _quotedPost = args;
+    _quotedPost ??= ModalRoute.of(context)?.settings.arguments is Post
+        ? ModalRoute.of(context)!.settings.arguments as Post
+        : null;
   }
 
   bool get _canPublish =>
@@ -86,20 +99,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       final text = _textController.text.trim();
       final hashtags = _parseHashtags(_hashtagsController.text);
 
-      // QUOTE REPOST
       if (_quotedPost != null) {
         await _postService.quotePost(
           postId: _quotedPost!.id,
           text: text,
         );
-        if (mounted) Navigator.pop(context);
+        if (mounted) Navigator.pop(context, true);
         return;
       }
 
-      // ✅ FIXED: Upload Media First
       List<String> mediaUrls = [];
       if (_pickedMediaPath != null) {
-        final String uploadedUrl =
+        final uploadedUrl =
             await _uploadService.uploadMedia(_pickedMediaPath!);
         mediaUrls.add(uploadedUrl);
       }
@@ -110,7 +121,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       await _postService.createPost(
         type: type,
         text: text,
-        media: mediaUrls, // ✅ Send the Server URL, not local path
+        media: mediaUrls,
         visibility: _visibility,
         category:
             _selectedCategories.isNotEmpty ? _selectedCategories.first : null,
@@ -120,14 +131,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         ],
       );
 
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
-        final message = e is Exception ? e.toString().replaceFirst('Exception: ', '') : e.toString();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to publish: $message')),
-        );
-      }
+      if (mounted) Navigator.pop(context, true);
     } finally {
       if (mounted) setState(() => _publishing = false);
     }
@@ -135,6 +139,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final user = auth.user;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -144,81 +151,156 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           icon: const Icon(Icons.close, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const SizedBox.shrink(),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: ElevatedButton(
-                onPressed: _canPublish && !_publishing ? _publish : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey.shade300,
-                  disabledForegroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+            child: ElevatedButton(
+              onPressed: _canPublish && !_publishing ? _publish : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.grey.shade300,
+                elevation: 0,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: _publishing
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
-                    : const Text(
-                        "Post",
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
               ),
+              child: _publishing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      "Post",
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
             ),
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 10),
-            TextField(
-              controller: _textController,
-              maxLines: null,
-              autofocus: true,
-              style: const TextStyle(fontSize: 18, color: Colors.black87, height: 1.4),
-              decoration: InputDecoration(
-                hintText: _quotedPost != null ? "Add a comment..." : "What's happening?",
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 18),
-                border: InputBorder.none,
-              ),
-              onChanged: (_) => setState(() {}),
+            /// PROFILE HEADER
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundImage: user?.avatar != null
+                      ? NetworkImage(
+                          ApiConfig.networkImageUrl(user!.avatar!) ??
+                              user.avatar!)
+                      : null,
+                  backgroundColor: Colors.grey.shade300,
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user?.name ?? "User",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    Text(
+                      '@${user?.username ?? ''}',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
+
+            const SizedBox(height: 16),
+
+            /// CONTENT WRITING AREA (clean & premium)
+TextField(
+  controller: _textController,
+  autofocus: true,
+  minLines: 5,        // space for 5 lines
+  maxLines: null,     // grows as user types
+  maxLength: 1098,    // character limit
+  style: const TextStyle(
+    fontSize: 18,
+    color: Colors.black,
+    height: 1.45,
+    fontWeight: FontWeight.w400,
+  ),
+  decoration: InputDecoration(
+    hintText: "What's on your mind?",
+    hintStyle: TextStyle(
+      color: Colors.grey.shade500,
+      fontSize: 16,
+      fontWeight: FontWeight.w400,
+    ),
+    border: InputBorder.none,
+    counterText: "",
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: 10,
+      vertical: 8,
+    ),
+  ),
+  onChanged: (_) => setState(() {}),
+),
+
+const SizedBox(height: 16),
+
+Divider(
+  color: Colors.grey.shade200,
+  thickness: 1,
+  height: 1,
+),
+
+            /// QUOTED POST
             if (_quotedPost != null)
               Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: QuotePostEmbed(originalPost: _quotedPost!, onTap: () {}),
-              ),
-            if (_pickedMediaPath != null) _mediaPreview(),
-            if (_pickedMediaPath != null) const SizedBox(height: 20),
-            const Divider(color: Color(0xFFEEEEEE)),
-            if (_quotedPost == null) ...[
-              const SizedBox(height: 10),
-              TextField(
-                controller: _hashtagsController,
-                style: const TextStyle(fontSize: 14, color: Colors.blueGrey),
-                decoration: const InputDecoration(
-                  hintText: "Add tags #wellness #health",
-                  hintStyle: TextStyle(fontSize: 14, color: Colors.grey),
-                  border: InputBorder.none,
-                  prefixIcon: Icon(Icons.tag, size: 18, color: Colors.grey),
-                  prefixIconConstraints: BoxConstraints(minWidth: 24),
+                padding: const EdgeInsets.only(bottom: 16),
+                child: QuotePostEmbed(
+                  originalPost: _quotedPost!,
+                  onTap: () {},
                 ),
-                onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: 10),
+
+            /// MEDIA
+            if (_pickedMediaPath != null) _mediaPreview(),
+
+            if (_quotedPost == null) ...[
+              const SizedBox(height: 20),
+
+              /// HASHTAGS BOX
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.blueGrey.shade100),
+                ),
+                child: TextField(
+                  controller: _hashtagsController,
+                  style: const TextStyle(fontSize: 14),
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.tag, size: 18),
+                    hintText: "Add hashtags (#wellness #health)",
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
               _categorySelector(),
             ],
           ],
@@ -252,7 +334,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           ),
           const Spacer(),
           Text(
-            _visibility == 'public' ? 'Everyone can reply' : 'Restricted',
+            'Everyone can reply',
             style: TextStyle(
               color: Colors.grey.shade500,
               fontSize: 12,
@@ -283,7 +365,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           );
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.blue.shade50,
             borderRadius: BorderRadius.circular(20),
@@ -302,7 +384,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.blue.shade700),
+              Icon(Icons.keyboard_arrow_down,
+                  size: 16, color: Colors.blue.shade700),
             ],
           ),
         ),
@@ -318,7 +401,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     width: double.infinity,
                     color: Colors.black12,
                     alignment: Alignment.center,
-                    child: const Icon(Icons.play_circle_fill, size: 50, color: Colors.white),
+                    child: const Icon(Icons.play_circle_fill,
+                        size: 50, color: Colors.white),
                   )
                 : Image.file(
                     File(_pickedMediaPath!),
@@ -338,7 +422,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   color: Colors.black54,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.close, color: Colors.white, size: 18),
+                child:
+                    const Icon(Icons.close, color: Colors.white, size: 18),
               ),
             ),
           ),

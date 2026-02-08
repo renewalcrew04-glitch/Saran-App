@@ -119,7 +119,7 @@ class _SosScreenState extends State<SosScreen> {
       final response = await SosService.sendSOS(token, payload);
       if (!mounted) return;
 
-      sosProvider.activate(response["sosId"]);
+      sosProvider.activate(response["sosId"] as String);
 
       messenger.showSnackBar(
         const SnackBar(
@@ -127,8 +127,9 @@ class _SosScreenState extends State<SosScreen> {
           backgroundColor: Colors.redAccent,
         ),
       );
-    } catch (_) {
-      _error("Failed to send SOS");
+    } catch (e) {
+      final msg = e is Exception ? e.toString().replaceFirst("Exception: ", "").trim() : "Failed to send SOS";
+      _error(msg);
     } finally {
       if (mounted) setState(() => isSending = false);
     }
@@ -153,8 +154,9 @@ class _SosScreenState extends State<SosScreen> {
           const SnackBar(content: Text("SOS cancelled")),
         );
       }
-    } catch (_) {
-      _error("Failed to cancel SOS");
+    } catch (e) {
+      final msg = e is Exception ? e.toString().replaceFirst("Exception: ", "").trim() : "Failed to cancel SOS";
+      _error(msg);
     }
   }
 

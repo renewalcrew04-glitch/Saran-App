@@ -175,30 +175,48 @@ class PostService {
     final headers = await _getAuthHeaders();
     final res = await _dio.get(
       ApiConfig.getUrl('save/collections'),
-      options: Options(headers: headers),
+      options: Options(
+        headers: headers,
+        sendTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 5),
+      ),
     );
-    return res.data['collections'] ?? [];
+    final raw = res.data;
+    if (raw is! Map) return [];
+    final cols = raw['collections'];
+    if (cols is! List) return [];
+    return cols;
   }
 
   /// Returns posts in the default "Saved" collection for the current user.
   Future<List<Post>> getSavedPosts() async {
     final collections = await getSaveCollections();
     for (final c in collections) {
-      if (c is Map<String, dynamic> && c['name'] == 'Saved') {
-        final postsRaw = c['posts'];
-        if (postsRaw is! List || postsRaw.isEmpty) return [];
-        final list = <Post>[];
-        for (final p in postsRaw) {
-          if (p is Map<String, dynamic>) {
-            try {
-              list.add(Post.fromJson(p));
-            } catch (_) {
-              // skip malformed post
-            }
+      if (c is! Map) continue;
+      final name = c['name'];
+      if (name != 'Saved') continue;
+      final postsRaw = c['posts'];
+      if (postsRaw is! List) return [];
+      final list = <Post>[];
+      for (final p in postsRaw) {
+        if (p is! Map) continue;
+        try {
+          final map = Map<String, dynamic>.from(p);
+          // Ensure required date fields for Post.fromJson
+          if (map['createdAt'] == null && map['created_at'] != null) {
+            map['createdAt'] = map['created_at'];
           }
+          if (map['updatedAt'] == null && map['updated_at'] != null) {
+            map['updatedAt'] = map['updated_at'];
+          }
+          if (map['createdAt'] == null) map['createdAt'] = DateTime.now().toIso8601String();
+          if (map['updatedAt'] == null) map['updatedAt'] = DateTime.now().toIso8601String();
+          list.add(Post.fromJson(map));
+        } catch (_) {
+          // skip malformed post
         }
-        return list;
       }
+      return list;
     }
     return [];
   }

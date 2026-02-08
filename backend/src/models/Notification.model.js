@@ -26,6 +26,7 @@ const notificationSchema = new mongoose.Schema(
         "quote",
         "follow",
         "follow_accept",
+        "follow_request",
 
         "space_new",
         "space_join",

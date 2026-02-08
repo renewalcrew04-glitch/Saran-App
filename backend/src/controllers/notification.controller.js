@@ -6,10 +6,27 @@ export const getNotifications = async (req, res, next) => {
       userId: req.user._id,
       deleted: false,
     })
+      .populate('actorId', 'uid username name avatar')
       .sort({ createdAt: -1 })
-      .limit(100);
+      .limit(100)
+      .lean();
 
-    res.json({ success: true, notifications });
+    const list = (notifications || []).map((n) => {
+      const { actorId, ...rest } = n;
+      return {
+        ...rest,
+        actor: actorId
+          ? {
+              uid: actorId.uid,
+              username: actorId.username,
+              name: actorId.name,
+              avatar: actorId.avatar,
+            }
+          : null,
+      };
+    });
+
+    res.json({ success: true, notifications: list });
   } catch (err) {
     next(err);
   }

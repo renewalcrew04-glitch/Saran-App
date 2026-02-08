@@ -1,5 +1,6 @@
 import Post from '../models/Post.model.js';
 import User from '../models/User.model.js';
+import Follow from '../models/Follow.model.js';
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -44,11 +45,29 @@ const findPosts = async (q, limit, skip) => {
     .lean();
 };
 
+const addFollowStatus = async (users, currentUserId) => {
+  if (!users.length || !currentUserId) return users;
+  const userIds = users.map((u) => u._id);
+  const [acceptedDocs, pendingDocs] = await Promise.all([
+    Follow.find({ follower: currentUserId, following: { $in: userIds }, status: 'accepted' }).select('following').lean(),
+    Follow.find({ follower: currentUserId, following: { $in: userIds }, status: 'pending' }).select('following').lean(),
+  ]);
+  const acceptedSet = new Set(acceptedDocs.map((f) => f.following.toString()));
+  const pendingSet = new Set(pendingDocs.map((f) => f.following.toString()));
+  return users.map((u) => ({
+    ...u,
+    isFollowing: acceptedSet.has(u._id.toString()),
+    isFollowPending: pendingSet.has(u._id.toString()),
+  }));
+};
+
 export const searchUsers = async (req, res, next) => {
   try {
     const { q, limit, skip } = getQueryMeta(req);
-    const users = await findUsers(q, limit, skip);
-
+    let users = await findUsers(q, limit, skip);
+    if (req.user && req.user._id) {
+      users = await addFollowStatus(users, req.user._id);
+    }
     res.json({ success: true, users });
   } catch (error) {
     console.error('searchUsers error:', error);
@@ -73,10 +92,13 @@ export const searchAll = async (req, res, next) => {
     const { q, limit, skip } = getQueryMeta(req);
     if (!q) return res.json({ success: true, users: [], posts: [] });
 
-    const [users, posts] = await Promise.all([
+    let [users, posts] = await Promise.all([
       findUsers(q, Math.min(limit, 10), skip),
       findPosts(q, limit, skip),
     ]);
+    if (req.user && req.user._id && users.length) {
+      users = await addFollowStatus(users, req.user._id);
+    }
 
     res.json({ success: true, users, posts });
   } catch (error) {

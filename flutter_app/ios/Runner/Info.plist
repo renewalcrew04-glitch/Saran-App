@@ -57,5 +57,10 @@
 	<string>SARAN needs access to your photos to let you upload posts and update your profile.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>SARAN needs microphone access to record voice notes and wellness sessions.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

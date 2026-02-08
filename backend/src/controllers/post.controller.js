@@ -511,7 +511,7 @@ export const getComments = async (req, res, next) => {
     }
 
     // Get top-level comments (no parent)
-    const comments = await Comment.find({
+    const topComments = await Comment.find({
       post: post._id,
       parentComment: null,
       isDeleted: false
@@ -519,7 +519,33 @@ export const getComments = async (req, res, next) => {
       .populate('uid', 'uid username name avatar verified')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
+
+    const topIds = topComments.map((c) => c._id);
+
+    // Get all replies for these comments (same shape as top-level for the app)
+    const replyDocs = topIds.length
+      ? await Comment.find({
+          parentComment: { $in: topIds },
+          isDeleted: false
+        })
+          .populate('uid', 'uid username name avatar verified')
+          .sort({ createdAt: 1 })
+          .lean()
+      : [];
+
+    const repliesByParent = {};
+    for (const r of replyDocs) {
+      const pid = r.parentComment?.toString?.() ?? r.parentComment;
+      if (!repliesByParent[pid]) repliesByParent[pid] = [];
+      repliesByParent[pid].push(r);
+    }
+
+    const comments = topComments.map((c) => ({
+      ...c,
+      replies: repliesByParent[c._id.toString()] || []
+    }));
 
     // Get total count
     const total = await Comment.countDocuments({

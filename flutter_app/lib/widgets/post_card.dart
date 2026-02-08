@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../config/api_config.dart';
 import '../models/post_model.dart';
@@ -10,6 +11,7 @@ import 'repost_bottom_sheet.dart';
 import '../screens/post/post_analytics_screen.dart';
 import '../screens/profile/user_profile_screen.dart';
 import '../screens/comments/comments_screen.dart';
+import '../widgets/quote_post_embed.dart';
 
 class PostCard extends StatefulWidget {
   final Post post;
@@ -74,7 +76,7 @@ class _PostCardState extends State<PostCard>
   }
 
   Future<void> _handleSaveToggle() async {
-    final post = widget.post;
+    final post = widget.post.originalPost ?? widget.post;
     try {
       final nowSaved = await PostService().toggleSave(post.id);
       if (!mounted) return;
@@ -87,7 +89,7 @@ class _PostCardState extends State<PostCard>
 
   Future<void> _handleLike() async {
     _likeController.forward(from: 0.9);
-    final post = widget.post;
+    final post = widget.post.originalPost ?? widget.post;
     try {
       final success = _isLiked
           ? await PostService().unlikePost(post.id)
@@ -103,7 +105,7 @@ class _PostCardState extends State<PostCard>
   }
 
   Future<void> _handleRepost() async {
-    final post = widget.post;
+    final post = widget.post.originalPost ?? widget.post;
     try {
       await PostService().repost(post.id);
       if (!mounted) return;
@@ -126,7 +128,7 @@ class _PostCardState extends State<PostCard>
   }
 
   Future<void> _handleUndoRepost() async {
-    final post = widget.post;
+    final post = widget.post.originalPost ?? widget.post;
     try {
       await PostService().undoRepost(post.id);
       if (!mounted) return;
@@ -176,7 +178,8 @@ class _PostCardState extends State<PostCard>
 
   @override
   Widget build(BuildContext context) {
-    final post = widget.post;
+    final Post post = widget.post;
+    final Post? embeddedOriginal = post.quotedPost ?? post.originalPost;
 
     return GestureDetector(
       onTap: widget.onTap,
@@ -193,22 +196,53 @@ class _PostCardState extends State<PostCard>
             borderRadius: BorderRadius.zero,
           ),
           child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _Header(post: post, onPostDeleted: widget.onPostDeleted),
-                  if (post.text.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      post.text,
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 15,
-                        height: 1.4,
-                        fontWeight: FontWeight.w500,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Header(post: post, onPostDeleted: widget.onPostDeleted),
+              if (post.text.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                RichText(
+                  text: TextSpan(
+                    children: post.text.split(' ').map((word) {
+                      if (word.startsWith('#')) {
+                        return TextSpan(
+                          text: '$word ',
+                          style: const TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        );
+                      }
+                      return TextSpan(
+                        text: '$word ',
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+              if (post.isQuote && embeddedOriginal != null) ...[
+                const SizedBox(height: 12),
+                QuotePostEmbed(
+                  originalPost: embeddedOriginal,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CommentsScreen(
+                          postId: embeddedOriginal.id,
+                        ),
                       ),
-                    ),
-                  ],
-                  if (post.media.isNotEmpty) ...[
+                    );
+                  },
+                ),
+              ],
+              if (post.media.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     ClipRRect(
                       borderRadius: BorderRadius.zero,
@@ -463,11 +497,7 @@ class _Actions extends StatelessWidget {
       onRepost: onRepost ?? () async {},
       onUndo: onUndoRepost ?? () async {},
       onQuote: () {
-        Navigator.pushNamed(
-          context,
-          '/post-create',
-          arguments: post,
-        );
+        context.push('/post-create', extra: post);
       },
     );
   },
@@ -544,11 +574,7 @@ class _PostOptions extends StatelessWidget {
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(
-                  context,
-                  '/post-edit',
-                  arguments: post,
-                );
+                context.push('/post-edit', extra: post);
               },
             ),
             ListTile(

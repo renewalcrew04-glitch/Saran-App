@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../models/post_model.dart';
 import 'category_chips.dart';
@@ -108,9 +107,6 @@ class _HomeFeedState extends State<HomeFeed> {
 
         return PostCard(
           post: post,
-          onTap: () {
-            context.push('/post', extra: post);
-          },
         );
       },
     );

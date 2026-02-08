@@ -13,6 +13,10 @@ class User {
   final int followingCount;
   final int postsCount;
   final int wellnessStreak;
+  /// When loading from suggestions/search/profile API: am I following this user (accepted)?
+  final bool? isFollowing;
+  /// When loading from suggestions/search/profile API: do I have a pending follow request to this user?
+  final bool? isFollowPending;
 
   User({
     required this.uid,
@@ -29,6 +33,8 @@ class User {
     this.followingCount = 0,
     this.postsCount = 0,
     this.wellnessStreak = 0,
+    this.isFollowing,
+    this.isFollowPending,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -50,6 +56,8 @@ class User {
       followingCount: (json['followingCount'] ?? 0) as int,
       postsCount: (json['postsCount'] ?? 0) as int,
       wellnessStreak: (json['wellnessStreak'] ?? 0) as int,
+      isFollowing: json['isFollowing'] as bool?,
+      isFollowPending: json['isFollowPending'] as bool?,
     );
   }
 

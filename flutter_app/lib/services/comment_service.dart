@@ -30,11 +30,17 @@ class CommentService {
       );
       final list = res.data['comments'] as List?;
       if (list == null) return [];
-      // Backend returns uid (populated user); widget expects 'user'
+      // Backend returns uid (populated user); widget expects 'user'. Normalize top-level and replies.
       return list.map<dynamic>((c) {
         final map = Map<String, dynamic>.from(c as Map);
-        if (map['uid'] != null && map['user'] == null) {
-          map['user'] = map['uid'];
+        if (map['uid'] != null && map['user'] == null) map['user'] = map['uid'];
+        final replies = map['replies'] as List?;
+        if (replies != null && replies.isNotEmpty) {
+          map['replies'] = replies.map<dynamic>((r) {
+            final rm = Map<String, dynamic>.from(r as Map);
+            if (rm['uid'] != null && rm['user'] == null) rm['user'] = rm['uid'];
+            return rm;
+          }).toList();
         }
         return map;
       }).toList();

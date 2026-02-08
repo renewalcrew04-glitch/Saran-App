@@ -3,7 +3,10 @@ import '../../models/post_model.dart';
 import '../../services/post_service.dart';
 
 class EditPostScreen extends StatefulWidget {
-  const EditPostScreen({super.key});
+  /// When set (e.g. from GoRouter extra), use this post instead of route arguments.
+  final Post? post;
+
+  const EditPostScreen({super.key, this.post});
 
   @override
   State<EditPostScreen> createState() => _EditPostScreenState();
@@ -18,7 +21,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    post = ModalRoute.of(context)!.settings.arguments as Post;
+    post = widget.post ?? ModalRoute.of(context)!.settings.arguments as Post;
     controller.text = post.text;
   }
 

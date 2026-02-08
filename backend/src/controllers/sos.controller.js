@@ -68,15 +68,19 @@ export const createSOS = async (req, res) => {
     --------------------------------- */
     for (const user of nearbyUsers) {
       if (!user.awsPushEndpointArn) continue;
-
-      await sendPush(user.awsPushEndpointArn, {
-        title: 'Emergency SOS Nearby',
-        body: 'Someone nearby needs immediate help',
-        data: {
-          sosId: sos._id.toString(),
-          type: 'SOS',
-        },
-      });
+      try {
+        await sendPush(user.awsPushEndpointArn, {
+          title: 'Emergency SOS Nearby',
+          body: 'Someone nearby needs immediate help',
+          data: {
+            sosId: sos._id.toString(),
+            type: 'SOS',
+          },
+        });
+      } catch (pushErr) {
+        console.error('SOS push failed for user:', user._id, pushErr);
+        // Don't fail the request; SOS was created
+      }
     }
 
     return res.status(201).json({
@@ -85,7 +89,7 @@ export const createSOS = async (req, res) => {
     });
   } catch (error) {
     console.error('CREATE SOS ERROR:', error);
-    return res.status(500).json({ message: 'Failed to create SOS' });
+    return res.status(500).json({ message: error?.message || 'Failed to create SOS' });
   }
 };
 

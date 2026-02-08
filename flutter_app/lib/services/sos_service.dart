@@ -12,8 +12,9 @@ class SosService {
       throw Exception("Not authenticated");
     }
 
+    final uri = Uri.parse(ApiConfig.getUrl(ApiConfig.sos));
     final res = await http.post(
-      Uri.parse("${ApiConfig.baseUrl}/sos"),
+      uri,
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
@@ -22,10 +23,16 @@ class SosService {
     );
 
     if (res.statusCode != 201 && res.statusCode != 200) {
-      throw Exception("Failed to send SOS");
+      final msg = _messageFromBody(res.body) ?? "Failed to send SOS";
+      throw Exception(msg);
     }
 
-    return jsonDecode(res.body);
+    final data = jsonDecode(res.body) as Map<String, dynamic>?;
+    if (data == null) throw Exception("Invalid response");
+    // Ensure sosId is a string for the provider
+    final sosId = data["sosId"]?.toString();
+    if (sosId == null || sosId.isEmpty) throw Exception("No SOS ID in response");
+    return {...data, "sosId": sosId};
   }
 
   static Future<void> cancelSOS(String? token, String sosId) async {
@@ -33,8 +40,9 @@ class SosService {
       throw Exception("Not authenticated");
     }
 
+    final uri = Uri.parse("${ApiConfig.getUrl(ApiConfig.sos)}/$sosId/cancel");
     final res = await http.put(
-      Uri.parse("${ApiConfig.baseUrl}/sos/$sosId/cancel"),
+      uri,
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
@@ -42,7 +50,18 @@ class SosService {
     );
 
     if (res.statusCode != 200) {
-      throw Exception("Failed to cancel SOS");
+      final msg = _messageFromBody(res.body) ?? "Failed to cancel SOS";
+      throw Exception(msg);
+    }
+  }
+
+  static String? _messageFromBody(String body) {
+    try {
+      final map = jsonDecode(body) as Map<String, dynamic>?;
+      final msg = map?["message"]?.toString();
+      return msg?.isNotEmpty == true ? msg : null;
+    } catch (_) {
+      return null;
     }
   }
 }

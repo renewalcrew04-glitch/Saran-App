@@ -69,9 +69,13 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
     if (widget.frames.isEmpty) return;
     final uid = widget.frames[currentIndex].uid;
     int start = currentIndex;
-    while (start > 0 && widget.frames[start - 1].uid == uid) start--;
+    while (start > 0 && widget.frames[start - 1].uid == uid) {
+      start--;
+    }
     int end = currentIndex;
-    while (end < widget.frames.length - 1 && widget.frames[end + 1].uid == uid) end++;
+    while (end < widget.frames.length - 1 && widget.frames[end + 1].uid == uid) {
+      end++;
+    }
     out(start, end);
   }
 

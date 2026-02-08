@@ -2,17 +2,18 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../../config/api_config.dart';
 import '../../models/post_model.dart';
 import '../../models/user_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/explore_service.dart';
 import '../../services/profile_service.dart';
-import '../../widgets/explore/explore_search_bar.dart';
 import '../post/post_detail_screen.dart';
 import '../profile/user_profile_screen.dart';
 
-const List<String> _exploreFilters = ['All', 'People', 'Text', 'Photo', 'Vid'];
+const List<String> _exploreFilters = ['All', 'People', 'Text', 'Photo', 'Video'];
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -38,11 +39,37 @@ class _ExploreScreenState extends State<ExploreScreen> {
   List<User> _users = [];
   List<Post> _searchPosts = [];
 
+  /// IDs of users we have sent a follow request to (private accounts, not yet accepted).
+  final Set<String> _pendingFollowIds = {};
+
   @override
   void initState() {
     super.initState();
     _loadExplore();
     _loadSuggestions();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadFollowState());
+  }
+
+  /// Load our following and pending state so Explore shows "Following" / "Requested" consistently.
+  Future<void> _loadFollowState() async {
+    final context = this.context;
+    if (!context.mounted) return;
+    final myUid = context.read<AuthProvider>().user?.uid;
+    if (myUid == null || myUid.isEmpty) return;
+    try {
+      final result = await _profileService.getFollowing(myUid);
+      final list = List<Map<String, dynamic>>.from(result['following'] ?? []);
+      final pendingIds = await _profileService.getMyPendingFollowingIds();
+      if (!mounted) return;
+      setState(() {
+        for (final u in list) {
+          final uid = (u['uid'] ?? u['_id'] ?? '').toString();
+          if (uid.isEmpty) continue;
+          if (u['isFollowing'] == true) _followingIds.add(uid);
+        }
+        _pendingFollowIds.addAll(pendingIds);
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadSuggestions() async {
@@ -59,17 +86,54 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Future<void> _onFollow(User user) async {
     final uid = user.uid;
     if (uid.isEmpty) return;
-    final error = await _profileService.followUser(uid);
+    final alreadyFollowing = _followingIds.contains(uid);
+    final alreadyPending = _pendingFollowIds.contains(uid);
+    if (alreadyFollowing || alreadyPending) {
+      final error = await _profileService.unfollowUser(uid);
+      if (!mounted) return;
+      if (error == null) {
+        setState(() {
+          _followingIds.remove(uid);
+          _pendingFollowIds.remove(uid);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Request cancelled')),
+        );
+      } else {
+        final lower = error.toLowerCase();
+        if (!lower.contains('pending') && !lower.contains('request already') && !lower.contains('already following')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error), backgroundColor: Colors.red.shade700),
+          );
+        }
+      }
+      return;
+    }
+    final result = await _profileService.followUser(uid);
     if (!mounted) return;
-    if (error == null) {
-      setState(() => _followingIds.add(uid));
+    if (result.error == null) {
+      setState(() {
+        if (result.status == 'pending') {
+          _pendingFollowIds.add(uid);
+        } else {
+          _followingIds.add(uid);
+        }
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Following ${user.name}')),
+        SnackBar(
+          content: Text(
+            result.status == 'pending' ? 'Request sent' : 'Following ${user.name}',
+          ),
+        ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.red.shade700),
-      );
+      final err = result.error!;
+      final lower = err.toLowerCase();
+      if (!lower.contains('pending') && !lower.contains('request already') && !lower.contains('already following')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(err), backgroundColor: Colors.red.shade700),
+        );
+      }
     }
   }
 
@@ -110,7 +174,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
     }
   }
 
-  /// Filters posts by the selected tab. "All" = all posts; "People" = no posts (only suggestions); "Text"/"Photo"/"Vid" = by type.
+  /// Filters posts by the selected tab. "All" = all posts; "People" = no posts (only suggestions); "Text"/"Photo"/"Video" = by type.
   List<Post> _filterPosts(List<Post> posts) {
     switch (_selectedFilter) {
       case 'All':
@@ -203,26 +267,70 @@ class _ExploreScreenState extends State<ExploreScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _loadExplore,
+        onRefresh: () async {
+          await _loadExplore();
+          await _loadFollowState();
+        },
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
           children: [
-            ExploreSearchBar(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-              onSubmitted: () {},
-              onClear: () {
-                setState(() {
-                  _searchController.clear();
-                  _users = [];
-                  _searchPosts = [];
-                  _error = null;
-                  _searching = false;
-                });
-              },
+            Container(
+  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+  decoration: BoxDecoration(
+    color: Colors.grey.shade100,
+    borderRadius: BorderRadius.circular(14),
+  ),
+  child: Row(
+    children: [
+      Icon(
+        Icons.search,
+        size: 20,
+        color: Colors.grey.shade600,
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: TextField(
+          controller: _searchController,
+          onChanged: _onSearchChanged, // ✅ SAME logic
+          textInputAction: TextInputAction.search,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Search People, posts, topics...',
+            hintStyle: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
             ),
+            border: InputBorder.none,
+            isDense: true,
+          ),
+        ),
+      ),
+      if (_searchController.text.isNotEmpty)
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              _searchController.clear();
+              _users = [];
+              _searchPosts = [];
+              _error = null;
+              _searching = false;
+            });
+          },
+          child: Icon(
+            Icons.close,
+            size: 18,
+            color: Colors.grey.shade600,
+          ),
+        ),
+    ],
+  ),
+),
             const SizedBox(height: 12),
-            // Category filters: All, People, Text, Photo, Vid
+            // Category filters: All, People, Text, Photo, Video
             SizedBox(
               height: 36,
               child: ListView(
@@ -283,9 +391,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     itemCount: _suggestions.length,
                     itemBuilder: (context, i) {
                       final u = _suggestions[i];
+                      final isFollowing = _followingIds.contains(u.uid) || u.isFollowing == true;
+                      final isFollowPending = _pendingFollowIds.contains(u.uid) || u.isFollowPending == true;
                       return _SuggestionCard(
                         user: u,
-                        isFollowing: _followingIds.contains(u.uid),
+                        isFollowing: isFollowing,
+                        isFollowPending: isFollowPending,
                         onFollow: () => _onFollow(u),
                         onTap: () {
                           Navigator.push(
@@ -326,9 +437,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     ),
                   )
                 else
-                  ..._suggestions.map((u) => _PeopleListTile(
+                  ..._suggestions.map((u) {
+                        final isFollowing = _followingIds.contains(u.uid) || u.isFollowing == true;
+                        final isFollowPending = _pendingFollowIds.contains(u.uid) || u.isFollowPending == true;
+                        return _PeopleListTile(
                         user: u,
-                        isFollowing: _followingIds.contains(u.uid),
+                        isFollowing: isFollowing,
+                        isFollowPending: isFollowPending,
                         onFollow: () => _onFollow(u),
                         onTap: () {
                           Navigator.push(
@@ -336,10 +451,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
                             MaterialPageRoute(builder: (_) => UserProfileScreen(user: u)),
                           );
                         },
-                      )),
+                      ); }),
               ]
               else
-                // All / Text / Photo / Vid: show post grid
+                // All / Text / Photo / Video: show post grid
                 _buildExploreGrid(_filteredExplorePosts),
             ],
           ],
@@ -376,7 +491,21 @@ class _ExploreScreenState extends State<ExploreScreen> {
             style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
           ),
           const SizedBox(height: 8),
-          ..._users.map(_userTile),
+          ..._users.map((u) {
+                final isFollowing = _followingIds.contains(u.uid) || u.isFollowing == true;
+                final isFollowPending = _pendingFollowIds.contains(u.uid) || u.isFollowPending == true;
+                return _PeopleListTile(
+                user: u,
+                isFollowing: isFollowing,
+                isFollowPending: isFollowPending,
+                onFollow: () => _onFollow(u),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => UserProfileScreen(user: u)),
+                  );
+                },
+              ); }),
           const SizedBox(height: 16),
         ],
         if (showPosts) ...[
@@ -388,29 +517,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
           _buildExploreGrid(filteredPosts),
         ],
       ],
-    );
-  }
-
-  Widget _userTile(User user) {
-    final avatarUrl = user.avatar != null ? ApiConfig.networkImageUrl(user.avatar!) : null;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: CircleAvatar(
-        backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-        backgroundColor: Colors.grey[200],
-        child: avatarUrl == null ? const Icon(Icons.person, color: Colors.black54) : null,
-      ),
-      title: Text(
-        user.name,
-        style: const TextStyle(fontWeight: FontWeight.w700),
-      ),
-      subtitle: Text('@${user.username}'),
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => UserProfileScreen(user: user)),
-        );
-      },
     );
   }
 
@@ -469,12 +575,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
 class _PeopleListTile extends StatelessWidget {
   final User user;
   final bool isFollowing;
+  final bool isFollowPending;
   final VoidCallback onFollow;
   final VoidCallback onTap;
 
   const _PeopleListTile({
     required this.user,
     required this.isFollowing,
+    this.isFollowPending = false,
     required this.onFollow,
     required this.onTap,
   });
@@ -523,7 +631,7 @@ class _PeopleListTile extends StatelessWidget {
             TextButton(
               onPressed: isFollowing ? null : onFollow,
               style: TextButton.styleFrom(
-                backgroundColor: isFollowing ? Colors.grey : Colors.black,
+                backgroundColor: (isFollowing || isFollowPending) ? Colors.grey : Colors.black,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 minimumSize: Size.zero,
@@ -532,7 +640,7 @@ class _PeopleListTile extends StatelessWidget {
                 ),
               ),
               child: Text(
-                isFollowing ? 'Following' : 'Follow',
+                isFollowing ? 'Following' : isFollowPending ? 'Requested' : 'Follow',
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               ),
             ),
@@ -546,12 +654,14 @@ class _PeopleListTile extends StatelessWidget {
 class _SuggestionCard extends StatelessWidget {
   final User user;
   final bool isFollowing;
+  final bool isFollowPending;
   final VoidCallback onFollow;
   final VoidCallback onTap;
 
   const _SuggestionCard({
     required this.user,
     required this.isFollowing,
+    this.isFollowPending = false,
     required this.onFollow,
     required this.onTap,
   });
@@ -598,7 +708,7 @@ class _SuggestionCard extends StatelessWidget {
               child: TextButton(
                 onPressed: isFollowing ? null : onFollow,
                 style: TextButton.styleFrom(
-                  backgroundColor: isFollowing ? Colors.grey : Colors.black,
+                  backgroundColor: (isFollowing || isFollowPending) ? Colors.grey : Colors.black,
                   foregroundColor: Colors.white,
                   padding: EdgeInsets.zero,
                   minimumSize: Size.zero,
@@ -607,7 +717,7 @@ class _SuggestionCard extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  isFollowing ? 'Following' : 'Follow',
+                  isFollowing ? 'Following' : isFollowPending ? 'Requested' : 'Follow',
                   style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ),

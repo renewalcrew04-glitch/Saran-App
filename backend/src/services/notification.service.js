@@ -17,6 +17,12 @@ const getPushText = (type) => {
       return "Your post was reposted";
     case "quote":
       return "Your post was quoted";
+    case "follow":
+      return "Someone started following you";
+    case "follow_request":
+      return "Someone requested to follow you";
+    case "follow_accept":
+      return "Your follow request was accepted";
     case "space_join":
       return "Someone joined your Space";
     case "space_reminder":

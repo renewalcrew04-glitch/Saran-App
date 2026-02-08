@@ -5,6 +5,7 @@ import Follow from '../models/Follow.model.js';
 import Mute from '../models/Mute.model.js';
 import Post from '../models/Post.model.js';
 import User from '../models/User.model.js';
+import { createNotification } from '../services/notification.service.js';
 
 // @desc    Get user profile by UID
 // @route   GET /api/users/:uid
@@ -225,9 +226,14 @@ export const followUser = async (req, res, next) => {
           message: 'Already following this user'
         });
       } else if (existingFollow.status === 'pending') {
-        return res.status(400).json({
-          success: false,
-          message: 'Follow request already pending'
+        return res.status(200).json({
+          success: true,
+          status: 'pending',
+          message: 'Request sent',
+          follow: {
+            id: existingFollow._id,
+            status: 'pending'
+          }
         });
       }
     }
@@ -248,6 +254,26 @@ export const followUser = async (req, res, next) => {
       });
       await User.findByIdAndUpdate(currentUserId, {
         $inc: { followingCount: 1 }
+      });
+    }
+
+    // Notify target user: "follow" when public, "follow_request" when private (pending)
+    if (followStatus === 'pending') {
+      await createNotification({
+        userId: targetUser._id,
+        actorId: currentUserId,
+        type: 'follow_request',
+        entityId: follow._id,
+        entityType: 'user',
+        meta: { followId: follow._id.toString() }
+      });
+    } else {
+      await createNotification({
+        userId: targetUser._id,
+        actorId: currentUserId,
+        type: 'follow',
+        entityId: targetUser._id,
+        entityType: 'user'
       });
     }
 
@@ -400,12 +426,30 @@ export const getFollowers = async (req, res, next) => {
       .skip(skip)
       .limit(limit);
 
-    const followers = follows
+    const followerList = follows
       .filter((f) => f.follower && !hideFromViewer.has(f.follower._id.toString()))
-      .map((follow) => ({
-        ...follow.follower.toObject(),
-        followedAt: follow.createdAt
-      }));
+      .map((f) => ({ user: f.follower.toObject(), followedAt: f.createdAt }));
+
+    const followerIds = followerList.map((f) => f.user._id);
+    const viewerFollowingAccepted = await Follow.find({
+      follower: viewerId,
+      following: { $in: followerIds },
+      status: 'accepted'
+    }).select('following').lean();
+    const viewerFollowPending = await Follow.find({
+      follower: viewerId,
+      following: { $in: followerIds },
+      status: 'pending'
+    }).select('following').lean();
+    const acceptedSet = new Set(viewerFollowingAccepted.map((f) => f.following.toString()));
+    const pendingSet = new Set(viewerFollowPending.map((f) => f.following.toString()));
+
+    const followers = followerList.map(({ user: u, followedAt }) => ({
+      ...u,
+      followedAt,
+      isFollowing: acceptedSet.has(u._id.toString()),
+      isFollowPending: pendingSet.has(u._id.toString())
+    }));
 
     const total = await Follow.countDocuments({
       following: user._id,
@@ -502,12 +546,40 @@ export const getFollowing = async (req, res, next) => {
       .skip(skip)
       .limit(limit);
 
-    const following = follows
+    const followingList = follows
       .filter((f) => f.following && !hideFromViewer.has(f.following._id.toString()))
-      .map((follow) => ({
-        ...follow.following.toObject(),
-        followedAt: follow.createdAt
-      }));
+      .map((f) => ({ user: f.following.toObject(), followedAt: f.createdAt }));
+
+    const followingIds = followingList.map((f) => f.user._id);
+    const viewerFollowingAccepted = await Follow.find({
+      follower: viewerId,
+      following: { $in: followingIds },
+      status: 'accepted'
+    }).select('following').lean();
+    const viewerFollowPending = await Follow.find({
+      follower: viewerId,
+      following: { $in: followingIds },
+      status: 'pending'
+    }).select('following').lean();
+    const acceptedSet = new Set(
+      viewerFollowingAccepted.map((f) => (f.following && f.following.toString ? f.following.toString() : String(f.following)))
+    );
+    const pendingSet = new Set(
+      viewerFollowPending.map((f) => (f.following && f.following.toString ? f.following.toString() : String(f.following)))
+    );
+
+    // When viewing your own following list, everyone in the list is someone you follow
+    const following = followingList.map(({ user: u, followedAt }) => {
+      const uidStr = u._id != null ? u._id.toString() : '';
+      const isFollowing = isOwner ? true : acceptedSet.has(uidStr);
+      const isFollowPending = isOwner ? false : pendingSet.has(uidStr);
+      return {
+        ...u,
+        followedAt,
+        isFollowing,
+        isFollowPending
+      };
+    });
 
     const total = await Follow.countDocuments({
       follower: user._id,
@@ -523,6 +595,154 @@ export const getFollowing = async (req, res, next) => {
         total,
         pages: Math.ceil(total / limit)
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get users I have sent a follow request to (outgoing pending) - for consistent "Requested" UI
+// @route   GET /api/users/me/pending-following
+// @access  Private
+export const getMyPendingFollowing = async (req, res, next) => {
+  try {
+    const currentUserId = req.user._id;
+    const follows = await Follow.find({
+      follower: currentUserId,
+      status: 'pending'
+    })
+      .select('following')
+      .lean();
+    const userIds = follows.map((f) => (f.following && f.following.toString ? f.following.toString() : String(f.following)));
+    return res.json({
+      success: true,
+      userIds
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get pending follow requests to current user
+// @route   GET /api/users/me/follow-requests
+// @access  Private
+export const getMyFollowRequests = async (req, res, next) => {
+  try {
+    const currentUserId = req.user._id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const skip = (page - 1) * limit;
+
+    const follows = await Follow.find({
+      following: currentUserId,
+      status: 'pending'
+    })
+      .populate('follower', 'uid username name avatar verified')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const requests = follows
+      .filter((f) => f.follower)
+      .map((f) => ({
+        ...f.follower.toObject(),
+        requestedAt: f.createdAt,
+        followId: f._id
+      }));
+
+    const total = await Follow.countDocuments({
+      following: currentUserId,
+      status: 'pending'
+    });
+
+    res.json({
+      success: true,
+      requests,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Accept a follow request (uid = requester who sent the request)
+// @route   POST /api/users/:uid/follow-request/accept
+// @access  Private
+export const acceptFollowRequest = async (req, res, next) => {
+  try {
+    const { uid } = req.params;
+    const currentUserId = req.user._id;
+
+    const requester = await User.findOne({ uid });
+    if (!requester) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const follow = await Follow.findOne({
+      follower: requester._id,
+      following: currentUserId,
+      status: 'pending'
+    });
+    if (!follow) {
+      return res.status(404).json({
+        success: false,
+        message: 'No pending follow request from this user'
+      });
+    }
+
+    follow.status = 'accepted';
+    await follow.save();
+
+    await User.findByIdAndUpdate(currentUserId, { $inc: { followersCount: 1 } });
+    await User.findByIdAndUpdate(requester._id, { $inc: { followingCount: 1 } });
+
+    await createNotification({
+      userId: requester._id,
+      actorId: currentUserId,
+      type: 'follow_accept',
+      entityId: currentUserId,
+      entityType: 'user',
+      meta: { followId: follow._id.toString() }
+    });
+
+    res.json({
+      success: true,
+      message: 'Follow request accepted',
+      follow: { id: follow._id, status: 'accepted' }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Decline a follow request (uid = requester who sent the request)
+// @route   POST /api/users/:uid/follow-request/decline
+// @access  Private
+export const declineFollowRequest = async (req, res, next) => {
+  try {
+    const { uid } = req.params;
+    const currentUserId = req.user._id;
+
+    const requester = await User.findOne({ uid });
+    if (!requester) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const follow = await Follow.findOneAndDelete({
+      follower: requester._id,
+      following: currentUserId,
+      status: 'pending'
+    });
+    if (!follow) {
+      return res.status(404).json({
+        success: false,
+        message: 'No pending follow request from this user'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Follow request declined'
     });
   } catch (error) {
     next(error);
@@ -571,12 +791,26 @@ export const getSuggestions = async (req, res, next) => {
     const users = await User.find({
       _id: { $nin: excludeIds }
     })
-      .select('uid username name avatar bio verified followersCount followingCount')
+      .select('uid username name avatar bio verified followersCount followingCount isPrivate')
       .sort({ followersCount: -1, createdAt: -1 })
       .limit(limit)
       .lean();
 
-    res.json({ success: true, users });
+    const userIds = users.map((u) => u._id);
+    const [acceptedDocs, pendingDocs] = await Promise.all([
+      Follow.find({ follower: currentUserId, following: { $in: userIds }, status: 'accepted' }).select('following').lean(),
+      Follow.find({ follower: currentUserId, following: { $in: userIds }, status: 'pending' }).select('following').lean(),
+    ]);
+    const acceptedSet = new Set(acceptedDocs.map((f) => f.following.toString()));
+    const pendingSet = new Set(pendingDocs.map((f) => f.following.toString()));
+
+    const usersWithStatus = users.map((u) => ({
+      ...u,
+      isFollowing: acceptedSet.has(u._id.toString()),
+      isFollowPending: pendingSet.has(u._id.toString()),
+    }));
+
+    res.json({ success: true, users: usersWithStatus });
   } catch (error) {
     next(error);
   }

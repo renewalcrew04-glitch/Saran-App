@@ -79,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
           borderRadius: BorderRadius.circular(20),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             decoration: BoxDecoration(
               color: isActive ? theme.colorScheme.primary : theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(20),
@@ -106,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildQuoteBanner() {
     final theme = Theme.of(context);
     return Container(
-      margin: const EdgeInsets.only(top: 16),
+      margin: const EdgeInsets.only(top: 0),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary,
@@ -131,7 +131,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     return GestureDetector(
-      onTap: () => context.push('/post-create'),
+      onTap: () async {
+        final result = await context.push<bool>('/post-create');
+        if (result == true && mounted) {
+          _loadFeed();
+        }
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
@@ -160,7 +165,12 @@ class _HomeScreenState extends State<HomeScreen> {
               color: colorScheme.primary,
               borderRadius: BorderRadius.circular(12),
               child: InkWell(
-                onTap: () => context.push('/post-create'),
+                onTap: () async {
+                  final result = await context.push<bool>('/post-create');
+                  if (result == true && mounted) {
+                    _loadFeed();
+                  }
+                },
                 borderRadius: BorderRadius.circular(12),
                 child: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 18, vertical: 10),
@@ -219,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             _buildPostComposer(),
             const SizedBox(height: 20),
 
@@ -341,7 +351,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         FilledButton.icon(
-                          onPressed: () => context.push('/post-create'),
+                          onPressed: () async {
+                            final result = await context.push<bool>('/post-create');
+                            if (result == true && mounted) _loadFeed();
+                          },
                           icon: const Icon(Icons.add_rounded, size: 20),
                           label: const Text('Create post'),
                           style: FilledButton.styleFrom(
@@ -373,7 +386,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: EdgeInsets.only(bottom: index < _posts.length - 1 ? 6 : 0),
                   child: PostCard(
                     post: post,
-                    onTap: () => context.push('/post', extra: post),
+                    onPostDeleted: () {
+                      if (mounted) _loadFeed();
+                    },
                   ),
                 );
               }),

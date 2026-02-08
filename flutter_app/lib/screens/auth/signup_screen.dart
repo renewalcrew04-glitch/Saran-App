@@ -240,66 +240,68 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 const SizedBox(height: 24),
                 // Terms and Conditions checkbox
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: Checkbox(
-                        value: _agreeToTerms,
-                        onChanged: (value) => setState(() => _agreeToTerms = value ?? false),
-                        activeColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
+Row(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    SizedBox(
+      width: 24,
+      height: 24,
+      child: Checkbox(
+        value: _agreeToTerms,
+        onChanged: (value) =>
+            setState(() => _agreeToTerms = value ?? false),
+        activeColor: Colors.black,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
+    ),
+    const SizedBox(width: 12),
+    Expanded(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: RichText(
+          text: TextSpan(
+            style: TextStyle(
+              color: Colors.grey[800],
+              fontSize: 14,
+              height: 1.4,
+            ),
+            children: [
+              const TextSpan(text: 'I agree to the '),
+              WidgetSpan(
+                alignment: PlaceholderAlignment.baseline,
+                baseline: TextBaseline.alphabetic,
+                child: GestureDetector(
+                  onTap: () async {
+                    final uri = Uri.parse(
+                        'https://www.saranapp.com/policies.html');
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    }
+                  },
+                  child: const Text(
+                    'Terms and Conditions',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                      fontSize: 14,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _agreeToTerms = !_agreeToTerms),
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: RichText(
-                            text: TextSpan(
-                              style: TextStyle(
-                                color: Colors.grey[800],
-                                fontSize: 14,
-                                height: 1.4,
-                              ),
-                              children: [
-                                const TextSpan(text: 'I agree to the '),
-                                WidgetSpan(
-                                  alignment: PlaceholderAlignment.baseline,
-                                  baseline: TextBaseline.alphabetic,
-                                  child: GestureDetector(
-                                    onTap: () async {
-                                      final uri = Uri.parse('https://www.saranapp.com/policies.html');
-                                      if (await canLaunchUrl(uri)) {
-                                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                      }
-                                    },
-                                    child: const Text(
-                                      'Terms and Conditions',
-                                      style: TextStyle(
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.w600,
-                                        decoration: TextDecoration.underline,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const TextSpan(text: ' of SARAN'),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
+              ),
+              const TextSpan(text: ' of SARAN'),
+            ],
+          ),
+        ),
+      ),
+    ),
+  ],
+),
                 const SizedBox(height: 32),
                 // Sign Up Button
                 Consumer<AuthProvider>(

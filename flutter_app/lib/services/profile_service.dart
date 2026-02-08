@@ -81,21 +81,101 @@ class ProfileService {
     return {'following': <Map<String, dynamic>>[], 'restricted': false};
   }
 
-  /// Follow a user by their uid (or id). Returns null on success, error message on failure.
-  Future<String?> followUser(String userId) async {
+  /// Follow a user by their uid (or id).
+  /// Returns null on success (check [status] for 'pending' or 'accepted'), or error message on failure.
+  Future<({ String? error, String? status })> followUser(String userId) async {
     final headers = await _getAuthHeaders();
     try {
       final response = await _dio.post(
         '${ApiConfig.users}/$userId/follow',
         options: Options(headers: headers),
       );
-      if (response.data['success'] == true) return null;
-      return (response.data['message'] ?? 'Follow failed').toString();
+      if (response.data['success'] == true) {
+        final status = response.data['status'] ?? response.data['follow']?['status'];
+        return (error: null, status: status?.toString());
+      }
+      return (error: (response.data['message'] ?? 'Follow failed').toString(), status: null);
     } on DioException catch (e) {
       final msg = e.response?.data is Map
           ? (e.response!.data['message'] ?? e.response!.data['error'])
           : null;
-      return msg?.toString() ?? e.message ?? 'Failed to follow';
+      return (error: msg?.toString() ?? e.message ?? 'Failed to follow', status: null);
+    } catch (e) {
+      return (error: e.toString().replaceFirst('Exception: ', ''), status: null);
+    }
+  }
+
+  /// Get user ids that the current user has sent a follow request to (outgoing pending).
+  /// Returns { 'userIds': ['id1', 'id2', ...] } - use these to show "Requested" consistently.
+  Future<Set<String>> getMyPendingFollowingIds() async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await _dio.get(
+        '${ApiConfig.users}/me/pending-following',
+        options: Options(headers: headers),
+      );
+      if (response.data['success'] == true && response.data['userIds'] != null) {
+        final list = response.data['userIds'] as List;
+        return list.map((e) => (e ?? '').toString()).where((s) => s.isNotEmpty).toSet();
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  /// Get pending follow requests to the current user.
+  /// Returns { 'requests': [...], 'pagination': {...} }.
+  Future<Map<String, dynamic>> getMyFollowRequests() async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await _dio.get(
+        '${ApiConfig.users}/me/follow-requests',
+        options: Options(headers: headers),
+      );
+      if (response.data['success'] == true) {
+        return {
+          'requests': List<Map<String, dynamic>>.from(response.data['requests'] ?? []),
+          'pagination': response.data['pagination'] ?? {},
+        };
+      }
+    } catch (_) {}
+    return {'requests': <Map<String, dynamic>>[], 'pagination': {}};
+  }
+
+  /// Accept follow request from user [requesterUid]. Returns null on success.
+  Future<String?> acceptFollowRequest(String requesterUid) async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await _dio.post(
+        '${ApiConfig.users}/$requesterUid/follow-request/accept',
+        options: Options(headers: headers),
+      );
+      if (response.data['success'] == true) return null;
+      return (response.data['message'] ?? 'Failed to accept').toString();
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map
+          ? (e.response!.data['message'] ?? e.response!.data['error'])
+          : null;
+      return msg?.toString() ?? e.message ?? 'Failed to accept';
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
+  }
+
+  /// Decline follow request from user [requesterUid]. Returns null on success.
+  Future<String?> declineFollowRequest(String requesterUid) async {
+    final headers = await _getAuthHeaders();
+    try {
+      final response = await _dio.post(
+        '${ApiConfig.users}/$requesterUid/follow-request/decline',
+        options: Options(headers: headers),
+      );
+      if (response.data['success'] == true) return null;
+      return (response.data['message'] ?? 'Failed to decline').toString();
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map
+          ? (e.response!.data['message'] ?? e.response!.data['error'])
+          : null;
+      return msg?.toString() ?? e.message ?? 'Failed to decline';
     } catch (e) {
       return e.toString().replaceFirst('Exception: ', '');
     }

@@ -19,6 +19,10 @@ class _MainNavigationState extends State<MainNavigation> {
   final ValueNotifier<int> _tabIndexNotifier = ValueNotifier(0);
   late final List<Widget> _screens;
 
+  static const double _navBarHeight = 72;
+  static const double _sosSize = 64; // circle diameter
+  static const double _sosLift = 0.25; // 25% outside
+
   @override
   void initState() {
     super.initState();
@@ -41,56 +45,78 @@ class _MainNavigationState extends State<MainNavigation> {
     return Scaffold(
       body: _screens[_index],
 
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
+      bottomNavigationBar: SizedBox(
+        height: _navBarHeight + (_sosSize * _sosLift),
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.bottomCenter,
+          children: [
+            // Bottom bar
+            Container(
+              height: _navBarHeight,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _navItem(context, Icons.home_outlined, "Home", _index == 0, () => _onTabTap(0)),
+                      _navItem(context, Icons.explore_outlined, "Explore", _index == 1, () => _onTabTap(1)),
+                      const SizedBox(width: _sosSize), // space for SOS
+                      _navItem(context, Icons.calendar_month_outlined, "Spaces", _index == 3, () => _onTabTap(3)),
+                      _navItem(context, Icons.person_outline, "Profile", _index == 4, () => _onTabTap(4)),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-              _navItem(context, Icons.home_outlined, "Home", _index == 0, () => _onTabTap(0)),
-              _navItem(context, Icons.explore_outlined, "Explore", _index == 1, () => _onTabTap(1)),
-              GestureDetector(
+
+            // Floating SOS button
+            Positioned(
+              bottom: _navBarHeight - (_sosSize * (1 - _sosLift)),
+              child: GestureDetector(
                 onTap: () => _onTabTap(2),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                  width: _sosSize,
+                  height: _sosSize,
                   decoration: BoxDecoration(
+                    shape: BoxShape.circle,
                     color: AppLightTheme.sos,
-                    borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: AppLightTheme.sos.withValues(alpha: 0.35),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+                        color: AppLightTheme.sos.withValues(alpha: 0.4),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
                       ),
                     ],
                   ),
-                  child: const Text(
-                    "SOS",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                  child: const Center(
+                    child: Text(
+                      'S',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 20,
+                        letterSpacing: 1,
+                      ),
                     ),
                   ),
                 ),
               ),
-              _navItem(context, Icons.calendar_month_outlined, "Spaces", _index == 3, () => _onTabTap(3)),
-              _navItem(context, Icons.person_outline, "Profile", _index == 4, () => _onTabTap(4)),
-            ],
-          ),
+            ),
+          ],
         ),
-      ),
       ),
     );
   }
@@ -104,16 +130,25 @@ class _MainNavigationState extends State<MainNavigation> {
   ) {
     final colorScheme = Theme.of(context).colorScheme;
     final color = isActive ? colorScheme.primary : colorScheme.onSurfaceVariant;
+
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 24, color: color),
-          const SizedBox(height: 4),
+          Icon(icon, size: 22, color: color),
+          const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
