@@ -49,6 +49,7 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
   DateTime _storyStartedAt = DateTime.now();
 
   final TextEditingController _replyCtrl = TextEditingController();
+  bool _replyHasText = false;
 
   @override
   void initState() {
@@ -219,33 +220,51 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
   void _showLikedModal(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF1C1C1E),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
               Text(
                 'Echos (Likes)',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  color: Colors.white.withValues(alpha: 0.95),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 16),
-              Text(
-                'No likes yet',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 14,
-                ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.favorite_border_rounded, color: Colors.white.withValues(alpha: 0.4), size: 22),
+                  const SizedBox(width: 10),
+                  Text(
+                    'No likes yet',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -529,45 +548,80 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
                 ),
               ),
 
-            // ================= REPLY =================
+            // ================= REPLY (story comments) =================
             Positioned(
-              bottom: 20,
+              bottom: 24,
               left: 16,
               right: 16,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(30),
+                  color: Colors.black.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
                     Expanded(
                       child: TextField(
                         controller: _replyCtrl,
-                        style: const TextStyle(color: Colors.white),
+                        onChanged: (_) => setState(() => _replyHasText = _replyCtrl.text.trim().isNotEmpty),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                        ),
                         decoration: InputDecoration(
-                          hintText: "Reply…",
-                          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                          hintText: "Reply to ${frame.ownerName ?? 'story'}…",
+                          hintStyle: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                          ),
                           border: InputBorder.none,
                           filled: true,
                           fillColor: Colors.transparent,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 14,
+                          ),
                         ),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.send,
-                          color: Colors.white),
-                      onPressed: () {
-                        final text =
-                            _replyCtrl.text.trim();
-                        if (text.isNotEmpty) {
-                          SFrameService.sendReply(
-                              frame.id, text);
-                          _replyCtrl.clear();
-                        }
-                      },
+                    Material(
+                      color: _replyHasText
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(22),
+                      child: InkWell(
+                        onTap: () {
+                          final text = _replyCtrl.text.trim();
+                          if (text.isNotEmpty) {
+                            SFrameService.sendReply(frame.id, text);
+                            _replyCtrl.clear();
+                            setState(() => _replyHasText = false);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(22),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Icon(
+                            Icons.send_rounded,
+                            color: _replyHasText ? Colors.black : Colors.white,
+                            size: 22,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),

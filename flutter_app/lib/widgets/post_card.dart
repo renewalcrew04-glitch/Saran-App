@@ -161,12 +161,13 @@ class _PostCardState extends State<PostCard>
     final url = ApiConfig.networkImageUrl(mediaUrl);
     if (url == null) {
       return Container(
+        width: double.infinity,
         height: 200,
         color: Colors.grey[300],
         child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
       );
     }
-    return safeNetworkImage(url: url, fit: BoxFit.cover, height: 200);
+    return FullAspectNetworkImage(url: url, maxHeight: 500);
   }
 
   @override
@@ -174,76 +175,82 @@ class _PostCardState extends State<PostCard>
     final Post post = widget.post;
     final Post? embeddedOriginal = post.quotedPost ?? post.originalPost;
 
+    const horizontalPadding = 14.0;
+
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+        margin: const EdgeInsets.symmetric(vertical: 4),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.zero,
         ),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.zero,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _Header(post: post, onPostDeleted: widget.onPostDeleted),
-              if (post.text.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                RichText(
-                  text: TextSpan(
-                    children: post.text.split(' ').map((word) {
-                      if (word.startsWith('#')) {
-                        return TextSpan(
-                          text: '$word ',
-                          style: const TextStyle(
-                            color: Colors.blue,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                          ),
-                        );
-                      }
-                      return TextSpan(
-                        text: '$word ',
-                        style: const TextStyle(
-                          color: Colors.black87,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ],
-              if (post.isQuote && embeddedOriginal != null) ...[
-                const SizedBox(height: 12),
-                QuotePostEmbed(
-                  originalPost: embeddedOriginal,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => CommentsScreen(
-                          postId: embeddedOriginal.id,
-                        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(horizontalPadding, 14, horizontalPadding, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Header(post: post, onPostDeleted: widget.onPostDeleted),
+                  if (post.text.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    RichText(
+                      text: TextSpan(
+                        children: post.text.split(' ').map((word) {
+                          if (word.startsWith('#')) {
+                            return TextSpan(
+                              text: '$word ',
+                              style: const TextStyle(
+                                color: Colors.blue,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            );
+                          }
+                          return TextSpan(
+                            text: '$word ',
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          );
+                        }).toList(),
                       ),
-                    );
-                  },
-                ),
-              ],
-              if (post.media.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.zero,
-                      child: _buildPostMedia(post.media.first),
                     ),
                   ],
-                  const SizedBox(height: 12),
-                  _Actions(
+                  if (post.isQuote && embeddedOriginal != null) ...[
+                    const SizedBox(height: 12),
+                    QuotePostEmbed(
+                      originalPost: embeddedOriginal,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CommentsScreen(
+                              postId: embeddedOriginal.id,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (post.media.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              // Full-bleed: no side padding so image covers full width
+              SizedBox(
+                width: double.infinity,
+                child: _buildPostMedia(post.media.first),
+              ),
+            ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(horizontalPadding, 12, horizontalPadding, 14),
+              child: _Actions(
                     post: post,
                     likeController: _likeController,
                     isLikedOverride: _isLiked,
@@ -268,8 +275,8 @@ class _PostCardState extends State<PostCard>
                       }
                     },
                   ),
-                ],
-              ),
+            ),
+          ],
         ),
       ),
     );
