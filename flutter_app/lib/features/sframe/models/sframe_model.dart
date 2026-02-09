@@ -6,6 +6,8 @@ class SFrame {
   final String? textContent;
   final String? filter;
   final List<dynamic> views;
+  /// User ids who sent a heart (echo) on this story.
+  final List<dynamic> echoes;
   final DateTime? createdAt;
   final String? ownerName;
   final String? ownerAvatar;
@@ -19,6 +21,7 @@ class SFrame {
     this.textContent,
     this.filter,
     required this.views,
+    this.echoes = const [],
     this.createdAt,
     this.ownerName,
     this.ownerAvatar,
@@ -50,6 +53,7 @@ class SFrame {
       textContent: d['textContent']?.toString(),
       filter: d['filter']?.toString(),
       views: d['views'] is List ? d['views'] as List<dynamic> : [],
+      echoes: d['echoes'] is List ? d['echoes'] as List<dynamic> : [],
       createdAt: _parseDate(d['createdAt']),
       ownerName: d['ownerName']?.toString(),
       ownerAvatar: (d['ownerAvatar'] ?? d['owner']?['avatar'])?.toString(),

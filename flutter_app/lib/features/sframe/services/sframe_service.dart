@@ -39,6 +39,13 @@ class SFrameService {
     return List<String>.from(data?['views'] ?? []);
   }
 
+  static Future<void> sendEcho(String frameId) async {
+    await http.post(
+      Uri.parse('$_base/$frameId/echo'),
+      headers: await authHeaders(),
+    );
+  }
+
   static Future<void> sendReply(String frameId, String text) async {
     await http.post(
       Uri.parse('$_base/$frameId/reply'),
@@ -55,7 +62,22 @@ class SFrameService {
     final data = jsonDecode(res.body) as Map<String, dynamic>?;
     final views = data?['views'];
     if (views is! List) return [];
-    return views.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final echoes = data?['echoes'];
+    final echoIds = echoes is List
+        ? echoes.map((e) => e?.toString() ?? '').toSet()
+        : <String>{};
+    String viewId(dynamic v) {
+      if (v == null) return '';
+      if (v is String) return v;
+      if (v is Map && v['\$oid'] != null) return v['\$oid'].toString();
+      return v.toString();
+    }
+    return views.map((e) {
+      final map = Map<String, dynamic>.from(e as Map);
+      final uid = viewId(map['_id']);
+      map['echoed'] = echoIds.contains(uid);
+      return map;
+    }).toList();
   }
 
   static Future<void> deleteFrame(String frameId) async {

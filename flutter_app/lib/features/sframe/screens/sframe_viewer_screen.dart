@@ -519,27 +519,7 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
                 left: 0,
                 right: 0,
                 child: Center(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        // TODO: call API to send echo/like when backend supports it
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Echo sent'), duration: Duration(seconds: 1)),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(24),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white24, width: 1),
-                        ),
-                        child: const Icon(Icons.favorite_border, color: Colors.white, size: 28),
-                      ),
-                    ),
-                  ),
+                  child: _EchoButton(frameId: frame.id),
                 ),
               ),
 
@@ -750,5 +730,75 @@ class _VideoPlayerState extends State<_VideoPlayer> {
       );
     }
     return VideoPlayer(controller);
+  }
+}
+
+class _EchoButton extends StatefulWidget {
+  final String frameId;
+
+  const _EchoButton({required this.frameId});
+
+  @override
+  State<_EchoButton> createState() => _EchoButtonState();
+}
+
+class _EchoButtonState extends State<_EchoButton> {
+  bool _sent = false;
+  bool _loading = false;
+
+  Future<void> _sendEcho() async {
+    if (_sent || _loading) return;
+    setState(() => _loading = true);
+    try {
+      await SFrameService.sendEcho(widget.frameId);
+      if (!mounted) return;
+      setState(() {
+        _sent = true;
+        _loading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Echo sent'), duration: Duration(seconds: 1)),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not send echo')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _loading ? null : _sendEcho,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.35),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white24, width: 1),
+          ),
+          child: _loading
+              ? const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : Icon(
+                  _sent ? Icons.favorite : Icons.favorite_border,
+                  color: _sent ? Colors.red : Colors.white,
+                  size: 28,
+                ),
+        ),
+      ),
+    );
   }
 }

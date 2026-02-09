@@ -44,6 +44,13 @@ class SFrameApi {
     );
   }
 
+  static Future<void> sendEcho(String frameId) async {
+    await http.post(
+      Uri.parse('$base/$frameId/echo'),
+      headers: await authHeaders(),
+    );
+  }
+
   static Future<void> replyToFrame(String frameId, String text) async {
     await http.post(
       Uri.parse('$base/$frameId/reply'),

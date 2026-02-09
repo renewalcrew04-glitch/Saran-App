@@ -70,6 +70,7 @@ void showSeenModal(
                 itemBuilder: (_, i) {
                   final user = users[i];
                   final avatarUrl = user['photoURL'] ?? user['avatar'];
+                  final echoed = user['echoed'] == true;
                   return ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     leading: CircleAvatar(
@@ -90,6 +91,9 @@ void showSeenModal(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+                    trailing: echoed
+                        ? const Icon(Icons.favorite, color: Colors.red, size: 22)
+                        : null,
                   );
                 },
               ),

@@ -36,6 +36,14 @@ const sFrameSchema = new mongoose.Schema(
       },
     ],
 
+    /** User ids who sent a heart (echo) on this story. Shown to owner in "Who viewed" with heart. */
+    echoes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
     createdAt: {
       type: Date,
       default: Date.now,

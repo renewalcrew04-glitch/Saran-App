@@ -36,6 +36,7 @@ export const createSFrame = async (req, res) => {
       mood,
       expiresAt,
       views: [],
+      echoes: [],
     });
 
     return res.status(201).json(frame);
@@ -154,12 +155,13 @@ export const getSFrame = async (req, res) => {
 
     const [owner, viewers] = await Promise.all([
       User.findById(frame.uid).select("name avatar username").lean(),
-      User.find({ _id: { $in: frame.views } }, { name: 1, avatar: 1, photoURL: 1 }).lean(),
+      User.find({ _id: { $in: frame.views || [] } }, { name: 1, avatar: 1, photoURL: 1 }).lean(),
     ]);
     const viewersWithAvatar = viewers.map((v) => ({
       ...v,
       photoURL: v.photoURL || v.avatar,
     }));
+    const echoIds = (frame.echoes || []).map((e) => e.toString());
 
     return res.json({
       ...frame,
@@ -167,6 +169,7 @@ export const getSFrame = async (req, res) => {
       ownerAvatar: owner?.avatar,
       ownerUsername: owner?.username,
       views: viewersWithAvatar,
+      echoes: echoIds,
     });
   } catch (err) {
     console.error("getSFrame error:", err);
@@ -234,6 +237,50 @@ export const viewSFrame = async (req, res) => {
   } catch (err) {
     console.error("viewSFrame error:", err);
     return res.status(500).json({ message: "Failed to mark view" });
+  }
+};
+
+/**
+ * SEND ECHO (HEART) ON S-FRAME
+ * POST /api/sframes/:id/echo
+ * Adds the viewer to frame.echoes so owner sees a heart next to them in "Who viewed".
+ */
+export const echoSFrame = async (req, res) => {
+  try {
+    const frame = await SFrame.findById(req.params.id);
+    if (!frame) {
+      return res.status(404).json({ message: "S-Frame not found" });
+    }
+
+    const viewerId = req.user._id;
+    const ownerId = frame.uid;
+
+    if (viewerId.toString() === ownerId.toString()) {
+      return res.status(400).json({ message: "Cannot echo your own story" });
+    }
+
+    const alreadyEchoed = (frame.echoes || [])
+      .map((e) => e.toString())
+      .includes(viewerId.toString());
+
+    if (!alreadyEchoed) {
+      await SFrame.updateOne(
+        { _id: frame._id },
+        { $addToSet: { echoes: viewerId } },
+      );
+      await Notification.create({
+        userId: frame.uid,
+        actorId: viewerId,
+        type: "sframe_echo",
+        entityId: frame._id,
+        entityType: "user",
+      });
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("echoSFrame error:", err);
+    return res.status(500).json({ message: "Failed to send echo" });
   }
 };
 
