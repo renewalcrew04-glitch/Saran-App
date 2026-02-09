@@ -42,6 +42,8 @@ const notificationSchema = new mongoose.Schema(
 
         "wellness",
         "sdaily",
+
+        "sframe_view",
       ],
       required: true,
     },
