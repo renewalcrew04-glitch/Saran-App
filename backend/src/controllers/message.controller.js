@@ -255,9 +255,16 @@ export const sendMessage = async (req, res, next) => {
         : "Message";
     convo.lastMessageAt = new Date();
 
-    // unread increment for receiver
-    const currentUnread = convo.unread?.get(mapKey(receiverUid)) || 0;
-    convo.unread.set(mapKey(receiverUid), currentUnread + 1);
+    // unread increment for receiver (Mongoose may give plain object instead of Map)
+    const unreadMap =
+      convo.unread instanceof Map
+        ? convo.unread
+        : new Map(Object.entries(convo.unread || {}));
+    convo.unread = unreadMap;
+    unreadMap.set(
+      mapKey(receiverUid),
+      (unreadMap.get(mapKey(receiverUid)) || 0) + 1
+    );
 
     await convo.save();
 
@@ -278,6 +285,7 @@ export const sendMessage = async (req, res, next) => {
       },
     });
   } catch (error) {
+    console.error("sendMessage error:", error?.message ?? error);
     next(error);
   }
 };

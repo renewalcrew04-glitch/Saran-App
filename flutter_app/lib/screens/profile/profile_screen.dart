@@ -241,9 +241,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showShareProfileSheet(BuildContext context, User user) {
     final profileLink = 'https://saran.app/u/${user.username}';
     final shareText = 'Check out @${user.username} on Saran\n$profileLink';
-    final avatarUrl = user.avatar != null && user.avatar!.isNotEmpty
-        ? (ApiConfig.networkImageUrl(user.avatar!) ?? user.avatar!)
-        : null;
 
     showModalBottomSheet(
       context: context,
@@ -281,67 +278,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.95)),
                     ),
                     const SizedBox(height: 16),
-                    // Profile card (like reference: dark bubble with avatar, username, name)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 28,
-                            backgroundColor: Colors.grey.shade700,
-                            backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                            child: avatarUrl == null
-                                ? Text(
-                                    user.name.isNotEmpty ? user.name[0].toUpperCase() : '@',
-                                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.9)),
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '@${user.username}',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  user.name,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.white.withValues(alpha: 0.65),
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (user.bio != null && user.bio!.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    user.bio!,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          Icon(Icons.send_outlined, color: Colors.white.withValues(alpha: 0.6), size: 22),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
                     // Copy link
                     ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -403,6 +339,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 final convoId = await context.read<DmProvider>().openDm(token: token, otherUid: uid);
                                 if (!context.mounted) return;
                                 if (convoId != null && convoId.isNotEmpty) {
+                                  bool shared = false;
                                   try {
                                     await context.read<ChatProvider>().sendProfile(
                                       token: token,
@@ -413,7 +350,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       name: user.name,
                                       avatar: user.avatar,
                                     );
-                                  } catch (_) {}
+                                    shared = true;
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Failed to share profile: ${e is Exception ? e.toString().replaceFirst('Exception: ', '') : e}'),
+                                          backgroundColor: Colors.red.shade700,
+                                        ),
+                                      );
+                                    }
+                                  }
                                   if (!context.mounted) return;
                                   Navigator.push(
                                     context,
@@ -426,9 +373,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                     ),
                                   );
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Profile shared')),
-                                  );
+                                  if (shared && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Profile shared')),
+                                    );
+                                  }
                                 } else {
                                   Clipboard.setData(ClipboardData(text: shareText));
                                   ScaffoldMessenger.of(context).showSnackBar(
