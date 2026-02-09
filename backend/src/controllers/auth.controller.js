@@ -144,6 +144,7 @@ export const login = async (req, res, next) => {
         name: user.name,
         avatar: user.avatar,
         bio: user.bio,
+        locationText: user.locationText,
         coverImage: user.coverImage,
         profileCompleted: user.profileCompleted,
         verified: user.verified,
@@ -183,6 +184,7 @@ export const getMe = async (req, res, next) => {
         name: user.name,
         avatar: user.avatar,
         bio: user.bio,
+        locationText: user.locationText,
         coverImage: user.coverImage,
         profileCompleted: user.profileCompleted,
         verified: user.verified,
@@ -202,12 +204,13 @@ export const getMe = async (req, res, next) => {
 // @access  Private
 export const updateProfile = async (req, res, next) => {
   try {
-    const { name, bio, avatar, isPrivate } = req.body;
+    const { name, bio, locationText, avatar, isPrivate } = req.body;
 
     const user = await User.findById(req.user._id);
 
     if (name) user.name = name;
     if (bio !== undefined) user.bio = bio;
+    if (locationText !== undefined) user.locationText = locationText;
     if (avatar !== undefined) user.avatar = avatar;
     if (isPrivate !== undefined) user.isPrivate = isPrivate;
 
@@ -222,6 +225,7 @@ export const updateProfile = async (req, res, next) => {
         name: updatedUser.name,
         avatar: updatedUser.avatar,
         bio: updatedUser.bio,
+        locationText: updatedUser.locationText,
         isPrivate: updatedUser.isPrivate,
         profileCompleted: updatedUser.profileCompleted
       }

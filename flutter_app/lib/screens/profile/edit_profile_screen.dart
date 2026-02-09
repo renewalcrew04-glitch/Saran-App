@@ -41,7 +41,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameCtrl.text = user?.name ?? '';
     _bioCtrl.text = user?.bio ?? '';
     _websiteCtrl.text = ''; // add in model later if needed
-    _locationCtrl.text = ''; // add in model later if needed
+    _locationCtrl.text = user?.location ?? '';
   }
 
   @override
@@ -130,17 +130,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _saving = true);
 
     try {
-      // ONLY name + bio exist in your backend currently.
-      // Website + Location you can add later.
-      // So we update name/bio using /users/me (you must support it in backend).
-      // If you don't have it, tell me I will create it.
-
-      // For now we update only bio using same endpoint if supported
-      // You already have updateAvatar/updateCover. Add updateProfile() later.
-
-      // Temporary: just refresh user
       final auth = Provider.of<AuthProvider>(context, listen: false);
-      await auth.loadUser();
+      final res = await _profileUpdateService.updateProfile(
+        name: _nameCtrl.text.trim(),
+        bio: _bioCtrl.text.trim(),
+        location: _locationCtrl.text.trim(),
+        currentUserUid: auth.user?.uid,
+      );
+
+      if (!mounted) return;
+      final userMap = res?['user'];
+      if (userMap is Map<String, dynamic>) {
+        auth.updateUserFromMap(userMap);
+      } else {
+        await auth.loadUser();
+      }
 
       if (!mounted) return;
       Navigator.pop(context);

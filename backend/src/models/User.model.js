@@ -56,6 +56,13 @@ const userSchema = new mongoose.Schema(
       default: '',
     },
 
+    /** Profile display location (e.g. "New York, USA"). Not the geo Point used for SOS. */
+    locationText: {
+      type: String,
+      maxlength: 200,
+      default: '',
+    },
+
     isPrivate: {
       type: Boolean,
       default: false,

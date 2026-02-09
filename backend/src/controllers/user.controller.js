@@ -101,9 +101,10 @@ export const updateMe = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    const { name, bio, avatar, coverImage, isPrivate } = req.body;
+    const { name, bio, locationText, avatar, coverImage, isPrivate } = req.body;
     if (name !== undefined) user.name = name;
     if (bio !== undefined) user.bio = bio;
+    if (locationText !== undefined) user.locationText = locationText;
     if (avatar !== undefined) user.avatar = avatar;
     if (coverImage !== undefined) user.coverImage = coverImage;
     if (isPrivate !== undefined) user.isPrivate = isPrivate;
@@ -124,7 +125,7 @@ export const updateUserProfile = async (req, res, next) => {
   try {
     const { uid } = req.params;
     const currentUserId = req.user._id;
-    const { name, bio, avatar, coverImage, isPrivate } = req.body;
+    const { name, bio, locationText, avatar, coverImage, isPrivate } = req.body;
 
     // Find user
     const user = await User.findOne({ uid });
@@ -147,6 +148,7 @@ export const updateUserProfile = async (req, res, next) => {
     // Update fields
     if (name) user.name = name;
     if (bio !== undefined) user.bio = bio;
+    if (locationText !== undefined) user.locationText = locationText;
     if (avatar !== undefined) user.avatar = avatar;
     if (coverImage !== undefined) user.coverImage = coverImage;
     if (isPrivate !== undefined) user.isPrivate = isPrivate;
@@ -168,6 +170,7 @@ export const updateUserProfile = async (req, res, next) => {
         avatar: updatedUser.avatar,
         coverImage: updatedUser.coverImage,
         bio: updatedUser.bio,
+        locationText: updatedUser.locationText,
         isPrivate: updatedUser.isPrivate,
         profileCompleted: updatedUser.profileCompleted,
         verified: updatedUser.verified,

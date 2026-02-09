@@ -5,6 +5,8 @@ class User {
   final String name;
   final String? avatar;
   final String? bio;
+  /// Profile display location (e.g. "New York, USA"). From API [locationText].
+  final String? location;
   final String? coverImage;
   final bool? isPrivate;
   final bool profileCompleted;
@@ -25,6 +27,7 @@ class User {
     required this.name,
     this.avatar,
     this.bio,
+    this.location,
     this.coverImage,
     this.isPrivate,
     required this.profileCompleted,
@@ -48,6 +51,7 @@ class User {
       name: (json['name'] ?? '').toString(),
       avatar: json['avatar']?.toString(),
       bio: json['bio']?.toString(),
+      location: (json['locationText'] ?? json['location'])?.toString(),
       coverImage: json['coverImage']?.toString(),
       isPrivate: json['isPrivate'] as bool?,
       profileCompleted: json['profileCompleted'] ?? false,
@@ -69,6 +73,7 @@ class User {
       'name': name,
       'avatar': avatar,
       'bio': bio,
+      'location': location,
       'coverImage': coverImage,
       'isPrivate': isPrivate,
       'profileCompleted': profileCompleted,

@@ -612,11 +612,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     children: [
       Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
       const SizedBox(width: 4),
-      Text(
-        'Add location in Edit profile',
-        style: TextStyle(
-          fontSize: 13,
-          color: Colors.grey[600],
+      Expanded(
+        child: Text(
+          (user.location != null && user.location!.isNotEmpty)
+              ? user.location!
+              : 'Add location in Edit profile',
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.grey[600],
+          ),
         ),
       ),
     ],
