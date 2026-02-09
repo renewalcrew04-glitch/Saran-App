@@ -52,6 +52,11 @@ class ApiConfig {
     if (path.startsWith('/data/') || path.startsWith('/storage/') || path.startsWith('/sdcard/')) return null;
     if (path.contains('/cache/') && (path.contains('com.') || path.contains('Application/'))) return null;
     if (path.startsWith('/')) return mediaBaseUrl + path; // e.g. /uploads/xxx.jpg
+    // Relative path from server e.g. "uploads/xxx.jpg"
+    if (path.contains('uploads') || path.startsWith('uploads')) {
+      final base = mediaBaseUrl.endsWith('/') ? mediaBaseUrl : '$mediaBaseUrl/';
+      return base + (path.startsWith('/') ? path.substring(1) : path);
+    }
     return null;
   }
 

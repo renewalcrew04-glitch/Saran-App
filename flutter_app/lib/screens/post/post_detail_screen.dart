@@ -8,12 +8,15 @@ class PostDetailScreen extends StatelessWidget {
   final Post? post;
   final List<Post>? posts;
   final int initialIndex;
+  /// Called when user undoes a repost (e.g. so profile can refresh and remove from Reposted tab).
+  final VoidCallback? onRepostUndone;
 
   const PostDetailScreen({
     super.key,
     this.post,
     this.posts,
     this.initialIndex = 0,
+    this.onRepostUndone,
   });
 
   bool get _isFullScreenFeed => posts != null && posts!.isNotEmpty;
@@ -30,6 +33,7 @@ class PostDetailScreen extends StatelessWidget {
       return _FullScreenPostView(
         posts: _effectivePosts,
         initialIndex: _initialIndex,
+        onRepostUndone: onRepostUndone,
       );
     }
     return Scaffold(
@@ -51,6 +55,7 @@ class PostDetailScreen extends StatelessWidget {
           PostCard(
             post: post!,
             onPostDeleted: () => Navigator.of(context).pop(),
+            onUndoRepostSuccess: onRepostUndone,
           ),
         ],
       ),
@@ -62,10 +67,12 @@ class PostDetailScreen extends StatelessWidget {
 class _FullScreenPostView extends StatefulWidget {
   final List<Post> posts;
   final int initialIndex;
+  final VoidCallback? onRepostUndone;
 
   const _FullScreenPostView({
     required this.posts,
     required this.initialIndex,
+    this.onRepostUndone,
   });
 
   @override
@@ -75,14 +82,17 @@ class _FullScreenPostView extends StatefulWidget {
 class _FullScreenPostViewState extends State<_FullScreenPostView> {
   static const double _estimatedPostHeight = 420;
   late ScrollController _scrollController;
+  List<Post> _posts = [];
 
   @override
   void initState() {
     super.initState();
+    _posts = List<Post>.from(widget.posts);
     _scrollController = ScrollController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
-      final offset = (widget.initialIndex * _estimatedPostHeight)
+      final idx = widget.initialIndex.clamp(0, _posts.length - 1);
+      final offset = (idx * _estimatedPostHeight)
           .clamp(0.0, _scrollController.position.maxScrollExtent);
       _scrollController.jumpTo(offset);
     });
@@ -92,6 +102,16 @@ class _FullScreenPostViewState extends State<_FullScreenPostView> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onUndoRepost(Post post) {
+    setState(() {
+      _posts.removeWhere((p) => p.id == post.id);
+    });
+    widget.onRepostUndone?.call();
+    if (_posts.isEmpty && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -106,7 +126,7 @@ class _FullScreenPostViewState extends State<_FullScreenPostView> {
           elevation: 0,
           iconTheme: const IconThemeData(color: Colors.white),
           title: Text(
-            '${widget.posts.length} post${widget.posts.length == 1 ? '' : 's'}',
+            '${_posts.length} post${_posts.length == 1 ? '' : 's'}',
             style: const TextStyle(
               color: Colors.white70,
               fontWeight: FontWeight.w600,
@@ -122,14 +142,15 @@ class _FullScreenPostViewState extends State<_FullScreenPostView> {
             right: 8,
             bottom: MediaQuery.paddingOf(context).bottom + 24,
           ),
-          itemCount: widget.posts.length,
+          itemCount: _posts.length,
           itemBuilder: (context, index) {
-            final post = widget.posts[index];
+            final post = _posts[index];
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: PostCard(
                 post: post,
                 onPostDeleted: () => Navigator.of(context).pop(),
+                onUndoRepostSuccess: () => _onUndoRepost(post),
               ),
             );
           },

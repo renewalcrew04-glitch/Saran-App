@@ -55,7 +55,7 @@ export const getHomeFeed = async (req, res, next) => {
 
     const posts = await Post.find(query)
       .populate('uid', 'uid username name avatar verified')
-      .populate('originalPostId', 'uid username type text media createdAt')
+      .populate('originalPostId', 'uid username type text media createdAt repostsCount')
       .populate('repostedByUid', 'uid username name avatar')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -152,7 +152,7 @@ export const getUserFeed = async (req, res, next) => {
       isDeleted: false
     })
       .populate('uid', 'uid username name avatar verified')
-      .populate('originalPostId', 'uid username type text media createdAt')
+      .populate('originalPostId', 'uid username type text media createdAt repostsCount')
       .populate('repostedByUid', 'uid username name avatar')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -219,7 +219,7 @@ export const getExploreFeed = async (req, res, next) => {
     // Get posts (sorted by engagement: likes + comments + reposts)
     const posts = await Post.find(query)
       .populate('uid', 'uid username name avatar verified')
-      .populate('originalPostId', 'uid username type text media createdAt')
+      .populate('originalPostId', 'uid username type text media createdAt repostsCount')
       .sort({ 
         // Sort by engagement score (likes + comments + reposts)
         // Then by recency

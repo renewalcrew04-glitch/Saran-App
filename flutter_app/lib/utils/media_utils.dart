@@ -1,11 +1,29 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 
-/// URLs that failed to load (404 etc.) - show placeholder immediately to avoid repeated exceptions.
-/// Pre-populate with known missing files so we never request them.
-final Set<String> _failedImageUrls = {
-  'http://13.233.133.213:3000/uploads/1770150285426-432750637.jpg',
-};
+/// URLs that failed to load (404 etc.) - show placeholder and avoid repeated requests/exceptions.
+final Set<String> _failedImageUrls = {};
+
+/// Call from error handlers to avoid retrying this URL. Also use to pre-add known 404s.
+void markImageUrlFailed(String url) {
+  if (url.isNotEmpty) _failedImageUrls.add(url);
+}
+
+/// Returns true if this URL previously failed (404 etc.) so callers can show placeholder without loading.
+bool isKnownFailedImageUrl(String url) => url.isNotEmpty && _failedImageUrls.contains(url);
+
+bool _knownFailedUrlsInitialized = false;
+void _ensureKnownFailedUrls() {
+  if (_knownFailedUrlsInitialized) return;
+  _knownFailedUrlsInitialized = true;
+  // Pre-add URLs that are known to 404 so we never request them (stops repeated exceptions).
+  const known404 = [
+    'http://13.233.133.213:3000/uploads/1770583615597-944127833.jpg',
+  ];
+  for (final u in known404) {
+    _failedImageUrls.add(u);
+  }
+}
 
 /// Shows full image with correct aspect ratio (portrait or landscape). No cropping.
 class FullAspectNetworkImage extends StatefulWidget {
@@ -29,7 +47,10 @@ class _FullAspectNetworkImageState extends State<FullAspectNetworkImage> {
   @override
   void initState() {
     super.initState();
-    if (_failedImageUrls.contains(widget.url)) {
+    _ensureKnownFailedUrls();
+    if (widget.url.isEmpty ||
+        (!widget.url.startsWith('http://') && !widget.url.startsWith('https://')) ||
+        _failedImageUrls.contains(widget.url)) {
       _failed = true;
       return;
     }
@@ -70,7 +91,9 @@ class _FullAspectNetworkImageState extends State<FullAspectNetworkImage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_failed || _failedImageUrls.contains(widget.url)) {
+    final urlInvalid = widget.url.isEmpty ||
+        (!widget.url.startsWith('http://') && !widget.url.startsWith('https://'));
+    if (urlInvalid || _failed || _failedImageUrls.contains(widget.url)) {
       return Container(
         width: double.infinity,
         height: 200,
@@ -95,7 +118,7 @@ class _FullAspectNetworkImageState extends State<FullAspectNetworkImage> {
             width: width,
             height: height,
             errorBuilder: (_, __, ___) {
-              _failedImageUrls.add(widget.url);
+              markImageUrlFailed(widget.url);
               return Container(
                 width: width,
                 height: height,
@@ -114,7 +137,7 @@ bool isNetworkUrl(String url) {
   return url.startsWith("http://") || url.startsWith("https://");
 }
 
-/// Network image that shows placeholder for known-failed URLs (stops repeated 404 exceptions).
+/// Network image that shows placeholder for known-failed or invalid URLs.
 Widget safeNetworkImage({
   required String url,
   BoxFit fit = BoxFit.cover,
@@ -122,6 +145,15 @@ Widget safeNetworkImage({
   double? height,
   Widget Function(BuildContext, Object?, StackTrace?)? errorBuilder,
 }) {
+  _ensureKnownFailedUrls();
+  if (url.isEmpty || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+    return Container(
+      width: width,
+      height: height ?? 200,
+      color: Colors.grey[300],
+      child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
+    );
+  }
   if (_failedImageUrls.contains(url)) {
     return Container(
       width: width,

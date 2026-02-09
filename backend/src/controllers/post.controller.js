@@ -77,7 +77,7 @@ export const getPost = async (req, res, next) => {
 
     const post = await Post.findById(id)
       .populate('uid', 'uid username name avatar verified')
-      .populate('originalPostId', 'uid username type text media createdAt');
+      .populate('originalPostId', 'uid username type text media createdAt repostsCount');
 
     if (!post || post.isDeleted) {
       return res.status(404).json({
@@ -362,6 +362,11 @@ export const repost = async (req, res, next) => {
     originalPost.repostsCount += 1;
     await originalPost.save();
 
+    // Update user's post count (repost appears on profile)
+    await User.findByIdAndUpdate(userId, {
+      $inc: { postsCount: 1 },
+    });
+
     res.status(201).json({
       success: true,
       message: 'Post reposted successfully',
@@ -412,6 +417,11 @@ export const unrepost = async (req, res, next) => {
 
     originalPost.repostsCount = Math.max(0, originalPost.repostsCount - 1);
     await originalPost.save();
+
+    // Decrement user's post count (repost no longer on profile)
+    await User.findByIdAndUpdate(userId, {
+      $inc: { postsCount: -1 },
+    });
 
     res.json({
       success: true,

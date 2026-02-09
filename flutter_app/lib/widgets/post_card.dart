@@ -47,6 +47,8 @@ class PostCard extends StatefulWidget {
   final VoidCallback? onTap;
   /// Called after this post is successfully deleted (e.g. to refresh list or pop screen).
   final VoidCallback? onPostDeleted;
+  /// Called after user successfully undoes a repost (e.g. remove from profile Reposted tab).
+  final VoidCallback? onUndoRepostSuccess;
   /// Initial saved state (e.g. true when showing in profile Saved tab).
   final bool? initialIsSaved;
   /// Called when user toggles save/unsave (e.g. to refresh saved list).
@@ -57,6 +59,7 @@ class PostCard extends StatefulWidget {
     required this.post,
     this.onTap,
     this.onPostDeleted,
+    this.onUndoRepostSuccess,
     this.initialIsSaved,
     this.onSavedChanged,
   });
@@ -165,6 +168,7 @@ class _PostCardState extends State<PostCard>
         _repostsCount = (_repostsCount - 1).clamp(0, _repostsCount);
         _hasReposted = false;
       });
+      widget.onUndoRepostSuccess?.call();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Repost removed')),
       );
@@ -202,6 +206,9 @@ class _PostCardState extends State<PostCard>
   Widget build(BuildContext context) {
     final Post post = widget.post;
     final Post? embeddedOriginal = post.quotedPost ?? post.originalPost;
+    final bool isRepost = post.type == 'repost' && embeddedOriginal != null;
+    final bool isOwnRepost = isRepost &&
+        (context.read<AuthProvider>().user?.uid == post.repostedByUid);
 
     const horizontalPadding = 14.0;
 
@@ -221,40 +228,67 @@ class _PostCardState extends State<PostCard>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _Header(post: post, onPostDeleted: widget.onPostDeleted),
-                  if (post.text.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                          color: Colors.black87,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        children: _buildTextSpansWithHashtags(post.text),
-                      ),
-                    ),
-                  ],
-                  if (post.isQuote && embeddedOriginal != null) ...[
-                    const SizedBox(height: 12),
-                    QuotePostEmbed(
-                      originalPost: embeddedOriginal,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PostDetailScreen(post: embeddedOriginal),
+                  _Header(
+                    post: post,
+                    onPostDeleted: widget.onPostDeleted,
+                    displayPost: isRepost ? embeddedOriginal : null,
+                    isOwnRepost: isRepost ? isOwnRepost : null,
+                  ),
+                  if (isRepost) ...[
+                    if (embeddedOriginal.text.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
                           ),
-                        );
-                      },
-                    ),
+                          children: _buildTextSpansWithHashtags(embeddedOriginal.text),
+                        ),
+                      ),
+                    ],
+                  ] else ...[
+                    if (post.text.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          children: _buildTextSpansWithHashtags(post.text),
+                        ),
+                      ),
+                    ],
+                    if (post.isQuote && embeddedOriginal != null) ...[
+                      const SizedBox(height: 12),
+                      QuotePostEmbed(
+                        originalPost: embeddedOriginal,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PostDetailScreen(post: embeddedOriginal),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 ],
               ),
             ),
-            if (post.media.isNotEmpty) ...[
+            if (isRepost && embeddedOriginal.media.isNotEmpty) ...[
               const SizedBox(height: 12),
-              // Full-bleed: no side padding so image covers full width
+              SizedBox(
+                width: double.infinity,
+                child: _buildPostMedia(embeddedOriginal.media.first),
+              ),
+            ],
+            if (!isRepost && post.media.isNotEmpty) ...[
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: _buildPostMedia(post.media.first),
@@ -268,7 +302,7 @@ class _PostCardState extends State<PostCard>
                     isLikedOverride: _isLiked,
                     likesCountOverride: _likesCount,
                     commentsCountOverride: _commentsCount,
-                    repostsCountOverride: _repostsCount,
+                    repostsCountOverride: isRepost ? embeddedOriginal.repostsCount : _repostsCount,
                     hasRepostedOverride: _hasReposted,
                     isSavedOverride: _isSaved,
                     onSaveTap: _handleSaveToggle,
@@ -298,7 +332,16 @@ class _PostCardState extends State<PostCard>
 class _Header extends StatelessWidget {
   final Post post;
   final VoidCallback? onPostDeleted;
-  const _Header({required this.post, this.onPostDeleted});
+  /// When set (e.g. for reposts), show this post's author/avatar/time instead of [post].
+  final Post? displayPost;
+  /// When true, show "You reposted" instead of "X reposted".
+  final bool? isOwnRepost;
+  const _Header({
+    required this.post,
+    this.onPostDeleted,
+    this.displayPost,
+    this.isOwnRepost,
+  });
 
   Widget _buildAvatar(String? avatarUrl) {
     final url = avatarUrl != null && avatarUrl.isNotEmpty
@@ -327,15 +370,15 @@ class _Header extends StatelessWidget {
     );
   }
 
-  void _openUserProfile(BuildContext context) {
+  void _openUserProfile(BuildContext context, Post targetPost) {
     final user = User(
-      uid: post.uid,
-      username: post.username,
+      uid: targetPost.uid,
+      username: targetPost.username,
       email: '',
-      name: post.userName ?? post.username,
-      avatar: post.userAvatar,
+      name: targetPost.userName ?? targetPost.username,
+      avatar: targetPost.userAvatar,
       profileCompleted: true,
-      verified: post.userVerified ?? false,
+      verified: targetPost.userVerified ?? false,
     );
     Navigator.push(
       context,
@@ -347,61 +390,67 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showRepostLabel = post.repostedByName != null || isOwnRepost == true;
+    final repostLabel = isOwnRepost == true
+        ? 'You reposted'
+        : (post.repostedByName != null ? '${post.repostedByName} reposted' : null);
+    final author = displayPost ?? post;
+
     return Row(
       children: [
         Expanded(
           child: GestureDetector(
-            onTap: () => _openUserProfile(context),
+            onTap: () => _openUserProfile(context, author),
             behavior: HitTestBehavior.opaque,
             child: Row(
               children: [
-                _buildAvatar(post.userAvatar),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-               if (post.repostedByName != null)
-  Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Text(
-      '${post.repostedByName} reposted',
-      style: const TextStyle(
-        color: Colors.black54,
-        fontSize: 11,
-        fontWeight: FontWeight.w500,
-      ),
-    ),
-  ),
-              Row(
-                children: [
-                  Text(
-                    post.userName ?? post.username,
-                    style: const TextStyle(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w800,
-                    ),
+                _buildAvatar(author.userAvatar),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (showRepostLabel && repostLabel != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            repostLabel,
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      Row(
+                        children: [
+                          Text(
+                            author.userName ?? author.username,
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '• ${TimeFormatter.format(author.createdAt)}',
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '@${author.username}',
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '• ${TimeFormatter.format(post.createdAt)}',
-                    style: const TextStyle(
-                      color: Colors.black54,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                '@${post.username}',
-                style: const TextStyle(
-                  color: Colors.black54,
-                  fontSize: 12,
                 ),
-              ),
-            ],
-          ),
-        ),
               ],
             ),
           ),
@@ -474,8 +523,17 @@ class _Actions extends StatelessWidget {
   bool get _isLiked => isLikedOverride ?? post.isLiked;
   int get _likesCount => likesCountOverride ?? post.likesCount;
 
+  bool _isRepostedByMe(BuildContext context) {
+    if (hasRepostedOverride == true) return true;
+    if (post.repostedByUid != null && post.repostedByUid!.isNotEmpty) return true;
+    final myUid = context.read<AuthProvider>().user?.uid;
+    if (myUid != null && post.type == 'repost' && post.uid == myUid) return true;
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isRepostedByMe = _isRepostedByMe(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -502,11 +560,11 @@ class _Actions extends StatelessWidget {
         _IconAction(
           icon: Icons.repeat,
           label: (repostsCountOverride ?? post.repostsCount).toString(),
-          color: Colors.black87,
+          color: isRepostedByMe ? Colors.green : Colors.black87,
           onTap: () {
     RepostBottomSheet.show(
       context: context,
-      alreadyReposted: hasRepostedOverride ?? post.repostedByUid != null,
+      alreadyReposted: isRepostedByMe,
       onRepost: onRepost ?? () async {},
       onUndo: onUndoRepost ?? () async {},
       onQuote: () {
@@ -691,7 +749,9 @@ class _IconAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconWidget = Icon(icon, color: color ?? Colors.black87, size: 20);
+    final iconColor = color ?? Colors.black87;
+    final iconWidget = Icon(icon, color: iconColor, size: 20);
+    final labelColor = color ?? Colors.black54;
 
     return GestureDetector(
       onTap: onTap,
@@ -704,7 +764,7 @@ class _IconAction extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(color: Colors.black54, fontSize: 12),
+              style: TextStyle(color: labelColor, fontSize: 12),
             ),
           ]
         ],

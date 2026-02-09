@@ -850,6 +850,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildRepostedTabContent() {
     final list = _repostedPosts;
+    void onRepostUndone() {
+      if (mounted) _loadUserPosts();
+    }
     if (list.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
@@ -909,6 +912,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   builder: (_) => PostDetailScreen(
                     posts: list,
                     initialIndex: index,
+                    onRepostUndone: onRepostUndone,
                   ),
                 ),
               );
@@ -1211,6 +1215,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   builder: (_) => PostDetailScreen(
                     posts: list,
                     initialIndex: index,
+                    onRepostUndone: _loadUserPosts,
                   ),
                 ),
               );
