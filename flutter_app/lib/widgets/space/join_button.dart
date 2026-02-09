@@ -39,9 +39,15 @@ class JoinButton extends ConsumerWidget {
     }
 
     return ElevatedButton(
-      onPressed: () {
-        // ✅ Fixed: Using correct method name 'joinEvent'
-        notifier.joinEvent(event.id);
+      onPressed: () async {
+        try {
+          await notifier.joinEvent(event.id);
+        } catch (e) {
+          if (context.mounted) {
+            final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Failed to join';
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+          }
+        }
       },
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.black,

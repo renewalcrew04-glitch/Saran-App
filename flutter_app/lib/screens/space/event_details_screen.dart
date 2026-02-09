@@ -19,11 +19,27 @@ class EventDetailsScreen extends ConsumerStatefulWidget {
 class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
   late SpaceEvent event;
   bool _isJoining = false;
+  bool _isLeaving = false;
+  bool _loadingJoinState = true;
 
   @override
   void initState() {
     super.initState();
     event = widget.event;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshEventFromServer());
+  }
+
+  Future<void> _refreshEventFromServer() async {
+    final service = ref.read(spaceServiceProvider);
+    final data = await service.getEventById(event.id);
+    if (mounted && data != null) {
+      setState(() {
+        event = SpaceEvent.fromJson(data);
+        _loadingJoinState = false;
+      });
+    } else if (mounted) {
+      setState(() => _loadingJoinState = false);
+    }
   }
 
   static String _eventCoverUrl(SpaceEvent event) {
@@ -38,8 +54,8 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
     setState(() => _isJoining = true);
     try {
       final notifier = ref.read(spaceProvider.notifier);
-      await notifier.joinEvent(event.id); 
-      
+      await notifier.joinEvent(event.id);
+
       if (mounted) {
         setState(() {
           event = event.copyWith(
@@ -52,13 +68,50 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (!mounted) return;
+      final msg = e.toString();
+      if (msg.contains('Already joined') || msg.contains('already joined')) {
+        setState(() {
+          event = event.copyWith(isJoined: true);
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to join: $e")),
+          const SnackBar(content: Text("You're already in this event.")),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to join: ${msg.replaceFirst('Exception: ', '')}")),
         );
       }
     } finally {
       if (mounted) setState(() => _isJoining = false);
+    }
+  }
+
+  Future<void> _leaveEvent() async {
+    setState(() => _isLeaving = true);
+    try {
+      final notifier = ref.read(spaceProvider.notifier);
+      await notifier.leaveEvent(event.id);
+      if (mounted) {
+        setState(() {
+          event = event.copyWith(
+            isJoined: false,
+            attendeesCount: (event.attendeesCount - 1).clamp(0, event.attendeesCount),
+          );
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("You have left this event.")),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString().replaceFirst('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to leave: $msg")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLeaving = false);
     }
   }
 
@@ -104,20 +157,40 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      event.category.toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          event.category.toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: event.isOnline ? Colors.green.shade700 : Colors.grey.shade700,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          event.isOnline ? 'ONLINE' : 'OFFLINE',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -158,9 +231,37 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                   const SizedBox(height: 24),
                   _infoRow(Icons.calendar_today, dateStr),
                   const SizedBox(height: 16),
-                  _infoRow(Icons.location_on, event.location),
+                  if (event.isOnline && event.meetingLink != null && event.meetingLink!.isNotEmpty) ...[
+                    _infoRow(Icons.link, 'Online – Joining link below'),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 34),
+                      child: SelectableText(
+                        event.meetingLink!,
+                        style: const TextStyle(fontSize: 14, color: Colors.blue, decoration: TextDecoration.underline),
+                      ),
+                    ),
+                  ] else
+                    _infoRow(Icons.location_on, event.location.isNotEmpty ? event.location : 'Address TBA'),
                   const SizedBox(height: 16),
                   _infoRow(Icons.people, "${event.attendeesCount} / ${event.capacity} Attending"),
+                  if (event.isJoined) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green.shade700, size: 22),
+                        const SizedBox(width: 12),
+                        Text(
+                          "You joined • ${event.attendeesCount}/${event.capacity} going",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   _infoRow(Icons.attach_money, event.price == 0 ? "Free Event" : "₹${event.price}"),
                   const SizedBox(height: 32),
@@ -185,22 +286,24 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: ElevatedButton(
-            onPressed: (event.isJoined || _isJoining) ? null : _joinEvent,
+            onPressed: _loadingJoinState || _isJoining || _isLeaving
+                ? null
+                : (event.isJoined ? _leaveEvent : _joinEvent),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
+              backgroundColor: event.isJoined ? Colors.red.shade600 : Colors.black,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 18),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               disabledBackgroundColor: Colors.grey[300],
             ),
-            child: _isJoining
+            child: _isJoining || _isLeaving || _loadingJoinState
                 ? const SizedBox(
                     height: 20,
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
                 : Text(
-                    event.isJoined ? "Already Joined" : "Join Event",
+                    event.isJoined ? "Leave" : "Join Event",
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
           ),

@@ -18,6 +18,7 @@ import 'package:saran_app/screens/post/edit_post_screen.dart';
 
 import 'package:saran_app/screens/profile/liked_posts_screen.dart';
 import 'package:saran_app/features/sframe/screens/sframe_create_screen.dart';
+import 'package:saran_app/features/sframe/models/sframe_model.dart';
 import 'package:saran_app/features/sframe/screens/sframe_viewer_screen.dart';
 import 'package:saran_app/widgets/main_navigation.dart';
 
@@ -212,22 +213,28 @@ class AppRouter {
         path: '/sframe-viewer',
         builder: (context, state) {
           final extra = state.extra;
-          
-          if (extra == null ||
-          extra is! Map<String, dynamic> ||
-          extra['frames'] == null ||
-          extra['startIndex'] == null) {
-            return const _RouterErrorScreen(
-               message: "S-Frame data missing. Please reopen S-Frames.",
-               );
-               }
-               
-               return SFrameViewerScreen(
-          frames: extra['frames'],
-          startIndex: extra['startIndex'],
-        );
-  },
-),
+          if (extra == null || extra is! Map<String, dynamic> || extra['frames'] == null || extra['startIndex'] == null) {
+            return const _RouterErrorScreen(message: "S-Frame data missing. Please reopen S-Frames.");
+          }
+          final rawFrames = extra['frames'];
+          final startIndex = (extra['startIndex'] is int) ? extra['startIndex'] as int : 0;
+          List<SFrame> frames = [];
+          if (rawFrames is List) {
+            for (final e in rawFrames) {
+              if (e is SFrame) {
+                frames.add(e);
+              } else if (e is Map) {
+                frames.add(SFrame.fromJson(Map<String, dynamic>.from(e)));
+              }
+            }
+          }
+          if (frames.isEmpty) {
+            return const _RouterErrorScreen(message: "No S-Frames to show.");
+          }
+          final safeIndex = startIndex.clamp(0, frames.length - 1);
+          return SFrameViewerScreen(frames: frames, startIndex: safeIndex);
+        },
+      ),
       // =========================
       // POSTS
       // =========================

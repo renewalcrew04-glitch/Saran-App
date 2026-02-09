@@ -79,14 +79,52 @@ class SpaceService {
     }
   }
 
-  Future<bool> joinEvent(String eventId) async {
+  /// Joins the event. Throws on failure (e.g. not found, already joined, auth).
+  Future<void> joinEvent(String eventId) async {
+    final options = await _getAuthOptions();
     try {
-      final options = await _getAuthOptions();
-      await _dio.post('/space/events/$eventId/join', options: options);
-      return true;
-    } catch (e) {
-      return false;
+      final response = await _dio.post(
+        '/space/events/$eventId/join',
+        options: options,
+      );
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
+        return;
+      }
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map &&
+              (e.response!.data as Map).containsKey('message')
+          ? (e.response!.data as Map)['message'].toString()
+          : (e.response?.statusMessage ?? e.message ?? 'Failed to join');
+      debugPrint('Join event error: $msg');
+      throw Exception(msg);
     }
+    throw Exception('Failed to join event');
+  }
+
+  /// Leaves the event. Throws on failure (e.g. not joined, auth).
+  Future<void> leaveEvent(String eventId) async {
+    final options = await _getAuthOptions();
+    try {
+      final response = await _dio.post(
+        '/space/events/$eventId/leave',
+        options: options,
+      );
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
+        return;
+      }
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map &&
+              (e.response!.data as Map).containsKey('message')
+          ? (e.response!.data as Map)['message'].toString()
+          : (e.response?.statusMessage ?? e.message ?? 'Failed to leave');
+      debugPrint('Leave event error: $msg');
+      throw Exception(msg);
+    }
+    throw Exception('Failed to leave event');
   }
 
   Future<bool> createEvent(Map<String, dynamic> eventData) async {

@@ -12,7 +12,35 @@ import 'repost_bottom_sheet.dart';
 import '../screens/post/post_analytics_screen.dart';
 import '../screens/profile/user_profile_screen.dart';
 import '../screens/comments/comments_screen.dart';
+import '../screens/post/post_detail_screen.dart';
 import '../widgets/quote_post_embed.dart';
+
+List<TextSpan> _buildTextSpansWithHashtags(String text) {
+  if (text.isEmpty) return [];
+  final regex = RegExp(r'(#\w+)');
+  final spans = <TextSpan>[];
+  int lastEnd = 0;
+  for (final match in regex.allMatches(text)) {
+    if (match.start > lastEnd) {
+      spans.add(TextSpan(
+        text: text.substring(lastEnd, match.start),
+        style: const TextStyle(color: Colors.black87, fontSize: 15, fontWeight: FontWeight.w500),
+      ));
+    }
+    spans.add(TextSpan(
+      text: match.group(0),
+      style: const TextStyle(color: Colors.blue, fontSize: 15, fontWeight: FontWeight.w600),
+    ));
+    lastEnd = match.end;
+  }
+  if (lastEnd < text.length) {
+    spans.add(TextSpan(
+      text: text.substring(lastEnd),
+      style: const TextStyle(color: Colors.black87, fontSize: 15, fontWeight: FontWeight.w500),
+    ));
+  }
+  return spans;
+}
 
 class PostCard extends StatefulWidget {
   final Post post;
@@ -198,26 +226,12 @@ class _PostCardState extends State<PostCard>
                     const SizedBox(height: 10),
                     RichText(
                       text: TextSpan(
-                        children: post.text.split(' ').map((word) {
-                          if (word.startsWith('#')) {
-                            return TextSpan(
-                              text: '$word ',
-                              style: const TextStyle(
-                                color: Colors.blue,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                              ),
-                            );
-                          }
-                          return TextSpan(
-                            text: '$word ',
-                            style: const TextStyle(
-                              color: Colors.black87,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          );
-                        }).toList(),
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        children: _buildTextSpansWithHashtags(post.text),
                       ),
                     ),
                   ],
@@ -229,9 +243,7 @@ class _PostCardState extends State<PostCard>
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => CommentsScreen(
-                              postId: embeddedOriginal.id,
-                            ),
+                            builder: (_) => PostDetailScreen(post: embeddedOriginal),
                           ),
                         );
                       },
@@ -470,27 +482,28 @@ class _Actions extends StatelessWidget {
         _IconAction(
           icon: _isLiked ? Icons.favorite : Icons.favorite_border,
           label: post.hideLikeCount ? "" : _likesCount.toString(),
-          color: _isLiked ? Colors.red : Colors.black54,
+          color: _isLiked ? Colors.red : Colors.black87,
           onTap: onLikeTap ?? () => likeController.forward(from: 0.9),
           scale: likeController,
         ),
         _IconAction(
-  icon: Icons.mode_comment_outlined,
-  label: (commentsCountOverride ?? post.commentsCount).toString(),
-  onTap: onCommentsTap ?? () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CommentsScreen(postId: post.id),
-      ),
-    );
-  },
-),
+          icon: Icons.mode_comment_outlined,
+          label: (commentsCountOverride ?? post.commentsCount).toString(),
+          color: Colors.black87,
+          onTap: onCommentsTap ?? () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CommentsScreen(postId: post.id),
+              ),
+            );
+          },
+        ),
         _IconAction(
-  icon: Icons.repeat,
-  label: (repostsCountOverride ?? post.repostsCount).toString(),
-  color: (hasRepostedOverride ?? post.repostedByUid != null) ? Colors.green : Colors.black54,
-  onTap: () {
+          icon: Icons.repeat,
+          label: (repostsCountOverride ?? post.repostsCount).toString(),
+          color: Colors.black87,
+          onTap: () {
     RepostBottomSheet.show(
       context: context,
       alreadyReposted: hasRepostedOverride ?? post.repostedByUid != null,
@@ -505,11 +518,12 @@ class _Actions extends StatelessWidget {
         _IconAction(
           icon: Icons.share_outlined,
           label: '',
+          color: Colors.black87,
         ),
         _IconAction(
           icon: (isSavedOverride ?? false) ? Icons.bookmark : Icons.bookmark_border,
           label: '',
-          color: (isSavedOverride ?? false) ? Colors.black87 : Colors.black54,
+          color: Colors.black87,
           onTap: onSaveTap ?? () {},
         ),
       ],

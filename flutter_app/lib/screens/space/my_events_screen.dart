@@ -77,7 +77,7 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen> with SingleTick
               dividerColor: Colors.transparent,
               tabs: [
                 Tab(text: "Hosted (${_hostedEvents.length})"),
-                Tab(text: "Booked (${_bookedEvents.length})"),
+                Tab(text: "Joined (${_bookedEvents.length})"),
               ],
             ),
           ),
@@ -108,7 +108,7 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen> with SingleTick
             Icon(Icons.event_busy, size: 64, color: Colors.grey[200]),
             const SizedBox(height: 16),
             Text(
-              isHosted ? "You haven't posted any events." : "You haven't booked any events.",
+              isHosted ? "You haven't posted any events." : "You haven't joined any events.",
               style: TextStyle(color: Colors.grey[500]),
             ),
           ],
@@ -240,11 +240,21 @@ class _MyEventCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.people_outline, size: 14, color: Colors.grey),
+                        Icon(
+                          isHosted ? Icons.people_outline : Icons.check_circle,
+                          size: 14,
+                          color: isHosted ? Colors.grey : Colors.black87,
+                        ),
                         const SizedBox(width: 4),
                         Text(
-                          "${event.attendeesCount}/${event.capacity} booked",
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          isHosted
+                              ? "${event.attendeesCount}/${event.capacity} joined"
+                              : "You joined • ${event.attendeesCount}/${event.capacity} going",
+                          style: TextStyle(
+                            color: isHosted ? Colors.grey[600] : Colors.black87,
+                            fontSize: 12,
+                            fontWeight: isHosted ? FontWeight.w500 : FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),

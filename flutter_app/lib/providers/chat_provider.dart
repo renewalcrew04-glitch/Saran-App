@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../models/message_model.dart';
@@ -122,6 +123,31 @@ class ChatProvider extends ChangeNotifier {
       receiverUid: receiverUid,
       type: 'voice',
       voiceUrl: voiceUrl,
+    );
+    await _load(token: token, conversationId: conversationId, silent: true);
+  }
+
+  Future<void> sendProfile({
+    required String token,
+    required String conversationId,
+    required String receiverUid,
+    required String uid,
+    required String username,
+    required String name,
+    String? avatar,
+  }) async {
+    final profileJson = jsonEncode({
+      'uid': uid,
+      'username': username,
+      'name': name,
+      'avatar': avatar,
+    });
+    await _service.sendMessage(
+      token: token,
+      conversationId: conversationId,
+      receiverUid: receiverUid,
+      type: 'profile',
+      text: profileJson,
     );
     await _load(token: token, conversationId: conversationId, silent: true);
   }

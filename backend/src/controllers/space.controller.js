@@ -47,7 +47,7 @@ export const getEvents = async (req, res) => {
       { $sort: { _id: -1 } },
       { $limit: Number(limit) + 1 }, // Fetch 1 extra to check if more exist
 
-      // Lookup to see if current user has booked this event
+      // Lookup to see if current user has booked this event (uid in EventBooking is string)
       {
         $lookup: {
           from: "eventbookings",
@@ -58,7 +58,7 @@ export const getEvents = async (req, res) => {
                 $expr: {
                   $and: [
                     { $eq: ["$eventId", "$$eventId"] },
-                    { $eq: ["$uid", req.user._id] }, // Check against MY user ID
+                    { $eq: ["$uid", req.user._id.toString()] },
                   ],
                 },
               },
@@ -102,10 +102,10 @@ export const getEventById = async (req, res) => {
       return res.status(404).json({ message: "Event not found" });
     }
 
-    // Check if I joined
-    const booking = await EventBooking.findOne({ 
-      eventId: id, 
-      uid: req.user._id 
+    // Check if I joined (uid stored as string in EventBooking)
+    const booking = await EventBooking.findOne({
+      eventId: id,
+      uid: req.user._id.toString(),
     });
 
     // Return event with joined status
@@ -123,26 +123,49 @@ export const getEventById = async (req, res) => {
 export const joinEvent = async (req, res) => {
   const { id } = req.params;
   const uid = req.user._id;
+  const uidStr = uid.toString();
 
   try {
     const event = await Event.findById(id);
     if (!event) return res.status(404).json({ message: "Event not found" });
 
-    // Check if already joined
-    const exists = await EventBooking.findOne({ eventId: id, uid });
+    // Check if already joined (EventBooking.uid is stored as string)
+    const exists = await EventBooking.findOne({ eventId: id, uid: uidStr });
     if (exists) {
       return res.status(400).json({ message: "Already joined" });
     }
 
-    // Create Booking
-    await EventBooking.create({ eventId: id, uid });
-    
+    // Create Booking (uid as string to match schema and lookups)
+    await EventBooking.create({ eventId: id, uid: uidStr });
+
     // Increment Count
     await Event.findByIdAndUpdate(id, { $inc: { attendeesCount: 1 } });
 
     res.json({ success: true });
   } catch (error) {
     console.error("Join Event Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/* ================= LEAVE EVENT ================= */
+export const leaveEvent = async (req, res) => {
+  const { id } = req.params;
+  const uidStr = req.user._id.toString();
+
+  try {
+    const event = await Event.findById(id);
+    if (!event) return res.status(404).json({ message: "Event not found" });
+
+    const booking = await EventBooking.findOneAndDelete({ eventId: id, uid: uidStr });
+    if (!booking) {
+      return res.status(400).json({ message: "Not joined" });
+    }
+
+    await Event.findByIdAndUpdate(id, { $inc: { attendeesCount: -1 } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Leave Event Error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -200,9 +223,9 @@ export const getHostedEvents = async (req, res) => {
 /* ================= GET BOOKED EVENTS (My Events Tab 2) ================= */
 export const getBookedEvents = async (req, res) => {
   try {
-    const uid = req.user._id;
-    // Find bookings for ME, populate the Event details
-    const bookings = await EventBooking.find({ uid }).populate("eventId").lean();
+    const uidStr = req.user._id.toString();
+    // Find bookings for ME, populate the Event details (uid in EventBooking is string)
+    const bookings = await EventBooking.find({ uid: uidStr }).populate("eventId").lean();
     
     // Filter out any where event was deleted (null); add joinedByMe: true so UI shows "Already Joined"
     const events = bookings

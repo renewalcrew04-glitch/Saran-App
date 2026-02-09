@@ -43,18 +43,27 @@ class SpaceEventsNotifier extends StateNotifier<List<SpaceEvent>> {
     hasMore = true;
   }
 
-  // ✅ Method called by JoinButton and EventDetailsScreen
+  // ✅ Method called by JoinButton and EventDetailsScreen; throws on API failure
   Future<void> joinEvent(String eventId) async {
-    final success = await _service.joinEvent(eventId);
-    if (success) {
-      state = [
-        for (final event in state)
-          if (event.id == eventId)
-            event.copyWith(isJoined: true, attendeesCount: event.attendeesCount + 1)
-          else
-            event
-      ];
-    }
+    await _service.joinEvent(eventId);
+    state = [
+      for (final event in state)
+        if (event.id == eventId)
+          event.copyWith(isJoined: true, attendeesCount: event.attendeesCount + 1)
+        else
+          event
+    ];
+  }
+
+  Future<void> leaveEvent(String eventId) async {
+    await _service.leaveEvent(eventId);
+    state = [
+      for (final event in state)
+        if (event.id == eventId)
+          event.copyWith(isJoined: false, attendeesCount: (event.attendeesCount - 1).clamp(0, event.attendeesCount))
+        else
+          event
+    ];
   }
 }
 

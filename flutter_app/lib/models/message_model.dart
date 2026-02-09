@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class MessageModel {
   final String id;
   final String senderUid;
@@ -60,4 +62,16 @@ class MessageModel {
   bool get isText => type == 'text';
   bool get isImage => type == 'image';
   bool get isVoice => type == 'voice';
+  bool get isProfile => type == 'profile';
+
+  /// When type is profile, text is JSON: { uid, username, name, avatar? }.
+  Map<String, dynamic>? get profilePayload {
+    if (type != 'profile' || text == null || text!.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(text!) as Map<String, dynamic>?;
+      return decoded;
+    } catch (_) {
+      return null;
+    }
+  }
 }

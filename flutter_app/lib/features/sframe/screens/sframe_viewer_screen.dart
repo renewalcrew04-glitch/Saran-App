@@ -98,7 +98,8 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
       final progress = duration.inMilliseconds > 0
           ? (elapsed.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
           : 1.0;
-      if (mounted) setState(() => _currentProgress = progress);
+      if (!mounted) return;
+      setState(() => _currentProgress = progress);
     });
   }
 
@@ -117,6 +118,7 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
 
   void _next() {
     _progressTimer?.cancel();
+    if (!mounted) return;
     if (index < widget.frames.length - 1) {
       setState(() {
         index++;
@@ -128,7 +130,9 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
       _startTimer();
       _startProgressUpdates();
     } else {
-      Navigator.pop(context);
+      timer?.cancel();
+      _progressTimer?.cancel();
+      if (mounted) Navigator.pop(context);
     }
   }
 
@@ -274,6 +278,17 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (index < 0 || index >= widget.frames.length) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: Colors.white)),
+          ),
+        ),
+      );
+    }
     final frame = widget.frames[index];
     final auth = context.watch<AuthProvider>();
     final currentUid = auth.user?.uid ?? '';
@@ -497,54 +512,60 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
               ),
             ),
 
-            // ================= ECHOS (likes) + VIEWS – only for story owner =================
+            // ================= ECHOS (heart) – only for viewers (not own story); above reply box =================
+            if (!isOwnStory)
+              Positioned(
+                bottom: 88,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        // TODO: call API to send echo/like when backend supports it
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Echo sent'), duration: Duration(seconds: 1)),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(24),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white24, width: 1),
+                        ),
+                        child: const Icon(Icons.favorite_border, color: Colors.white, size: 28),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // ================= VIEWS (who viewed) – only for story owner =================
             if (isOwnStory)
               Positioned(
-                bottom: 90,
+                bottom: 88,
                 right: 16,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Echos (likes) – tap to see who liked
-                    Padding(
-                      padding: const EdgeInsets.only(right: 16),
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _showLikedModal(context),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.favorite_border, color: Colors.white, size: 22),
-                            const SizedBox(width: 4),
-                            Text(
-                              '0',
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
-                            ),
-                          ],
-                        ),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () async {
+                    final users = await SFrameService.getSeenUsers(frame.id);
+                    if (!context.mounted) return;
+                    showSeenModal(context, users);
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.remove_red_eye, color: Colors.white, size: 22),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${frame.viewCount}',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
                       ),
-                    ),
-                    // View count + eye – tap to see who viewed
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () async {
-                        final users = await SFrameService.getSeenUsers(frame.id);
-                        if (!context.mounted) return;
-                        showSeenModal(context, users);
-                      },
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.remove_red_eye, color: Colors.white, size: 22),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${frame.viewCount}',
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 

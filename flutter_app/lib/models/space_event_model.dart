@@ -10,8 +10,9 @@ class SpaceEvent {
   final String? hostAvatar;
   final int attendeesCount;
   final bool isJoined;
-  
-  // ✅ Added these to fix UI errors
+  final bool isOnline;
+  final String? meetingLink;
+
   final int price;
   final int capacity;
   final String? coverUrl;
@@ -29,8 +30,10 @@ class SpaceEvent {
     this.hostAvatar,
     this.attendeesCount = 0,
     this.isJoined = false,
-    this.price = 0,      // Default to 0 (Free)
-    this.capacity = 100, // Default capacity
+    this.isOnline = false,
+    this.meetingLink,
+    this.price = 0,
+    this.capacity = 100,
     this.coverUrl,
     this.updatedAt,
   });
@@ -49,11 +52,12 @@ class SpaceEvent {
       date: json['startDate'] != null 
           ? DateTime.parse(json['startDate']) 
           : DateTime.now(),
-      // Handle Location Object vs String
-      location: json['location'] is Map 
-          ? (json['location']['address'] ?? 'Online') 
-          : 'Online',
+      location: json['location'] is Map
+          ? (json['location']['address'] ?? json['location']?.toString() ?? '')
+          : (json['location']?.toString() ?? ''),
       hostId: json['uid'] is Map ? json['uid']['_id'] : (json['uid'] ?? ''),
+      isOnline: json['isOnline'] == true,
+      meetingLink: json['meetingLink']?.toString(),
       hostName: json['uid'] is Map ? json['uid']['name'] : null,
       hostAvatar: json['uid'] is Map ? json['uid']['photoURL'] : null,
       attendeesCount: json['attendeesCount'] ?? 0,
@@ -82,6 +86,8 @@ class SpaceEvent {
       hostAvatar: hostAvatar,
       attendeesCount: attendeesCount ?? this.attendeesCount,
       isJoined: isJoined ?? this.isJoined,
+      isOnline: isOnline,
+      meetingLink: meetingLink,
       price: price,
       capacity: capacity,
       coverUrl: coverUrl,

@@ -89,6 +89,22 @@ class SpaceEventCard extends StatelessWidget {
                               letterSpacing: 0.5,
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: event.isOnline ? Colors.green.shade700 : Colors.grey.shade600,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              event.isOnline ? 'Online' : 'Offline',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
                           if (isJoined) ...[
                             const SizedBox(width: 8),
                             Container(
@@ -136,11 +152,17 @@ class SpaceEventCard extends StatelessWidget {
                   
                   Row(
                     children: [
-                      Icon(Icons.location_on, size: 14, color: Colors.grey.shade500),
+                      Icon(
+                        event.isOnline ? Icons.link : Icons.location_on,
+                        size: 14,
+                        color: Colors.grey.shade500,
+                      ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          event.location,
+                          event.isOnline
+                              ? (event.meetingLink != null && event.meetingLink!.isNotEmpty ? 'Online event' : 'Online')
+                              : (event.location.isNotEmpty ? event.location : 'Offline – Address TBA'),
                           style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -164,7 +186,9 @@ class SpaceEventCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            isJoined ? 'You joined • ${event.joined} going' : '${event.joined} joined',
+                            isJoined
+                                ? 'You joined • ${event.attendeesCount}/${event.capacity} going'
+                                : '${event.attendeesCount}/${event.capacity} joined',
                             style: TextStyle(
                               color: isJoined ? Colors.black87 : Colors.grey.shade700,
                               fontSize: 12,

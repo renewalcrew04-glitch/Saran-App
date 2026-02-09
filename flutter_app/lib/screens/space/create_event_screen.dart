@@ -27,6 +27,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   final _locationController = TextEditingController();
+  final _meetingLinkController = TextEditingController();
   final _priceController = TextEditingController(text: '0');
   final _capacityController = TextEditingController(text: '50');
   final _instructionsController = TextEditingController();
@@ -43,6 +44,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _startTime = const TimeOfDay(hour: 18, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 20, minute: 0);
+  bool _isOnline = false; // false = offline (physical address), true = online (meeting link)
   
   // ✅ FAQs List
   final List<Map<String, String>> _faqs = [];
@@ -103,6 +105,8 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
       }
     }
     _existingCoverUrl = data['coverUrl']?.toString();
+    _isOnline = data['isOnline'] == true;
+    _meetingLinkController.text = data['meetingLink']?.toString() ?? '';
     if (mounted) setState(() => _isLoadingEvent = false);
   }
 
@@ -111,6 +115,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     _titleController.dispose();
     _descController.dispose();
     _locationController.dispose();
+    _meetingLinkController.dispose();
     _priceController.dispose();
     _capacityController.dispose();
     _instructionsController.dispose();
@@ -148,6 +153,18 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_isOnline && _meetingLinkController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a meeting / joining link for online events.')),
+      );
+      return;
+    }
+    if (!_isOnline && _locationController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a physical address for offline events.')),
+      );
+      return;
+    }
     setState(() => _isLoading = true);
 
     try {
@@ -189,7 +206,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         "instructions": _instructionsController.text.trim(),
         "startDate": startDateTime.toIso8601String(),
         "endDate": endDateTime.toIso8601String(),
-        "location": _locationController.text.trim(),
+        "isOnline": _isOnline,
+        "location": _isOnline ? null : _locationController.text.trim(),
+        "meetingLink": _isOnline ? _meetingLinkController.text.trim() : null,
         "category": _selectedCategory,
         "price": int.tryParse(_priceController.text) ?? 0,
         "capacity": int.tryParse(_capacityController.text) ?? 50,
@@ -319,7 +338,28 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
               ),
               const SizedBox(height: 20),
 
-              _inputField(_descController, "Description", maxLines: 4),
+              _descriptionField(),
+              const SizedBox(height: 20),
+
+              // --- Online / Offline ---
+              _sectionHeader("Location"),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _locationTypeChip("Offline", Icons.location_on_outlined, !_isOnline),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _locationTypeChip("Online", Icons.link, _isOnline),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (_isOnline)
+                _inputField(_meetingLinkController, "Meeting / Joining link", maxLines: 1)
+              else
+                _inputField(_locationController, "Physical address", maxLines: 2),
               const SizedBox(height: 20),
 
               // --- Video Section ---
@@ -400,9 +440,6 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
               ),
 
               const SizedBox(height: 24),
-              _inputField(_locationController, "Location / Address"),
-              const SizedBox(height: 20),
-
               Row(
                 children: [
                   Expanded(child: _inputField(_priceController, "Price (₹)", isNumber: true)),
@@ -525,6 +562,57 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     );
   }
 
+  Widget _descriptionField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label("Description"),
+        TextFormField(
+          controller: _descController,
+          maxLines: 6,
+          keyboardType: TextInputType.multiline,
+          textInputAction: TextInputAction.newline,
+          validator: (val) => val == null || val.isEmpty ? "Required" : null,
+          style: const TextStyle(color: Colors.black),
+          decoration: _inputDeco(),
+        ),
+      ],
+    );
+  }
+
+  Widget _locationTypeChip(String label, IconData icon, bool selected) {
+    return GestureDetector(
+      onTap: () => setState(() => _isOnline = (label == 'Online')),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected ? Colors.black : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? Colors.black : Colors.grey.shade300,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: selected ? Colors.white : Colors.black87),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : Colors.black87,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _inputField(TextEditingController c, String label, {int maxLines = 1, bool isNumber = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,7 +621,8 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         TextFormField(
           controller: c,
           maxLines: maxLines,
-          keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+          keyboardType: isNumber ? TextInputType.number : (maxLines > 1 ? TextInputType.multiline : TextInputType.text),
+          textInputAction: maxLines > 1 ? TextInputAction.newline : TextInputAction.done,
           validator: (val) => val!.isEmpty ? "Required" : null,
           style: const TextStyle(color: Colors.black),
           decoration: _inputDeco(),

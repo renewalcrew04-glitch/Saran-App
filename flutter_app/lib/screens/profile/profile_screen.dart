@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -8,13 +9,18 @@ import 'package:saran_app/features/menu/menu_sheet.dart';
 import 'package:saran_app/services/wellness_streak_service.dart';
 
 import '../../models/post_model.dart';
+import '../../models/user_model.dart';
 import '../../config/api_config.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/feed_service.dart';
 import '../../services/post_service.dart';
 import '../../services/profile_update_service.dart';
 import '../../services/upload_service.dart';
+import '../../services/profile_service.dart';
 import '../../widgets/post_card.dart';
+import '../messages/chat_screen.dart';
+import '../../providers/chat_provider.dart';
+import '../../providers/dm_provider.dart';
 import 'edit_profile_screen.dart';
 import 'followers_list_screen.dart';
 import 'following_list_screen.dart';
@@ -47,7 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<String> _wellnessHistory = [];
   bool _wellnessLoading = true;
 
-  // Tabs: Post, Wellness, Games, Saved
+  // Tabs: Post, Reposted, Wellness, Games, Saved
   String _activeMainTab = 'post';
 
   // Post sub tabs
@@ -56,24 +62,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Post> _savedPosts = [];
   bool _savedLoading = false;
 
-  List<Post> get _filteredPosts {
-  if (_activePostTab == 'all') return _posts;
+  static bool _isRepostOrQuote(Post p) =>
+      p.type == 'repost' || p.type == 'quote' || p.isQuote;
 
-  return _posts.where((p) {
-    switch (_activePostTab) {
-      case 'text':
-        return p.type == 'text';
-      case 'photo':
-        return p.type == 'photo';
-      case 'video':
-        return p.type == 'video';
-      case 'repost':
-        return p.type == 'repost';
-      default:
-        return true;
-    }
-  }).toList();
-}
+  /// Posts shown in the Post tab only (reposts and quotes are in the Reposted tab).
+  List<Post> get _filteredPosts {
+    final onlyOriginals = _posts.where((p) => !_isRepostOrQuote(p)).toList();
+    if (_activePostTab == 'all') return onlyOriginals;
+    return onlyOriginals.where((p) {
+      switch (_activePostTab) {
+        case 'text':
+          return p.type == 'text';
+        case 'photo':
+          return p.type == 'photo';
+        case 'video':
+          return p.type == 'video';
+        case 'repost':
+          return false; // reposts and quotes only in Reposted tab
+        default:
+          return true;
+      }
+    }).toList();
+  }
+
+  /// Reposts and quote posts together in the Reposted tab.
+  List<Post> get _repostedPosts =>
+      _posts.where((p) => _isRepostOrQuote(p)).toList();
 
   File? _localAvatarPreview;
   bool _uploadingAvatar = false;
@@ -222,6 +236,219 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SnackBar(content: Text("Failed to update avatar")),
       );
     }
+  }
+
+  void _showShareProfileSheet(BuildContext context, User user) {
+    final profileLink = 'https://saran.app/u/${user.username}';
+    final shareText = 'Check out @${user.username} on Saran\n$profileLink';
+    final avatarUrl = user.avatar != null && user.avatar!.isNotEmpty
+        ? (ApiConfig.networkImageUrl(user.avatar!) ?? user.avatar!)
+        : null;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return FutureBuilder<Map<String, dynamic>>(
+          future: ProfileService().getFollowers(user.uid),
+          builder: (context, snapshot) {
+            final followers = snapshot.hasData && snapshot.data!['restricted'] != true
+                ? List<Map<String, dynamic>>.from(snapshot.data!['followers'] ?? [])
+                : <Map<String, dynamic>>[];
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Share profile',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.95)),
+                    ),
+                    const SizedBox(height: 16),
+                    // Profile card (like reference: dark bubble with avatar, username, name)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 28,
+                            backgroundColor: Colors.grey.shade700,
+                            backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                            child: avatarUrl == null
+                                ? Text(
+                                    user.name.isNotEmpty ? user.name[0].toUpperCase() : '@',
+                                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.9)),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '@${user.username}',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  user.name,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white.withValues(alpha: 0.65),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (user.bio != null && user.bio!.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    user.bio!,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.send_outlined, color: Colors.white.withValues(alpha: 0.6), size: 22),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Copy link
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(Icons.link, color: Colors.white.withValues(alpha: 0.9), size: 22),
+                      ),
+                      title: Text('Copy link', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.95))),
+                      subtitle: Text('Copy profile link to share', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: shareText));
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Link copied to clipboard')),
+                        );
+                      },
+                    ),
+                    if (followers.isNotEmpty) ...[
+                      const Divider(height: 24, color: Colors.white12),
+                      Text(
+                        'Share with',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.7)),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: followers.length > 4 ? 220 : (followers.length * 56.0),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: followers.length,
+                          itemBuilder: (context, i) {
+                            final f = followers[i];
+                            final uid = (f['_id'] ?? f['uid'])?.toString() ?? '';
+                            final name = (f['name'] ?? f['username'] ?? '')?.toString() ?? '';
+                            final username = (f['username'] ?? '')?.toString() ?? '';
+                            final avatar = f['avatar']?.toString();
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: CircleAvatar(
+                                radius: 20,
+                                backgroundColor: Colors.white12,
+                                backgroundImage: avatar != null && avatar.isNotEmpty
+                                    ? NetworkImage(ApiConfig.networkImageUrl(avatar) ?? avatar)
+                                    : null,
+                                child: avatar == null || avatar.isEmpty
+                                    ? Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.8)))
+                                    : null,
+                              ),
+                              title: Text(name.isNotEmpty ? name : '@$username', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.95))),
+                              subtitle: Text('@$username', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
+                              trailing: Icon(Icons.send_outlined, size: 18, color: Colors.white.withValues(alpha: 0.5)),
+                              onTap: () async {
+                                Navigator.pop(ctx);
+                                final token = context.read<AuthProvider>().token;
+                                if (token == null || token.isEmpty) return;
+                                final convoId = await context.read<DmProvider>().openDm(token: token, otherUid: uid);
+                                if (!context.mounted) return;
+                                if (convoId != null && convoId.isNotEmpty) {
+                                  try {
+                                    await context.read<ChatProvider>().sendProfile(
+                                      token: token,
+                                      conversationId: convoId,
+                                      receiverUid: uid,
+                                      uid: user.uid,
+                                      username: user.username,
+                                      name: user.name,
+                                      avatar: user.avatar,
+                                    );
+                                  } catch (_) {}
+                                  if (!context.mounted) return;
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ChatScreen(
+                                        conversationId: convoId,
+                                        otherUserId: uid,
+                                        otherName: name,
+                                        otherAvatar: avatar,
+                                      ),
+                                    ),
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Profile shared')),
+                                  );
+                                } else {
+                                  Clipboard.setData(ClipboardData(text: shareText));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Link copied to clipboard')),
+                                  );
+                                }
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -529,11 +756,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: SizedBox(
                       height: 40,
                       child: OutlinedButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Share profile')),
-                          );
-                        },
+                        onPressed: () => _showShareProfileSheet(context, user),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.black,
                           side: BorderSide(color: Colors.grey.shade400),
@@ -580,6 +803,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: Icons.grid_on,
               isActive: _activeMainTab == 'post',
               onTap: () => setState(() => _activeMainTab = 'post'),
+            ),
+          ),
+          Expanded(
+            child: _ProfileLabelTab(
+              label: 'Reposted',
+              icon: Icons.repeat,
+              isActive: _activeMainTab == 'reposted',
+              onTap: () => setState(() => _activeMainTab = 'reposted'),
             ),
           ),
           Expanded(
@@ -643,6 +874,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return _buildPostsSection();
     }
 
+    if (_activeMainTab == 'reposted') {
+      if (_isLoading) {
+        return const SizedBox(
+          height: 280,
+          child: Center(child: CircularProgressIndicator(color: Colors.black54)),
+        );
+      }
+      return _buildRepostedTabContent();
+    }
+
     if (_activeMainTab == 'wellness') {
       return _buildWellnessTabContent();
     }
@@ -656,6 +897,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     return const SizedBox.shrink();
+  }
+
+  Widget _buildRepostedTabContent() {
+    final list = _repostedPosts;
+    if (list.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(Icons.repeat, size: 44, color: Colors.grey[500]),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'No reposts or quotes yet',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'When you repost or quote something, it will show here.',
+                style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    // Grid same as Post tab (3 columns)
+    return Padding(
+      padding: const EdgeInsets.all(2),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: list.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
+        ),
+        itemBuilder: (context, index) {
+          final post = list[index];
+          return GestureDetector(
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PostDetailScreen(
+                    posts: list,
+                    initialIndex: index,
+                  ),
+                ),
+              );
+              if (mounted) _loadUserPosts();
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.zero,
+              child: Container(
+                color: Colors.grey.shade200,
+                child: _PostGridTile(post: post),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Widget _buildWellnessTabContent() {
@@ -986,7 +1306,7 @@ class _PostGridTile extends StatelessWidget {
                 child: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
               ),
             ),
-          if (post.type == 'repost')
+          if (post.type == 'repost' || post.type == 'quote' || post.isQuote)
             Positioned(
               left: 8,
               top: 8,
@@ -996,7 +1316,13 @@ class _PostGridTile extends StatelessWidget {
                   color: Colors.black.withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.repeat, color: Colors.white, size: 16),
+                child: Icon(
+                  post.isQuote || post.type == 'quote'
+                      ? Icons.format_quote
+                      : Icons.repeat,
+                  color: Colors.white,
+                  size: 16,
+                ),
               ),
             ),
         ],

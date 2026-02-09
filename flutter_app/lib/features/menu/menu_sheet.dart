@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/auth_service.dart';
 import '../settings/screens/delete_account_screen.dart';
 
 class MenuSheet extends StatelessWidget {
@@ -52,43 +50,6 @@ class MenuSheet extends StatelessWidget {
               onTap: () {
                 Navigator.pop(context);
                 context.push('/settings');
-              },
-            ),
-
-            const Divider(height: 1),
-
-            ListTile(
-              leading: const Icon(Icons.key, color: Colors.black54),
-              title: const Text(
-                "Copy JWT token",
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                  fontSize: 14,
-                ),
-              ),
-              subtitle: const Text(
-                "For API testing (e.g. curl)",
-                style: TextStyle(fontSize: 12, color: Colors.black45),
-              ),
-              onTap: () async {
-                final token = await AuthService().getToken();
-                if (token == null || token.isEmpty) {
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Not logged in')),
-                    );
-                  }
-                  return;
-                }
-                await Clipboard.setData(ClipboardData(text: token));
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('JWT token copied to clipboard')),
-                  );
-                }
               },
             ),
 

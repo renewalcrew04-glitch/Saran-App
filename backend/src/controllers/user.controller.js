@@ -928,6 +928,7 @@ export const getUserPosts = async (req, res, next) => {
       uid: user._id,
       isDeleted: false,
     })
+      .populate('originalPostId', 'uid username type text media createdAt')
       .sort({ createdAt: -1 });
 
     return res.json({

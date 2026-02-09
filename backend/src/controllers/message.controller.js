@@ -223,12 +223,19 @@ export const sendMessage = async (req, res, next) => {
       });
     }
 
+    if (msgType === "profile" && (!text || text.trim().length === 0)) {
+      return res.status(400).json({
+        success: false,
+        message: "Profile data (text/JSON) is required",
+      });
+    }
+
     const message = await Message.create({
       senderUid: myId,
       receiverUid,
       conversationId,
       type: msgType,
-      text: msgType === "text" ? text : null,
+      text: msgType === "text" || msgType === "profile" ? text : null,
       imageUrl: msgType === "image" ? imageUrl : null,
       voiceUrl: msgType === "voice" ? voiceUrl : null,
       read: false,
@@ -241,7 +248,11 @@ export const sendMessage = async (req, res, next) => {
         ? text
         : msgType === "image"
         ? "📷 Photo"
-        : "🎤 Voice";
+        : msgType === "voice"
+        ? "🎤 Voice"
+        : msgType === "profile"
+        ? "👤 Profile"
+        : "Message";
     convo.lastMessageAt = new Date();
 
     // unread increment for receiver
