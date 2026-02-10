@@ -390,10 +390,12 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showRepostLabel = post.repostedByName != null || isOwnRepost == true;
+    // Reposter name: explicit repostedByName, or post's author (uid) when this is a repost
+    final reposterName = post.repostedByName ?? (displayPost != null ? post.userName ?? post.username : null);
+    final showRepostLabel = reposterName != null || isOwnRepost == true;
     final repostLabel = isOwnRepost == true
         ? 'You reposted'
-        : (post.repostedByName != null ? '${post.repostedByName} reposted' : null);
+        : (reposterName != null ? '$reposterName reposted' : null);
     final author = displayPost ?? post;
 
     return Row(
@@ -412,14 +414,20 @@ class _Header extends StatelessWidget {
                     children: [
                       if (showRepostLabel && repostLabel != null)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text(
-                            repostLabel,
-                            style: const TextStyle(
-                              color: Colors.black54,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              Icon(Icons.repeat_rounded, size: 14, color: Colors.grey[600]),
+                              const SizedBox(width: 4),
+                              Text(
+                                repostLabel,
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       Row(

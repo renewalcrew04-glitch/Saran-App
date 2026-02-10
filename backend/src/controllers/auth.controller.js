@@ -34,7 +34,7 @@ const generateToken = (id) => {
 // @access  Public
 export const register = async (req, res, next) => {
   try {
-    const { username, email, password, name } = req.body;
+    let { username, email, password, name } = req.body;
 
     // Validation
     if (!username || !email || !password || !name) {
@@ -44,21 +44,40 @@ export const register = async (req, res, next) => {
       });
     }
 
-    // Check if user exists
-    const userExists = await User.findOne({ $or: [{ email }, { username }] });
-    if (userExists) {
+    // Normalize: username is unique case-insensitively (lowercase + trim)
+    const usernameNorm = (typeof username === 'string' ? username : String(username)).trim().toLowerCase();
+    const emailNorm = (typeof email === 'string' ? email : String(email)).trim().toLowerCase();
+    if (!usernameNorm) {
       return res.status(400).json({
         success: false,
-        message: 'User already exists'
+        message: 'Username is required'
       });
     }
 
-    // Create user (uid will be auto-generated in pre-save hook)
+    // Check if email already registered
+    const existingEmail = await User.findOne({ email: emailNorm });
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already registered'
+      });
+    }
+
+    // Check if username already taken (usernames are stored lowercase in schema)
+    const existingUsername = await User.findOne({ username: usernameNorm });
+    if (existingUsername) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username already taken'
+      });
+    }
+
+    // Create user (uid will be auto-generated in pre-save hook). Use normalized username.
     const user = await User.create({
-      username,
-      email,
+      username: usernameNorm,
+      email: emailNorm,
       password,
-      name
+      name: (name || '').trim() || name
     });
 
     // Ensure uid is set (in case pre-save didn't run)
@@ -87,6 +106,15 @@ export const register = async (req, res, next) => {
       });
     }
   } catch (error) {
+    // MongoDB duplicate key (e.g. username or email already exists)
+    if (error.code === 11000 && error.keyPattern) {
+      const msg = error.keyPattern.username
+        ? 'Username already taken'
+        : error.keyPattern.email
+          ? 'Email already registered'
+          : 'An account with this value already exists';
+      return res.status(400).json({ success: false, message: msg });
+    }
     next(error);
   }
 };

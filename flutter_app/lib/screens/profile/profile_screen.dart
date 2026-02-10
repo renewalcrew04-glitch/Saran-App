@@ -719,20 +719,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Container(
-                    height: 40,
-                    width: 40,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade400),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      icon: Icon(Icons.person_add_alt_1_outlined, color: Colors.grey[800], size: 20),
-                      onPressed: () => context.push('/explore'),
-                    ),
-                  ),
                 ],
               ),
               const SizedBox(height: 16),

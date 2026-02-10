@@ -80,8 +80,8 @@ class Post {
           ? (json['originalPostId']['_id']?.toString())
           : json['originalPostId']?.toString(),
       quotedPost: _parseQuotedOrOriginalPost(json),
-      repostedByUid: json['repostedByUid']?.toString(),
-      repostedByName: json['repostedByName'],
+      repostedByUid: _repostedByUidFromJson(json['repostedByUid']),
+      repostedByName: _repostedByNameFromJson(json),
       likesCount: json['likesCount'] ?? 0,
       commentsCount: (json['commentsCount'] ?? json['comments_count'] ?? 0) as int,
       repostsCount: json['repostsCount'] ?? 0,
@@ -101,6 +101,20 @@ class Post {
       edited: json['edited'] ?? false,
       originalPost: _parseQuotedOrOriginalPost(json),
     );
+  }
+
+  static String? _repostedByUidFromJson(dynamic v) {
+    if (v == null) return null;
+    if (v is Map) return (v['_id'] ?? v['uid'])?.toString();
+    return v.toString();
+  }
+
+  static String? _repostedByNameFromJson(Map<String, dynamic> json) {
+    final name = json['repostedByName']?.toString();
+    if (name != null && name.isNotEmpty) return name;
+    final by = json['repostedByUid'];
+    if (by is Map) return (by['name'] ?? by['username'])?.toString();
+    return null;
   }
 
   /// Parses the embedded original post from API (quotedPost, originalPost, or populated originalPostId).

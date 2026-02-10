@@ -163,7 +163,9 @@ class _NotificationTile extends StatelessWidget {
                 children: [
                   TextButton(
                     onPressed: () async {
-                      for (final n in group) onTap(n.id);
+                      for (final n in group) {
+                        onTap(n.id);
+                      }
                       final err = await profileService.declineFollowRequest(actorUid);
                       if (context.mounted) {
                         if (err != null) {
@@ -183,7 +185,9 @@ class _NotificationTile extends StatelessWidget {
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () async {
-                      for (final n in group) onTap(n.id);
+                      for (final n in group) {
+                        onTap(n.id);
+                      }
                       final err = await profileService.acceptFollowRequest(actorUid);
                       if (context.mounted) {
                         if (err != null) {
@@ -220,7 +224,9 @@ class _NotificationTile extends StatelessWidget {
           style: const TextStyle(fontSize: 12),
         ),
         onTap: () {
-          for (final n in group) onTap(n.id);
+          for (final n in group) {
+            onTap(n.id);
+          }
           NotificationRouter.handle(context, group.first);
         },
       ),

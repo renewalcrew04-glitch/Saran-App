@@ -348,12 +348,14 @@ export const repost = async (req, res, next) => {
     // Get user info
     const user = await User.findById(userId);
 
-    // Create repost
+    // Create repost (repostedByUid/repostedByName so feed can show "X reposted")
     const repost = await Post.create({
       uid: userId,
       username: user.username,
       type: 'repost',
       originalPostId: originalPost._id,
+      repostedByUid: userId,
+      repostedByName: user.name || user.username || '',
       text: '',
       media: []
     });

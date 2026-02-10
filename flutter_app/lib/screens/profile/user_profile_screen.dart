@@ -637,8 +637,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     child: Row(
                       children: [
                         Expanded(
+                          flex: 1,
                           child: SizedBox(
-                            height: 40,
+                            height: 44,
+                            width: double.infinity,
                             child: _isFollowPending
                                 ? OutlinedButton(
                                     onPressed: _followLoading
@@ -772,14 +774,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                         borderRadius: BorderRadius.circular(14),
                                       ),
                                     ),
-                                    child: Text(_isFollowing ? "Following" : "Follow"),
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(_isFollowing ? "Following" : "Follow"),
+                                    ),
                                   ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
+                          flex: 1,
                           child: SizedBox(
                             height: 44,
+                            width: double.infinity,
                             child: OutlinedButton.icon(
                               onPressed: () async {
                                 final auth = context.read<AuthProvider>();

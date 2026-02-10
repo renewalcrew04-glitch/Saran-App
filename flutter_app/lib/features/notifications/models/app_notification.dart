@@ -27,7 +27,7 @@ class AppNotification {
       entityType: json['entityType']?.toString(),
       read: json['read'] ?? false,
       createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
-      actor: actorRaw is Map ? Map<String, dynamic>.from(actorRaw as Map) : null,
+      actor: actorRaw is Map ? Map<String, dynamic>.from(actorRaw) : null,
     );
   }
 
