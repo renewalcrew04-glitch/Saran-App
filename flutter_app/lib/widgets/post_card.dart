@@ -189,14 +189,11 @@ class _PostCardState extends State<PostCard>
     super.dispose();
   }
 
-  static const double _mediaHeight = 280.0;
-  static const double _mediaSectionHeight = 308.0; // _mediaHeight + 8 gap + ~20 dots
-  // Portrait: 1080×1350 (4:5) – tall card
-  static const double _portraitAspectRatio = 4 / 5;
-  // Landscape: 1080×566 (1.91:1) – short card
-  static const double _landscapeAspectRatio = 1.91;
+  static const double _mediaHeight = 320.0;
+  static const double _mediaSectionHeight = 348.0; // _mediaHeight + 8 gap + ~20 dots
 
-  Widget _buildPostMedia(String mediaUrl, {String? mediaDisplay}) {
+  /// Same size for all photos. Full image visible with letterboxing (white space) as needed.
+  Widget _buildPostMedia(String mediaUrl) {
     final url = ApiConfig.networkImageUrl(mediaUrl);
     if (url == null) {
       return Container(
@@ -206,49 +203,13 @@ class _PostCardState extends State<PostCard>
         child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
       );
     }
-    final useFixedAspect =
-        mediaDisplay == 'portrait' || mediaDisplay == 'landscape';
-    final aspectRatio = mediaDisplay == 'portrait'
-        ? _portraitAspectRatio
-        : (mediaDisplay == 'landscape' ? _landscapeAspectRatio : null);
-
-    if (useFixedAspect && aspectRatio != null) {
-      return AspectRatio(
-        aspectRatio: aspectRatio,
-        child: Image.network(
-          url,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          loadingBuilder: (_, child, progress) {
-            if (progress == null) return child;
-            return Container(
-              width: double.infinity,
-              height: double.infinity,
-              color: Colors.grey[300],
-              child: const Center(child: Icon(Icons.image_outlined, color: Colors.black45)),
-            );
-          },
-          errorBuilder: (_, __, ___) {
-            return Container(
-              width: double.infinity,
-              height: double.infinity,
-              color: Colors.grey[300],
-              child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
-            );
-          },
-        ),
-      );
-    }
-    if (mediaDisplay == null) {
-      return AutoAspectNetworkImage(url: url);
-    }
-    return SizedBox(
+    return Container(
       width: double.infinity,
       height: _mediaHeight,
+      color: Colors.grey.shade100,
       child: Image.network(
         url,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         width: double.infinity,
         height: double.infinity,
         loadingBuilder: (_, child, progress) {
@@ -256,7 +217,7 @@ class _PostCardState extends State<PostCard>
           return Container(
             width: double.infinity,
             height: double.infinity,
-            color: Colors.grey[300],
+            color: Colors.grey.shade100,
             child: const Center(child: Icon(Icons.image_outlined, color: Colors.black45)),
           );
         },
@@ -264,7 +225,7 @@ class _PostCardState extends State<PostCard>
           return Container(
             width: double.infinity,
             height: double.infinity,
-            color: Colors.grey[300],
+            color: Colors.grey.shade100,
             child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
           );
         },
@@ -272,54 +233,26 @@ class _PostCardState extends State<PostCard>
     );
   }
 
-  double _itemHeightFor(String? mediaDisplay, double width) {
-    if (mediaDisplay == 'portrait') {
-      return width / _portraitAspectRatio; // ~1.25× width – tall
-    }
-    if (mediaDisplay == 'landscape') {
-      return width / _landscapeAspectRatio; // ~0.52× width – short
-    }
-    return width / _portraitAspectRatio; // auto-detect: use tall to fit portrait
-  }
-
-  Widget _buildPostMediaCarousel(List<String> mediaUrls, {String? mediaDisplay}) {
+  Widget _buildPostMediaCarousel(List<String> mediaUrls) {
     if (mediaUrls.isEmpty) return const SizedBox.shrink();
     if (mediaUrls.length == 1) {
-      return _buildPostMedia(mediaUrls.first, mediaDisplay: mediaDisplay);
+      return _buildPostMedia(mediaUrls.first);
     }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final itemHeight = _itemHeightFor(mediaDisplay, w);
-        return _PostMediaCarousel(
-          mediaUrls: mediaUrls,
-          buildItem: (url) => _buildPostMedia(url, mediaDisplay: mediaDisplay),
-          itemHeight: itemHeight,
-        );
-      },
+    return _PostMediaCarousel(
+      mediaUrls: mediaUrls,
+      buildItem: _buildPostMedia,
+      itemHeight: _mediaHeight,
     );
   }
 
-  double _mediaSectionHeightFor(String? mediaDisplay, double width) {
-    final imageHeight = _itemHeightFor(mediaDisplay, width);
-    return imageHeight + 8 + 20; // + gap + dots
-  }
-
   Widget _buildMediaSection(Post post) {
-    final mediaDisplay = post.mediaDisplay;
     final media = post.media;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        final imageHeight = _itemHeightFor(mediaDisplay, screenWidth);
-        final sectionHeight = media.length == 1
-            ? imageHeight
-            : _mediaSectionHeightFor(mediaDisplay, screenWidth);
-        return _buildFullBleedMedia(
-          _buildPostMediaCarousel(media, mediaDisplay: mediaDisplay),
-          height: sectionHeight,
-        );
-      },
+    if (media.isEmpty) return const SizedBox.shrink();
+    final sectionHeight =
+        media.length == 1 ? _mediaHeight : _mediaSectionHeight;
+    return _buildFullBleedMedia(
+      _buildPostMediaCarousel(media),
+      height: sectionHeight,
     );
   }
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../config/api_config.dart';
 import '../models/post_model.dart';
 import '../utils/time_formatter.dart';
-import '../utils/media_utils.dart';
 
 class QuotePostEmbed extends StatelessWidget {
   final Post originalPost;
@@ -70,10 +69,7 @@ class QuotePostEmbed extends StatelessWidget {
               const SizedBox(height: 10),
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: _QuoteMedia(
-                  mediaUrls: originalPost.media,
-                  mediaDisplay: originalPost.mediaDisplay,
-                ),
+                child: _QuoteMedia(mediaUrls: originalPost.media),
               ),
             ],
           ],
@@ -85,9 +81,8 @@ class QuotePostEmbed extends StatelessWidget {
 
 class _QuoteMedia extends StatefulWidget {
   final List<String> mediaUrls;
-  final String? mediaDisplay;
 
-  const _QuoteMedia({required this.mediaUrls, this.mediaDisplay});
+  const _QuoteMedia({required this.mediaUrls});
 
   @override
   State<_QuoteMedia> createState() => _QuoteMediaState();
@@ -97,6 +92,8 @@ class _QuoteMediaState extends State<_QuoteMedia> {
   final PageController _pageController = PageController();
   final ValueNotifier<int> _currentPage = ValueNotifier<int>(0);
 
+  static const double _mediaHeight = 200.0;
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -104,67 +101,47 @@ class _QuoteMediaState extends State<_QuoteMedia> {
     super.dispose();
   }
 
-  static const double _portraitAspectRatio = 4 / 5; // 1080×1350
-  static const double _landscapeAspectRatio = 1.91; // 1080×566
-
-  double _heightForWidth(double width) {
-    if (widget.mediaDisplay == 'portrait') return width / _portraitAspectRatio;
-    if (widget.mediaDisplay == 'landscape') return width / _landscapeAspectRatio;
-    return width / _portraitAspectRatio; // auto-detect: fit portrait (taller)
-  }
-
   @override
   Widget build(BuildContext context) {
     if (widget.mediaUrls.isEmpty) return const SizedBox.shrink();
     if (widget.mediaUrls.length == 1) {
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          final w = constraints.maxWidth;
-          return SizedBox(
-            height: _heightForWidth(w),
-            child: _buildSingle(widget.mediaUrls.first),
-          );
-        },
+      return SizedBox(
+        height: _mediaHeight,
+        child: _buildSingle(widget.mediaUrls.first),
       );
     }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final maxH = _heightForWidth(w);
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              height: maxH,
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: widget.mediaUrls.length,
-                onPageChanged: (i) => _currentPage.value = i,
-                itemBuilder: (_, i) => _buildSingle(widget.mediaUrls[i]),
-              ),
-            ),
-            const SizedBox(height: 6),
-            ValueListenableBuilder<int>(
-              valueListenable: _currentPage,
-              builder: (_, page, __) => Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  widget.mediaUrls.length,
-                  (i) => Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 2),
-                    width: 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: i == page ? Colors.black54 : Colors.grey.shade400,
-                    ),
-                  ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: _mediaHeight,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: widget.mediaUrls.length,
+            onPageChanged: (i) => _currentPage.value = i,
+            itemBuilder: (_, i) => _buildSingle(widget.mediaUrls[i]),
+          ),
+        ),
+        const SizedBox(height: 6),
+        ValueListenableBuilder<int>(
+          valueListenable: _currentPage,
+          builder: (_, page, __) => Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              widget.mediaUrls.length,
+              (i) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                width: 5,
+                height: 5,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: i == page ? Colors.black54 : Colors.grey.shade400,
                 ),
               ),
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 
@@ -179,26 +156,31 @@ class _QuoteMediaState extends State<_QuoteMedia> {
         child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
       );
     }
-    if (widget.mediaDisplay == 'portrait' || widget.mediaDisplay == 'landscape') {
-      final aspectRatio = widget.mediaDisplay == 'portrait'
-          ? _portraitAspectRatio
-          : _landscapeAspectRatio;
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: AspectRatio(
-          aspectRatio: aspectRatio,
-          child: safeNetworkImage(
-            url: url,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
-          ),
-        ),
-      );
-    }
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: AutoAspectNetworkImage(url: url),
+      child: Container(
+        height: _mediaHeight,
+        color: Colors.grey.shade100,
+        child: Image.network(
+          url,
+          fit: BoxFit.contain,
+          width: double.infinity,
+          height: double.infinity,
+          loadingBuilder: (_, child, progress) {
+            if (progress == null) return child;
+            return Container(
+              color: Colors.grey.shade100,
+              child: const Center(child: Icon(Icons.image_outlined, color: Colors.black45)),
+            );
+          },
+          errorBuilder: (_, __, ___) {
+            return Container(
+              color: Colors.grey.shade100,
+              child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
+            );
+          },
+        ),
+      ),
     );
   }
 }

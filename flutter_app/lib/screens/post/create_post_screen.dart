@@ -37,8 +37,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   bool _isVideo = false;
   final PageController _mediaPageController = PageController();
   final ValueNotifier<int> _currentMediaPage = ValueNotifier<int>(0);
-  /// "portrait" | "landscape" | null. When set, post shows full image with aspect ratio.
-  String? _mediaDisplay;
 
   Post? _quotedPost;
 
@@ -101,7 +99,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       _pickedMediaPaths.removeAt(index);
       if (_pickedMediaPaths.isEmpty) {
         _isVideo = false;
-        _mediaDisplay = null;
         _currentMediaPage.value = 0;
       } else {
         _currentMediaPage.value = (_currentMediaPage.value).clamp(0, _pickedMediaPaths.length - 1);
@@ -111,15 +108,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Future<void> _publish() async {
     if (!_canPublish || _publishing) return;
-    if (_pickedMediaPaths.isNotEmpty && !_isVideo && _mediaDisplay == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Select Portrait or Landscape for photo display'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
     setState(() => _publishing = true);
 
     try {
@@ -155,7 +143,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           ...hashtags,
           ..._selectedCategories.map((c) => "#$c"),
         ],
-        mediaDisplay: _mediaDisplay,
       );
 
       if (mounted) Navigator.pop(context, true);
@@ -305,7 +292,6 @@ Divider(
             /// MEDIA (slide/carousel)
             if (_pickedMediaPaths.isNotEmpty) ...[
               _mediaPreview(),
-              if (!_isVideo) _mediaDisplaySelector(),
             ],
 
             if (_quotedPost == null) ...[
@@ -420,78 +406,6 @@ Divider(
           ),
         ),
       );
-
-  Widget _mediaDisplaySelector() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Photo display',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _buildMediaDisplayChip('Portrait', Icons.crop_portrait),
-              const SizedBox(width: 12),
-              _buildMediaDisplayChip('Landscape', Icons.crop_landscape),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Portrait: full photo visible. Landscape: full photo visible.',
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMediaDisplayChip(String label, IconData icon) {
-    final isSelected = _mediaDisplay == label.toLowerCase();
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _mediaDisplay = isSelected ? null : label.toLowerCase();
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.blue.shade50 : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? Colors.blue.shade400 : Colors.grey.shade300,
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: isSelected ? Colors.blue.shade700 : Colors.grey.shade600),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? Colors.blue.shade700 : Colors.grey.shade700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _mediaPreview() {
     return Column(
