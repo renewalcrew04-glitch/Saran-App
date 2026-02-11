@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../config/api_config.dart';
 import '../../models/user_model.dart';
+import '../../utils/media_utils.dart';
 import '../../models/post_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dm_provider.dart';
@@ -152,7 +153,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       case 'Videos':
         return _posts.where((p) => p.type == 'video').toList();
       case 'Reposts':
-        return _posts.where((p) => p.type == 'repost' || (p.repostedByUid != null && p.repostedByUid!.isNotEmpty)).toList();
+        return _posts
+            .where((p) =>
+                p.type == 'repost' ||
+                p.type == 'quote' ||
+                p.isQuote ||
+                (p.repostedByUid != null && p.repostedByUid!.isNotEmpty))
+            .toList();
       default:
         return _posts;
     }
@@ -190,8 +197,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         child: const Center(child: Icon(Icons.broken_image)),
       );
     }
-    return Image.network(url, fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image)));
+    return safeNetworkImage(url: url, fit: BoxFit.cover);
   }
 
   Future<void> _onProfileMenuSelected(String value) async {
@@ -479,11 +485,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 width: double.infinity,
                 color: Colors.grey.shade200,
                 child: user.coverImage != null && user.coverImage!.isNotEmpty
-                    ? Image.network(
-                        ApiConfig.networkImageUrl(user.coverImage!) ?? user.coverImage!,
+                    ? safeNetworkImage(
+                        url: ApiConfig.networkImageUrl(user.coverImage!) ?? user.coverImage!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            Center(child: Icon(Icons.photo_camera_outlined, size: 48, color: Colors.grey[500])),
+                        width: double.infinity,
+                        height: 160,
+                        placeholderIcon: Icons.photo_camera_outlined,
                       )
                     : Center(child: Icon(Icons.add_photo_alternate_outlined, size: 48, color: Colors.grey[500])),
               ),
@@ -864,44 +871,35 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
               const SizedBox(height: 8),
 
-              // Post sub-tabs: All, Texts, Photos, Videos, Reposts (same pill style as own profile)
+              // Post sub-tabs: All, Texts, Photos, Videos, Reposts (icons only, space between)
               if (_canSeePosts && !_loading && _posts.isNotEmpty)
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _PostSubTab(
                         icon: Icons.apps,
-                        label: 'All',
                         isActive: _contentFilter == 'All',
                         onTap: () => setState(() => _contentFilter = 'All'),
                       ),
-                      const SizedBox(width: 8),
                       _PostSubTab(
-                        icon: Icons.text_snippet_outlined,
-                        label: 'Texts',
+                        icon: Icons.text_fields,
                         isActive: _contentFilter == 'Texts',
                         onTap: () => setState(() => _contentFilter = 'Texts'),
                       ),
-                      const SizedBox(width: 8),
                       _PostSubTab(
-                        icon: Icons.photo_library_outlined,
-                        label: 'Photos',
+                        icon: Icons.image_outlined,
                         isActive: _contentFilter == 'Photos',
                         onTap: () => setState(() => _contentFilter = 'Photos'),
                       ),
-                      const SizedBox(width: 8),
                       _PostSubTab(
                         icon: Icons.videocam_outlined,
-                        label: 'Videos',
                         isActive: _contentFilter == 'Videos',
                         onTap: () => setState(() => _contentFilter = 'Videos'),
                       ),
-                      const SizedBox(width: 8),
                       _PostSubTab(
                         icon: Icons.repeat,
-                        label: 'Reposts',
                         isActive: _contentFilter == 'Reposts',
                         onTap: () => setState(() => _contentFilter = 'Reposts'),
                       ),
@@ -978,6 +976,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           ),
                           itemBuilder: (context, index) {
                             final post = _filteredPosts[index];
+                            final embedded = post.quotedPost ?? post.originalPost;
+                            final mediaUrls = post.media.isNotEmpty
+                                ? post.media
+                                : (embedded?.media ?? []);
                             return GestureDetector(
                               onTap: () {
                                 Navigator.push(
@@ -994,9 +996,64 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 borderRadius: BorderRadius.circular(6),
                                 child: Container(
                                   color: Colors.grey.shade200,
-                                  child: post.media.isNotEmpty
-                                      ? _buildPostMedia(post.media.first)
-                                      : const Center(child: Icon(Icons.text_fields)),
+                                  child: mediaUrls.isNotEmpty
+                                      ? Stack(
+                                          fit: StackFit.expand,
+                                          children: [
+                                            _buildPostMedia(mediaUrls.first),
+                                            if (post.type == 'video' || embedded?.type == 'video')
+                                              Positioned(
+                                                right: 8,
+                                                top: 8,
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(6),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black.withValues(alpha: 0.55),
+                                                    borderRadius: BorderRadius.circular(10),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.play_arrow,
+                                                    color: Colors.white,
+                                                    size: 16,
+                                                  ),
+                                                ),
+                                              ),
+                                            if (post.type == 'repost' ||
+                                                post.type == 'quote' ||
+                                                post.isQuote)
+                                              Positioned(
+                                                left: 8,
+                                                top: 8,
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(6),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black.withValues(alpha: 0.55),
+                                                    borderRadius: BorderRadius.circular(10),
+                                                  ),
+                                                  child: Icon(
+                                                    post.isQuote || post.type == 'quote'
+                                                        ? Icons.format_quote
+                                                        : Icons.repeat,
+                                                    color: Colors.white,
+                                                    size: 16,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        )
+                                      : Container(
+                                          padding: const EdgeInsets.all(10),
+                                          alignment: Alignment.topLeft,
+                                          child: Text(
+                                            post.text.isNotEmpty ? post.text : 'Text',
+                                            maxLines: 5,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
                                 ),
                               ),
                             );
@@ -1034,21 +1091,10 @@ class _UserProfileAvatar extends StatelessWidget {
         ),
       );
     }
-    return ClipOval(
-      child: Image.network(
-        url,
-        fit: BoxFit.cover,
-        width: size,
-        height: size,
-        errorBuilder: (_, __, ___) => CircleAvatar(
-          radius: radius,
-          backgroundColor: Colors.grey.shade300,
-          child: Text(
-            name.isNotEmpty ? name[0].toUpperCase() : 'S',
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
+    return safeAvatarNetworkImage(
+      url: url,
+      size: size,
+      backgroundColor: Colors.grey.shade300,
     );
   }
 }
@@ -1149,46 +1195,27 @@ class _ProfileLabelTab extends StatelessWidget {
 
 class _PostSubTab extends StatelessWidget {
   final IconData icon;
-  final String label;
   final bool isActive;
   final VoidCallback onTap;
 
   const _PostSubTab({
     required this.icon,
-    required this.label,
     required this.isActive,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: isActive ? Colors.black : Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: isActive ? Colors.white : Colors.black),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isActive ? Colors.white : Colors.black,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.black : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(999),
         ),
+        child: Icon(icon, size: 20, color: isActive ? Colors.white : Colors.black),
       ),
     );
   }

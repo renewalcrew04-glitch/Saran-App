@@ -33,8 +33,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final List<String> _selectedCategories = [];
   final String _visibility = "public";
 
-  String? _pickedMediaPath;
+  final List<String> _pickedMediaPaths = [];
   bool _isVideo = false;
+  final PageController _mediaPageController = PageController();
+  final ValueNotifier<int> _currentMediaPage = ValueNotifier<int>(0);
+  /// "portrait" | "landscape" | null. When set, post shows full image with aspect ratio.
+  String? _mediaDisplay;
 
   Post? _quotedPost;
 
@@ -42,6 +46,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   void initState() {
     super.initState();
     _quotedPost = widget.quotedPost;
+  }
+
+  @override
+  void dispose() {
+    _mediaPageController.dispose();
+    _currentMediaPage.dispose();
+    super.dispose();
   }
 
   @override
@@ -53,7 +64,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   bool get _canPublish =>
-      _textController.text.trim().isNotEmpty || _pickedMediaPath != null;
+      _textController.text.trim().isNotEmpty || _pickedMediaPaths.isNotEmpty;
 
   List<String> _parseHashtags(String input) {
     return input
@@ -67,10 +78,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Future<void> _pickImage() async {
-    final file = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (file == null) return;
+    final files = await ImagePicker().pickMultiImage(imageQuality: 85);
+    if (files.isEmpty) return;
     setState(() {
-      _pickedMediaPath = file.path;
+      _pickedMediaPaths.addAll(files.map((f) => f.path));
       _isVideo = false;
     });
   }
@@ -79,20 +90,36 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final file = await ImagePicker().pickVideo(source: ImageSource.gallery);
     if (file == null) return;
     setState(() {
-      _pickedMediaPath = file.path;
+      _pickedMediaPaths.clear();
+      _pickedMediaPaths.add(file.path);
       _isVideo = true;
     });
   }
 
-  void _removeMedia() {
+  void _removeMediaAt(int index) {
     setState(() {
-      _pickedMediaPath = null;
-      _isVideo = false;
+      _pickedMediaPaths.removeAt(index);
+      if (_pickedMediaPaths.isEmpty) {
+        _isVideo = false;
+        _mediaDisplay = null;
+        _currentMediaPage.value = 0;
+      } else {
+        _currentMediaPage.value = (_currentMediaPage.value).clamp(0, _pickedMediaPaths.length - 1);
+      }
     });
   }
 
   Future<void> _publish() async {
     if (!_canPublish || _publishing) return;
+    if (_pickedMediaPaths.isNotEmpty && !_isVideo && _mediaDisplay == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Select Portrait or Landscape for photo display'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     setState(() => _publishing = true);
 
     try {
@@ -109,10 +136,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       }
 
       List<String> mediaUrls = [];
-      if (_pickedMediaPath != null) {
-        final uploadedUrl =
-            await _uploadService.uploadMedia(_pickedMediaPath!);
-        mediaUrls.add(uploadedUrl);
+      for (final path in _pickedMediaPaths) {
+        final url = await _uploadService.uploadMedia(path);
+        mediaUrls.add(url);
       }
 
       final type =
@@ -129,6 +155,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           ...hashtags,
           ..._selectedCategories.map((c) => "#$c"),
         ],
+        mediaDisplay: _mediaDisplay,
       );
 
       if (mounted) Navigator.pop(context, true);
@@ -275,8 +302,11 @@ Divider(
                 ),
               ),
 
-            /// MEDIA
-            if (_pickedMediaPath != null) _mediaPreview(),
+            /// MEDIA (slide/carousel)
+            if (_pickedMediaPaths.isNotEmpty) ...[
+              _mediaPreview(),
+              if (!_isVideo) _mediaDisplaySelector(),
+            ],
 
             if (_quotedPost == null) ...[
               const SizedBox(height: 20),
@@ -391,42 +421,155 @@ Divider(
         ),
       );
 
-  Widget _mediaPreview() => Stack(
+  Widget _mediaDisplaySelector() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: _isVideo
-                ? Container(
-                    height: 200,
-                    width: double.infinity,
-                    color: Colors.black12,
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.play_circle_fill,
-                        size: 50, color: Colors.white),
-                  )
-                : Image.file(
-                    File(_pickedMediaPath!),
-                    width: double.infinity,
-                    height: 250,
-                    fit: BoxFit.cover,
-                  ),
+          Text(
+            'Photo display',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
+            ),
           ),
-          Positioned(
-            top: 8,
-            right: 8,
-            child: GestureDetector(
-              onTap: _removeMedia,
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  color: Colors.black54,
-                  shape: BoxShape.circle,
-                ),
-                child:
-                    const Icon(Icons.close, color: Colors.white, size: 18),
-              ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _buildMediaDisplayChip('Portrait', Icons.crop_portrait),
+              const SizedBox(width: 12),
+              _buildMediaDisplayChip('Landscape', Icons.crop_landscape),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Portrait: full photo visible. Landscape: full photo visible.',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade500,
             ),
           ),
         ],
-      );
+      ),
+    );
+  }
+
+  Widget _buildMediaDisplayChip(String label, IconData icon) {
+    final isSelected = _mediaDisplay == label.toLowerCase();
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _mediaDisplay = isSelected ? null : label.toLowerCase();
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue.shade50 : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.blue.shade400 : Colors.grey.shade300,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: isSelected ? Colors.blue.shade700 : Colors.grey.shade600),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? Colors.blue.shade700 : Colors.grey.shade700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _mediaPreview() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 280,
+          child: PageView.builder(
+            controller: _mediaPageController,
+            itemCount: _pickedMediaPaths.length,
+            onPageChanged: (i) => _currentMediaPage.value = i,
+            itemBuilder: (context, index) {
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: _isVideo
+                        ? Container(
+                            width: double.infinity,
+                            color: Colors.black87,
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.play_circle_fill,
+                              size: 50,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Image.file(
+                            File(_pickedMediaPaths[index]),
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: GestureDetector(
+                      onTap: () => _removeMediaAt(index),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close, color: Colors.white, size: 18),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        if (_pickedMediaPaths.length > 1) ...[
+          const SizedBox(height: 10),
+          ValueListenableBuilder<int>(
+            valueListenable: _currentMediaPage,
+            builder: (context, page, _) {
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  _pickedMediaPaths.length,
+                  (i) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: i == page ? Colors.black54 : Colors.grey.shade400,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ],
+    );
+  }
 }

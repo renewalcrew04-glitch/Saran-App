@@ -17,6 +17,7 @@ import '../../services/post_service.dart';
 import '../../services/profile_update_service.dart';
 import '../../services/upload_service.dart';
 import '../../services/profile_service.dart';
+import '../../utils/media_utils.dart';
 import '../../widgets/post_card.dart';
 import '../messages/chat_screen.dart';
 import '../../providers/chat_provider.dart';
@@ -60,13 +61,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _activePostTab = 'all'; // all, text, photo, video, repost
 
   List<Post> _savedPosts = [];
-  bool _savedLoading = false;
 
   static bool _isRepostOrQuote(Post p) =>
       p.type == 'repost' || p.type == 'quote' || p.isQuote;
 
-  /// Posts shown in the Post tab only (reposts and quotes are in the Reposted tab).
+  /// Posts shown in the Post tab (originals only, except when Reposts sub-tab is selected).
   List<Post> get _filteredPosts {
+    if (_activePostTab == 'repost') return _repostedPosts;
     final onlyOriginals = _posts.where((p) => !_isRepostOrQuote(p)).toList();
     if (_activePostTab == 'all') return onlyOriginals;
     return onlyOriginals.where((p) {
@@ -77,8 +78,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return p.type == 'photo';
         case 'video':
           return p.type == 'video';
-        case 'repost':
-          return false; // reposts and quotes only in Reposted tab
         default:
           return true;
       }
@@ -319,16 +318,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             final avatar = f['avatar']?.toString();
                             return ListTile(
                               contentPadding: EdgeInsets.zero,
-                              leading: CircleAvatar(
-                                radius: 20,
-                                backgroundColor: Colors.white12,
-                                backgroundImage: avatar != null && avatar.isNotEmpty
-                                    ? NetworkImage(ApiConfig.networkImageUrl(avatar) ?? avatar)
-                                    : null,
-                                child: avatar == null || avatar.isEmpty
-                                    ? Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.8)))
-                                    : null,
-                              ),
+                              leading: avatar != null && avatar.isNotEmpty
+                                  ? safeAvatarNetworkImage(
+                                      url: ApiConfig.networkImageUrl(avatar) ?? avatar,
+                                      size: 40,
+                                      backgroundColor: Colors.white12,
+                                    )
+                                  : CircleAvatar(
+                                      radius: 20,
+                                      backgroundColor: Colors.white12,
+                                      child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.8))),
+                                    ),
                               title: Text(name.isNotEmpty ? name : '@$username', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.95))),
                               subtitle: Text('@$username', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
                               trailing: Icon(Icons.send_outlined, size: 18, color: Colors.white.withValues(alpha: 0.5)),
@@ -465,7 +465,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Cover photo (full width)
+        // Cover photo (full width) – safe load, never show 404
         GestureDetector(
           onTap: () async {
             await Navigator.push(
@@ -482,12 +482,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: double.infinity,
             color: Colors.grey.shade200,
             child: coverUrl != null
-                ? Image.network(
-                    coverUrl,
+                ? safeNetworkImage(
+                    url: coverUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Center(
-                      child: Icon(Icons.photo_camera_outlined, size: 48, color: Colors.grey[500]),
-                    ),
+                    width: double.infinity,
+                    height: 160,
+                    placeholderIcon: Icons.photo_camera_outlined,
                   )
                 : Center(
                     child: Icon(Icons.add_photo_alternate_outlined, size: 48, color: Colors.grey[500]),
@@ -523,26 +523,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ],
                           ),
-                          child: CircleAvatar(
-                            radius: 48,
-                            backgroundColor: Colors.grey.shade200,
-                            backgroundImage: _localAvatarPreview != null
-                                ? FileImage(_localAvatarPreview!)
-                                : (user.avatar != null && user.avatar!.isNotEmpty
-                                    ? NetworkImage(user.avatar!)
-                                    : null) as ImageProvider?,
-                            child: ((user.avatar == null || user.avatar!.isEmpty) &&
-                                    _localAvatarPreview == null)
-                                ? Text(
-                                    user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-                                    style: TextStyle(
-                                      fontSize: 32,
-                                      color: Colors.grey[600],
-                                      fontWeight: FontWeight.bold,
+                          child: _localAvatarPreview != null
+                              ? CircleAvatar(
+                                  radius: 48,
+                                  backgroundColor: Colors.grey.shade200,
+                                  backgroundImage: FileImage(_localAvatarPreview!),
+                                )
+                              : (user.avatar != null && user.avatar!.isNotEmpty)
+                                  ? safeAvatarNetworkImage(
+                                      url: ApiConfig.networkImageUrl(user.avatar!) ?? user.avatar!,
+                                      size: 96,
+                                      backgroundColor: Colors.grey.shade200,
+                                    )
+                                  : CircleAvatar(
+                                      radius: 48,
+                                      backgroundColor: Colors.grey.shade200,
+                                      child: Text(
+                                        user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                                        style: TextStyle(
+                                          fontSize: 32,
+                                          color: Colors.grey[600],
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
-                                  )
-                                : null,
-                          ),
                         ),
                         if (_uploadingAvatar)
                           Positioned.fill(
@@ -591,9 +595,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               if (user.bio != null && user.bio!.isNotEmpty) ...[
-  const SizedBox(height: 12),
   Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16),
     child: Text(
@@ -746,14 +749,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           Expanded(
             child: _ProfileLabelTab(
-              label: 'Reposted',
-              icon: Icons.repeat,
-              isActive: _activeMainTab == 'reposted',
-              onTap: () => setState(() => _activeMainTab = 'reposted'),
-            ),
-          ),
-          Expanded(
-            child: _ProfileLabelTab(
               label: 'Wellness',
               icon: Icons.favorite_border,
               isActive: _activeMainTab == 'wellness',
@@ -785,22 +780,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildPostSubTabs() {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    child: SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _PostSubTab(icon: Icons.apps, label: 'All', value: 'all'),
-          _PostSubTab(icon: Icons.text_fields, label: 'Texts', value: 'text'),
-          _PostSubTab(icon: Icons.image_outlined, label: 'Photos', value: 'photo'),
-          _PostSubTab(icon: Icons.videocam_outlined, label: 'Videos', value: 'video'),
-          _PostSubTab(icon: Icons.repeat, label: 'Reposts', value: 'repost'),
+          _PostSubTab(icon: Icons.apps, value: 'all', onTap: () => setState(() => _activePostTab = 'all')),
+          _PostSubTab(icon: Icons.text_fields, value: 'text', onTap: () => setState(() => _activePostTab = 'text')),
+          _PostSubTab(icon: Icons.image_outlined, value: 'photo', onTap: () => setState(() => _activePostTab = 'photo')),
+          _PostSubTab(icon: Icons.videocam_outlined, value: 'video', onTap: () => setState(() => _activePostTab = 'video')),
+          _PostSubTab(icon: Icons.repeat, value: 'repost', onTap: () => setState(() => _activePostTab = 'repost')),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildBodyContent(dynamic user) {
     if (_activeMainTab == 'post') {
@@ -811,16 +804,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
       return _buildPostsSection();
-    }
-
-    if (_activeMainTab == 'reposted') {
-      if (_isLoading) {
-        return const SizedBox(
-          height: 280,
-          child: Center(child: CircularProgressIndicator(color: Colors.black54)),
-        );
-      }
-      return _buildRepostedTabContent();
     }
 
     if (_activeMainTab == 'wellness') {
@@ -838,198 +821,143 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return const SizedBox.shrink();
   }
 
-  Widget _buildRepostedTabContent() {
-    final list = _repostedPosts;
-    void onRepostUndone() {
-      if (mounted) _loadUserPosts();
-    }
-    if (list.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(24),
+  Widget _buildWellnessTabContent() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        elevation: 2,
+        shadowColor: Colors.black.withValues(alpha: 0.08),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => context.push('/wellness'),
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.favorite, color: Colors.white, size: 32),
                 ),
-                child: Icon(Icons.repeat, size: 44, color: Colors.grey[500]),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'No reposts or quotes yet',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'When you repost or quote something, it will show here.',
-                style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    // Grid same as Post tab (3 columns)
-    return Padding(
-      padding: const EdgeInsets.all(2),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: list.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 2,
-          mainAxisSpacing: 2,
-        ),
-        itemBuilder: (context, index) {
-          final post = list[index];
-          return GestureDetector(
-            onTap: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PostDetailScreen(
-                    posts: list,
-                    initialIndex: index,
-                    onRepostUndone: onRepostUndone,
+                const SizedBox(height: 16),
+                const Text(
+                  'Wellness',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
                   ),
                 ),
-              );
-              if (mounted) _loadUserPosts();
-            },
-            child: ClipRRect(
-              borderRadius: BorderRadius.zero,
-              child: Container(
-                color: Colors.grey.shade200,
-                child: _PostGridTile(post: post),
-              ),
+                const SizedBox(height: 8),
+                Text(
+                  _wellnessLoading
+                      ? 'Loading…'
+                      : 'Streak: $_wellnessStreak day${_wellnessStreak == 1 ? '' : 's'} • ${_wellnessHistory.length} activities',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Open Wellness',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildWellnessTabContent() {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: () => context.push('/wellness'),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Icon(Icons.favorite, color: Colors.white, size: 36),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Wellness',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _wellnessLoading
-                    ? 'Loading…'
-                    : 'Streak: $_wellnessStreak day${_wellnessStreak == 1 ? '' : 's'} • ${_wellnessHistory.length} activities',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Tap to open Wellness',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[500],
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ],
           ),
         ),
       ),
+    ),
     );
   }
 
   Widget _buildGamesTabContent() {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: () => context.push('/games'),
+    return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade700,
-                  borderRadius: BorderRadius.circular(18),
+        padding: const EdgeInsets.all(20),
+        child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        elevation: 2,
+        shadowColor: Colors.black.withValues(alpha: 0.08),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => context.push('/games'),
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade800,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.sports_esports, color: Colors.white, size: 32),
                 ),
-                child: const Icon(Icons.sports_esports, color: Colors.white, size: 36),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Games',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
+                const SizedBox(height: 16),
+                const Text(
+                  'Games',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Play wellness games',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
+                const SizedBox(height: 8),
+                Text(
+                  'Play wellness games',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Tap to open Games',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[500],
-                  decoration: TextDecoration.underline,
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Open Games',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -1044,16 +972,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       list = [];
     }
     if (mounted) {
-      setState(() {
-        _savedPosts = list;
-        _savedLoading = false;
-      });
+      setState(() => _savedPosts = list);
     }
   }
 
   Widget _buildSavedTabContent() {
     if (_savedPosts.isEmpty) {
-      return _buildSavedEmptyWithRetry();
+      return _buildSavedEmptyState();
     }
     return ListView.builder(
       shrinkWrap: true,
@@ -1080,14 +1005,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSavedEmptyWithRetry() {
+  Widget _buildSavedEmptyState() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48),
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Icon(Icons.bookmark_border, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
@@ -1106,16 +1029,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: _savedLoading ? null : _loadSavedPosts,
-              icon: const Icon(Icons.refresh, size: 20),
-              label: const Text('Retry'),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.black87,
-                foregroundColor: Colors.white,
-              ),
-            ),
           ],
         ),
       ),
@@ -1124,8 +1037,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildPostsSection() {
     final list = _filteredPosts;
+    final isRepostTab = _activePostTab == 'repost';
 
     if (list.isEmpty) {
+      if (isRepostTab) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Icon(Icons.repeat, size: 44, color: Colors.grey[500]),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'No reposts or quotes yet',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'When you repost or quote something, it will show here.',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      }
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
         child: Center(
@@ -1232,12 +1183,16 @@ class _PostGridTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (post.media.isNotEmpty) {
+    // For reposts/quotes, use embedded post's media; otherwise use post's media
+    final embedded = post.quotedPost ?? post.originalPost;
+    final mediaUrls = post.media.isNotEmpty ? post.media : (embedded?.media ?? []);
+
+    if (mediaUrls.isNotEmpty) {
       return Stack(
         fit: StackFit.expand,
         children: [
-          buildSafeImage(post.media.first),
-          if (post.type == 'video')
+          buildSafeImage(mediaUrls.first),
+          if (post.type == 'video' || embedded?.type == 'video')
             Positioned(
               right: 8,
               top: 8,
@@ -1292,12 +1247,7 @@ class _PostGridTile extends StatelessWidget {
 Widget buildSafeImage(String path) {
   final networkUrl = ApiConfig.networkImageUrl(path);
   if (networkUrl != null) {
-    return Image.network(
-      networkUrl,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) =>
-          const Center(child: Icon(Icons.broken_image)),
-    );
+    return safeNetworkImage(url: networkUrl, fit: BoxFit.cover);
   }
 
   return Image.file(
@@ -1405,13 +1355,13 @@ class _ProfileLabelTab extends StatelessWidget {
 
 class _PostSubTab extends StatelessWidget {
   final IconData icon;
-  final String label;
   final String value;
+  final VoidCallback onTap;
 
   const _PostSubTab({
     required this.icon,
-    required this.label,
     required this.value,
+    required this.onTap,
   });
 
   @override
@@ -1419,32 +1369,16 @@ class _PostSubTab extends StatelessWidget {
     final state = context.findAncestorStateOfType<_ProfileScreenState>()!;
     final bool isActive = state._activePostTab == value;
 
-    return Padding(
-      padding: const EdgeInsets.only(right: 10),
-      child: InkWell(
-        onTap: () => state.setState(() => state._activePostTab = value),
-        borderRadius: BorderRadius.circular(999),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: isActive ? Colors.black : Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, size: 16, color: isActive ? Colors.white : Colors.black),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isActive ? Colors.white : Colors.black,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.black : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(999),
         ),
+        child: Icon(icon, size: 20, color: isActive ? Colors.white : Colors.black),
       ),
     );
   }

@@ -189,17 +189,167 @@ class _PostCardState extends State<PostCard>
     super.dispose();
   }
 
-  Widget _buildPostMedia(String mediaUrl) {
+  static const double _mediaHeight = 280.0;
+  static const double _mediaSectionHeight = 308.0; // _mediaHeight + 8 gap + ~20 dots
+  // Portrait: 1080×1350 (4:5) – tall card
+  static const double _portraitAspectRatio = 4 / 5;
+  // Landscape: 1080×566 (1.91:1) – short card
+  static const double _landscapeAspectRatio = 1.91;
+
+  Widget _buildPostMedia(String mediaUrl, {String? mediaDisplay}) {
     final url = ApiConfig.networkImageUrl(mediaUrl);
     if (url == null) {
       return Container(
         width: double.infinity,
-        height: 200,
+        height: _mediaHeight,
         color: Colors.grey[300],
         child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
       );
     }
-    return FullAspectNetworkImage(url: url, maxHeight: 500);
+    final useFixedAspect =
+        mediaDisplay == 'portrait' || mediaDisplay == 'landscape';
+    final aspectRatio = mediaDisplay == 'portrait'
+        ? _portraitAspectRatio
+        : (mediaDisplay == 'landscape' ? _landscapeAspectRatio : null);
+
+    if (useFixedAspect && aspectRatio != null) {
+      return AspectRatio(
+        aspectRatio: aspectRatio,
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          loadingBuilder: (_, child, progress) {
+            if (progress == null) return child;
+            return Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: Colors.grey[300],
+              child: const Center(child: Icon(Icons.image_outlined, color: Colors.black45)),
+            );
+          },
+          errorBuilder: (_, __, ___) {
+            return Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: Colors.grey[300],
+              child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
+            );
+          },
+        ),
+      );
+    }
+    if (mediaDisplay == null) {
+      return AutoAspectNetworkImage(url: url);
+    }
+    return SizedBox(
+      width: double.infinity,
+      height: _mediaHeight,
+      child: Image.network(
+        url,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        loadingBuilder: (_, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: Colors.grey[300],
+            child: const Center(child: Icon(Icons.image_outlined, color: Colors.black45)),
+          );
+        },
+        errorBuilder: (_, __, ___) {
+          return Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: Colors.grey[300],
+            child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
+          );
+        },
+      ),
+    );
+  }
+
+  double _itemHeightFor(String? mediaDisplay, double width) {
+    if (mediaDisplay == 'portrait') {
+      return width / _portraitAspectRatio; // ~1.25× width – tall
+    }
+    if (mediaDisplay == 'landscape') {
+      return width / _landscapeAspectRatio; // ~0.52× width – short
+    }
+    return width / _portraitAspectRatio; // auto-detect: use tall to fit portrait
+  }
+
+  Widget _buildPostMediaCarousel(List<String> mediaUrls, {String? mediaDisplay}) {
+    if (mediaUrls.isEmpty) return const SizedBox.shrink();
+    if (mediaUrls.length == 1) {
+      return _buildPostMedia(mediaUrls.first, mediaDisplay: mediaDisplay);
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final itemHeight = _itemHeightFor(mediaDisplay, w);
+        return _PostMediaCarousel(
+          mediaUrls: mediaUrls,
+          buildItem: (url) => _buildPostMedia(url, mediaDisplay: mediaDisplay),
+          itemHeight: itemHeight,
+        );
+      },
+    );
+  }
+
+  double _mediaSectionHeightFor(String? mediaDisplay, double width) {
+    final imageHeight = _itemHeightFor(mediaDisplay, width);
+    return imageHeight + 8 + 20; // + gap + dots
+  }
+
+  Widget _buildMediaSection(Post post) {
+    final mediaDisplay = post.mediaDisplay;
+    final media = post.media;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final imageHeight = _itemHeightFor(mediaDisplay, screenWidth);
+        final sectionHeight = media.length == 1
+            ? imageHeight
+            : _mediaSectionHeightFor(mediaDisplay, screenWidth);
+        return _buildFullBleedMedia(
+          _buildPostMediaCarousel(media, mediaDisplay: mediaDisplay),
+          height: sectionHeight,
+        );
+      },
+    );
+  }
+
+  Widget _buildFullBleedMedia(Widget child, {double? height}) {
+    final sectionHeight = height ?? _mediaSectionHeight;
+    return SizedBox(
+      height: sectionHeight,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final screenWidth = MediaQuery.of(context).size.width;
+          final extendAmount = (screenWidth - constraints.maxWidth) / 2;
+          if (extendAmount <= 0) {
+            return child;
+          }
+          return OverflowBox(
+            alignment: Alignment.centerLeft,
+            maxWidth: screenWidth,
+            maxHeight: sectionHeight,
+            child: Transform.translate(
+              offset: Offset(-extendAmount, 0),
+              child: SizedBox(
+                width: screenWidth,
+                height: sectionHeight,
+                child: child,
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -282,17 +432,11 @@ class _PostCardState extends State<PostCard>
             ),
             if (isRepost && embeddedOriginal.media.isNotEmpty) ...[
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: _buildPostMedia(embeddedOriginal.media.first),
-              ),
+              _buildMediaSection(embeddedOriginal),
             ],
             if (!isRepost && post.media.isNotEmpty) ...[
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: _buildPostMedia(post.media.first),
-              ),
+              _buildMediaSection(post),
             ],
             Padding(
               padding: const EdgeInsets.fromLTRB(horizontalPadding, 12, horizontalPadding, 14),
@@ -347,27 +491,7 @@ class _Header extends StatelessWidget {
     final url = avatarUrl != null && avatarUrl.isNotEmpty
         ? (ApiConfig.networkImageUrl(avatarUrl) ?? avatarUrl)
         : null;
-    if (url == null) {
-      return CircleAvatar(
-        radius: 20,
-        backgroundColor: Colors.grey[300],
-        child: const Icon(Icons.person, color: Colors.black45),
-      );
-    }
-    return ClipOval(
-      child: Image.network(
-        url,
-        fit: BoxFit.cover,
-        width: 40,
-        height: 40,
-        errorBuilder: (_, __, ___) => Container(
-          width: 40,
-          height: 40,
-          color: Colors.grey[300],
-          child: const Icon(Icons.person, color: Colors.black45),
-        ),
-      ),
-    );
+    return safeAvatarNetworkImage(url: url, size: 40);
   }
 
   void _openUserProfile(BuildContext context, Post targetPost) {
@@ -398,6 +522,17 @@ class _Header extends StatelessWidget {
         : (reposterName != null ? '$reposterName reposted' : null);
     final author = displayPost ?? post;
 
+    // For reposts, show reposter's avatar; for own repost use current user's avatar
+    String? avatarToShow = author.userAvatar;
+    if (displayPost != null && showRepostLabel) {
+      if (isOwnRepost == true) {
+        final currentUser = context.read<AuthProvider>().user;
+        avatarToShow = currentUser?.avatar;
+      } else {
+        avatarToShow = post.repostedByAvatar ?? author.userAvatar;
+      }
+    }
+
     return Row(
       children: [
         Expanded(
@@ -406,7 +541,7 @@ class _Header extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             child: Row(
               children: [
-                _buildAvatar(author.userAvatar),
+                _buildAvatar(avatarToShow),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -737,6 +872,70 @@ class _PostOptions extends StatelessWidget {
         ),
       );
     }
+  }
+}
+
+class _PostMediaCarousel extends StatefulWidget {
+  final List<String> mediaUrls;
+  final Widget Function(String url) buildItem;
+  final double itemHeight;
+
+  const _PostMediaCarousel({
+    required this.mediaUrls,
+    required this.buildItem,
+    this.itemHeight = 500,
+  });
+
+  @override
+  State<_PostMediaCarousel> createState() => _PostMediaCarouselState();
+}
+
+class _PostMediaCarouselState extends State<_PostMediaCarousel> {
+  final PageController _pageController = PageController();
+  final ValueNotifier<int> _currentPage = ValueNotifier<int>(0);
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _currentPage.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: widget.itemHeight,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: widget.mediaUrls.length,
+            onPageChanged: (i) => _currentPage.value = i,
+            itemBuilder: (_, index) => widget.buildItem(widget.mediaUrls[index]),
+          ),
+        ),
+        const SizedBox(height: 8),
+        ValueListenableBuilder<int>(
+          valueListenable: _currentPage,
+          builder: (_, page, __) => Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              widget.mediaUrls.length,
+              (i) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: i == page ? Colors.black54 : Colors.grey.shade400,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

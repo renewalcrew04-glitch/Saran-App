@@ -1,8 +1,11 @@
 import 'dart:io';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/camera_settings_service.dart';
 import '../services/sframe_api.dart';
+import 'camera_settings_screen.dart';
 
 class SFrameCreateScreen extends StatefulWidget {
   const SFrameCreateScreen({super.key});
@@ -13,22 +16,76 @@ class SFrameCreateScreen extends StatefulWidget {
 
 class _SFrameCreateScreenState extends State<SFrameCreateScreen> {
   final ImagePicker _picker = ImagePicker();
+  CameraController? _cameraController;
+  bool _cameraLoading = true;
+  bool _cameraError = false;
   File? _media;
   bool _loading = false;
+  bool _showTextInput = false;
+  bool _flashOn = false;
+  bool _toolbarOnLeft = true;
   final TextEditingController _text = TextEditingController();
 
-  // Light theme: black and white only
   static const _white = Color(0xFFFFFFFF);
   static const _black = Color(0xFF000000);
 
-  Future<void> _pickMedia(ImageSource source) async {
-    final XFile? picked = await _picker.pickImage(
-      source: source,
-      imageQuality: 80,
-    );
-    if (picked != null) {
-      setState(() => _media = File(picked.path));
+  @override
+  void initState() {
+    super.initState();
+    _loadSettingsAndInitCamera();
+  }
+
+  Future<void> _loadSettingsAndInitCamera() async {
+    _toolbarOnLeft = await CameraSettingsService.getToolbarOnLeft();
+    if (mounted) setState(() {});
+    await _initCamera();
+  }
+
+  Future<void> _initCamera() async {
+    try {
+      final cameras = await availableCameras();
+      final defaultFront = await CameraSettingsService.getDefaultFrontCamera();
+      final targetDirection = defaultFront ? CameraLensDirection.front : CameraLensDirection.back;
+      final camera = cameras.firstWhere(
+        (c) => c.lensDirection == targetDirection,
+        orElse: () => cameras.first,
+      );
+      final controller = CameraController(
+        camera,
+        ResolutionPreset.high,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.jpeg,
+      );
+      await controller.initialize();
+      if (!mounted) return;
+      setState(() {
+        _cameraController = controller;
+        _cameraLoading = false;
+        _cameraError = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _cameraLoading = false;
+        _cameraError = true;
+      });
     }
+  }
+
+  Future<void> _capturePhoto() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
+    try {
+      final file = await _cameraController!.takePicture();
+      if (mounted) setState(() => _media = File(file.path));
+    } catch (_) {}
+  }
+
+  Future<void> _pickFromGallery() async {
+    final XFile? picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (picked != null && mounted) setState(() => _media = File(picked.path));
   }
 
   Future<void> _share() async {
@@ -44,7 +101,7 @@ class _SFrameCreateScreenState extends State<SFrameCreateScreen> {
         if (mediaUrl == null && _media != null) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Upload failed: no URL returned')),
+              const SnackBar(content: Text('Upload failed')),
             );
           }
           return;
@@ -72,197 +129,262 @@ class _SFrameCreateScreenState extends State<SFrameCreateScreen> {
 
   @override
   void dispose() {
+    _cameraController?.dispose();
     _text.dispose();
     super.dispose();
+  }
+
+  Widget _buildContent() {
+    if (_media != null) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.file(_media!, fit: BoxFit.cover),
+        ],
+      );
+    }
+    if (_cameraLoading) {
+      return Container(color: _black, child: const Center(child: CircularProgressIndicator(color: _white)));
+    }
+    if (_cameraError || _cameraController == null || !_cameraController!.value.isInitialized) {
+      return Container(
+        color: _black,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.photo_camera_outlined, size: 64, color: _white.withValues(alpha: 0.5)),
+              const SizedBox(height: 16),
+              Text(
+                'Camera unavailable',
+                style: TextStyle(color: _white.withValues(alpha: 0.7), fontSize: 16),
+              ),
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: _pickFromGallery,
+                icon: const Icon(Icons.photo_library, color: _white, size: 20),
+                label: const Text('Choose from gallery', style: TextStyle(color: _white)),
+                style: OutlinedButton.styleFrom(foregroundColor: _white, side: const BorderSide(color: _white)),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => setState(() => _showTextInput = true),
+                icon: const Icon(Icons.text_fields, color: _white, size: 20),
+                label: const Text('Text only', style: TextStyle(color: _white)),
+                style: OutlinedButton.styleFrom(foregroundColor: _white, side: const BorderSide(color: _white)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return CameraPreview(_cameraController!);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _white,
-      appBar: AppBar(
-        backgroundColor: _white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _black, size: 22),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "New moment",
-          style: TextStyle(
-            color: _black,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: Column(
+      backgroundColor: _black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          _buildContent(),
+
+          // Top overlay: X, flash/remove, settings
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Content card: media preview or text input
-                    Container(
-                      width: double.infinity,
-                      constraints: const BoxConstraints(minHeight: 200),
-                      decoration: BoxDecoration(
-                        color: _white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: _black.withValues(alpha: 0.2), width: 1.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _black.withValues(alpha: 0.05),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
+                    _OverlayIcon(
+                      icon: Icons.close,
+                      onTap: () => Navigator.pop(context),
+                    ),
+                    _media != null
+                        ? _OverlayIcon(
+                            icon: Icons.refresh_rounded,
+                            onTap: () => setState(() => _media = null),
+                          )
+                        : _OverlayIcon(
+                            icon: _flashOn ? Icons.flash_on : Icons.flash_off,
+                            onTap: () => setState(() => _flashOn = !_flashOn),
                           ),
-                        ],
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: _media != null
-                          ? Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                Image.file(
-                                  _media!,
-                                  fit: BoxFit.cover,
-                                ),
-                                Positioned(
-                                  top: 12,
-                                  right: 12,
-                                  child: Material(
-                                    color: _black.withValues(alpha: 0.5),
-                                    shape: const CircleBorder(),
-                                    child: InkWell(
-                                      onTap: () => setState(() => _media = null),
-                                      customBorder: const CircleBorder(),
-                                      child: const Padding(
-                                        padding: EdgeInsets.all(10),
-                                        child: Icon(Icons.close_rounded, color: _white, size: 20),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  TextField(
-                                    controller: _text,
-                                    onChanged: (_) => setState(() {}),
-                                    maxLength: 200,
-                                    maxLines: 8,
-                                    minLines: 4,
-                                    style: const TextStyle(
-                                      color: _black,
-                                      fontSize: 16,
-                                      height: 1.5,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                    decoration: InputDecoration(
-                                      hintText: "Write your moment…",
-                                      hintStyle: TextStyle(
-                                        color: _black.withValues(alpha: 0.35),
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w400,
-                                      ),
-                                      border: InputBorder.none,
-                                      filled: true,
-                                      fillColor: Colors.transparent,
-                                      contentPadding: EdgeInsets.zero,
-                                      counterText: '',
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Text(
-                                      '${_text.text.length}/200',
-                                      style: TextStyle(
-                                        color: _black.withValues(alpha: 0.5),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                    _OverlayIcon(
+                      icon: Icons.settings_outlined,
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CameraSettingsScreen(),
+                          ),
+                        );
+                        if (mounted) {
+                          _toolbarOnLeft = await CameraSettingsService.getToolbarOnLeft();
+                          setState(() {});
+                        }
+                      },
                     ),
                   ],
                 ),
               ),
             ),
-            // Bottom bar: camera, gallery, Share
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              decoration: BoxDecoration(
-                color: _white,
-                border: Border(
-                  top: BorderSide(color: _black.withValues(alpha: 0.12)),
+          ),
+
+          // Vertical toolbar (left or right per settings): Aa, infinity, grid, sparkles
+          if (_media != null || (!_cameraLoading && !_cameraError))
+            Positioned(
+              left: _toolbarOnLeft ? 12 : null,
+              right: _toolbarOnLeft ? null : 12,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _OverlayIcon(icon: Icons.text_fields_rounded, onTap: () => setState(() => _showTextInput = true)),
+                    const SizedBox(height: 20),
+                    _OverlayIcon(icon: Icons.all_inclusive_rounded, onTap: () {}),
+                    const SizedBox(height: 20),
+                    _OverlayIcon(icon: Icons.grid_on_rounded, onTap: () {}),
+                    const SizedBox(height: 20),
+                    _OverlayIcon(icon: Icons.auto_awesome, onTap: () {}),
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  _ActionChip(
-                    icon: Icons.camera_alt_rounded,
-                    label: 'Camera',
-                    onTap: () => _pickMedia(ImageSource.camera),
-                  ),
-                  const SizedBox(width: 10),
-                  _ActionChip(
-                    icon: Icons.photo_library_rounded,
-                    label: 'Gallery',
-                    onTap: () => _pickMedia(ImageSource.gallery),
-                  ),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: _loading ? null : _share,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _black,
-                      foregroundColor: _white,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (_loading)
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              color: _white,
-                              strokeWidth: 2,
+            ),
+
+          // Bottom bar: capture, gallery, share
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: MediaQuery.of(context).padding.bottom + 16,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(width: 44),
+                    // Center: capture or placeholder
+                    _media == null && !_cameraError && !_cameraLoading
+                        ? GestureDetector(
+                            onTap: _capturePhoto,
+                            child: Container(
+                              width: 72,
+                              height: 72,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: _white, width: 3),
+                                color: _white.withValues(alpha: 0.2),
+                              ),
                             ),
                           )
-                        else
-                          const Icon(Icons.send_rounded, size: 18),
-                        const SizedBox(width: 6),
-                        Text(
-                          _loading ? 'Sharing…' : 'Share',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
+                        : const SizedBox(width: 72),
+                    // Right: gallery + share
+                    Row(
+                      children: [
+                        _OverlayIcon(icon: Icons.photo_library_outlined, onTap: _pickFromGallery),
+                        const SizedBox(width: 20),
+                        GestureDetector(
+                          onTap: _loading ? null : _share,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _loading ? _white.withValues(alpha: 0.3) : _white,
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            child: _loading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: _black),
+                                  )
+                                : const Text(
+                                    'Share',
+                                    style: TextStyle(color: _black, fontWeight: FontWeight.w600, fontSize: 15),
+                                  ),
                           ),
                         ),
                       ],
                     ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Text input overlay
+          if (_showTextInput) _buildTextOverlay(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextOverlay() {
+    return Container(
+      color: _black.withValues(alpha: 0.85),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => setState(() => _showTextInput = false),
+                    child: const Text('Cancel', style: TextStyle(color: _white)),
+                  ),
+                  Text(
+                    'Add text',
+                    style: TextStyle(color: _white.withValues(alpha: 0.9), fontWeight: FontWeight.w600),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() => _showTextInput = false),
+                    child: const Text('Done', style: TextStyle(color: _white, fontWeight: FontWeight.w600)),
                   ),
                 ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _text,
+                        onChanged: (_) => setState(() {}),
+                        autofocus: true,
+                        maxLength: 200,
+                        maxLines: null,
+                        expands: true,
+                        textAlignVertical: TextAlignVertical.top,
+                        style: const TextStyle(color: _white, fontSize: 16, height: 1.5),
+                        decoration: InputDecoration(
+                          hintText: "Write your story…",
+                          hintStyle: TextStyle(color: _white.withValues(alpha: 0.4)),
+                          border: InputBorder.none,
+                          counterText: '',
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        '${_text.text.length}/200',
+                        style: TextStyle(color: _white.withValues(alpha: 0.5), fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -272,49 +394,24 @@ class _SFrameCreateScreenState extends State<SFrameCreateScreen> {
   }
 }
 
-class _ActionChip extends StatelessWidget {
+class _OverlayIcon extends StatelessWidget {
   final IconData icon;
-  final String label;
   final VoidCallback onTap;
 
-  const _ActionChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _OverlayIcon({required this.icon, required this.onTap});
 
   static const _white = Color(0xFFFFFFFF);
-  static const _black = Color(0xFF000000);
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: _white,
-      borderRadius: BorderRadius.circular(12),
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _black.withValues(alpha: 0.2)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: _black, size: 20),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: _black,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+        customBorder: const CircleBorder(),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Icon(icon, color: _white, size: 26),
         ),
       ),
     );

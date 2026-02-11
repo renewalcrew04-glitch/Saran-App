@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../config/api_config.dart';
 import '../../models/post_model.dart';
+import '../../utils/media_utils.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/explore_service.dart';
@@ -596,14 +597,7 @@ class _PeopleListTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 26,
-              backgroundColor: Colors.grey.shade300,
-              backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-              child: avatarUrl == null
-                  ? const Icon(Icons.person, color: Colors.black54, size: 28)
-                  : null,
-            ),
+            safeAvatarNetworkImage(url: avatarUrl, size: 52),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -680,14 +674,7 @@ class _SuggestionCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircleAvatar(
-              radius: 26,
-              backgroundColor: Colors.grey.shade300,
-              backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-              child: avatarUrl == null
-                  ? const Icon(Icons.person, color: Colors.black54, size: 24)
-                  : null,
-            ),
+            safeAvatarNetworkImage(url: avatarUrl, size: 52),
             const SizedBox(height: 5),
             Flexible(
               child: Text(
@@ -791,12 +778,7 @@ class _ExploreTile extends StatelessWidget {
     if (url == null) {
       return const Center(child: Icon(Icons.broken_image));
     }
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) =>
-          const Center(child: Icon(Icons.broken_image)),
-    );
+    return safeNetworkImage(url: url, fit: BoxFit.cover);
   }
 }
 

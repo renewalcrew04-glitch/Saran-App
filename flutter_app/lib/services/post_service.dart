@@ -63,6 +63,7 @@ class PostService {
     String? category,
     List<String>? hashtags,
     String visibility = 'public',
+    String? mediaDisplay,
   }) async {
     final token = await _getToken();
     final uri = Uri.parse(ApiConfig.getUrl(ApiConfig.posts));
@@ -73,6 +74,7 @@ class PostService {
       'category': category,
       'hashtags': hashtags ?? <String>[],
       'visibility': visibility,
+      if (mediaDisplay != null && mediaDisplay.isNotEmpty) 'mediaDisplay': mediaDisplay,
     });
     final response = await http.post(
       uri,

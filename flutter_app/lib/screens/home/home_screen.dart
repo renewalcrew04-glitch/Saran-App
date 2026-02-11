@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../../providers/auth_provider.dart';
+import '../../config/api_config.dart';
 import '../../services/feed_service.dart';
 import '../../models/post_model.dart';
 import '../../widgets/app_header.dart';
@@ -130,6 +133,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildPostComposer() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final user = context.watch<AuthProvider>().user;
+    final avatarUrl = user?.avatar != null ? ApiConfig.networkImageUrl(user!.avatar!) ?? user.avatar : null;
     return GestureDetector(
       onTap: () async {
         final result = await context.push<bool>('/post-create');
@@ -149,7 +154,10 @@ class _HomeScreenState extends State<HomeScreen> {
             CircleAvatar(
               radius: 20,
               backgroundColor: colorScheme.outlineVariant,
-              child: Icon(Icons.person, color: colorScheme.onSurfaceVariant, size: 22),
+              backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+              child: avatarUrl == null
+                  ? Icon(Icons.person, color: colorScheme.onSurfaceVariant, size: 22)
+                  : null,
             ),
             const SizedBox(width: 12),
             Expanded(

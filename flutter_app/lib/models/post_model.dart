@@ -11,6 +11,7 @@ class Post {
   final Post? quotedPost;
   final String? repostedByUid;
   final String? repostedByName;
+  final String? repostedByAvatar;
   final int likesCount;
   final int commentsCount;
   final int repostsCount;
@@ -18,6 +19,8 @@ class Post {
   final String visibility;
   final String? category;
   final List<String> hashtags;
+  /// When "portrait" or "landscape", show full image with aspect ratio. Null = standard fixed display.
+  final String? mediaDisplay;
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isLiked;
@@ -47,6 +50,7 @@ class Post {
     this.quotedPost,
     this.repostedByUid,
     this.repostedByName,
+    this.repostedByAvatar,
     this.likesCount = 0,
     this.commentsCount = 0,
     this.repostsCount = 0,
@@ -54,6 +58,7 @@ class Post {
     this.visibility = 'public',
     this.category,
     this.hashtags = const [],
+    this.mediaDisplay,
     required this.createdAt,
     required this.updatedAt,
     this.isLiked = false,
@@ -82,6 +87,7 @@ class Post {
       quotedPost: _parseQuotedOrOriginalPost(json),
       repostedByUid: _repostedByUidFromJson(json['repostedByUid']),
       repostedByName: _repostedByNameFromJson(json),
+      repostedByAvatar: _repostedByAvatarFromJson(json['repostedByUid']),
       likesCount: json['likesCount'] ?? 0,
       commentsCount: (json['commentsCount'] ?? json['comments_count'] ?? 0) as int,
       repostsCount: json['repostsCount'] ?? 0,
@@ -89,6 +95,7 @@ class Post {
       visibility: json['visibility'] ?? 'public',
       category: json['category'],
       hashtags: List<String>.from(json['hashtags'] ?? []),
+      mediaDisplay: json['mediaDisplay']?.toString(),
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
       isLiked: json['isLiked'] ?? false,
@@ -114,6 +121,12 @@ class Post {
     if (name != null && name.isNotEmpty) return name;
     final by = json['repostedByUid'];
     if (by is Map) return (by['name'] ?? by['username'])?.toString();
+    return null;
+  }
+
+  static String? _repostedByAvatarFromJson(dynamic v) {
+    if (v == null) return null;
+    if (v is Map) return (v['avatar'] ?? v['photoURL'])?.toString();
     return null;
   }
 
@@ -159,6 +172,7 @@ class Post {
       quotedPost: null,
       repostedByUid: json['repostedByUid']?.toString(),
       repostedByName: json['repostedByName']?.toString(),
+      repostedByAvatar: _repostedByAvatarFromJson(json['repostedByUid']),
       likesCount: (json['likesCount'] ?? 0) as int,
       commentsCount: (json['commentsCount'] ?? json['comments_count'] ?? 0) as int,
       repostsCount: (json['repostsCount'] ?? 0) as int,
@@ -166,6 +180,7 @@ class Post {
       visibility: (json['visibility'] ?? 'public').toString(),
       category: json['category']?.toString(),
       hashtags: List<String>.from(json['hashtags'] ?? []),
+      mediaDisplay: json['mediaDisplay']?.toString(),
       createdAt: date,
       updatedAt: updated,
       isLiked: json['isLiked'] == true,

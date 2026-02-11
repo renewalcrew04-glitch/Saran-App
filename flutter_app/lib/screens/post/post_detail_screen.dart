@@ -138,8 +138,8 @@ class _FullScreenPostViewState extends State<_FullScreenPostView> {
           controller: _scrollController,
           padding: EdgeInsets.only(
             top: MediaQuery.paddingOf(context).top + kToolbarHeight + 8,
-            left: 8,
-            right: 8,
+            left: 0,
+            right: 0,
             bottom: MediaQuery.paddingOf(context).bottom + 24,
           ),
           itemCount: _posts.length,
