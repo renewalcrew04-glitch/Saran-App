@@ -26,16 +26,17 @@ class _SpaceScreenState extends ConsumerState<SpaceScreen> {
     final events = ref.watch(spaceProvider);
     final notifier = ref.read(spaceProvider.notifier);
     
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
+        title: Text(
           'Spaces',
           style: TextStyle(
-            color: Colors.black,
+            color: scheme.onSurface,
             fontSize: 24,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
@@ -50,17 +51,17 @@ class _SpaceScreenState extends ConsumerState<SpaceScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.black,
+                  color: Theme.of(context).colorScheme.primary,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
-                  children: const [
-                    Icon(Icons.add, color: Colors.white, size: 16),
-                    SizedBox(width: 4),
+                  children: [
+                    Icon(Icons.add, color: scheme.onPrimary, size: 16),
+                    const SizedBox(width: 4),
                     Text(
                       "Host",
                       style: TextStyle(
-                        color: Colors.white,
+                        color: scheme.onPrimary,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -72,10 +73,12 @@ class _SpaceScreenState extends ConsumerState<SpaceScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Categories
-          SingleChildScrollView(
+          Column(
+            children: [
+              // Categories
+              SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -92,14 +95,14 @@ class _SpaceScreenState extends ConsumerState<SpaceScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                       decoration: BoxDecoration(
-                        color: isSelected ? Colors.black : Colors.grey[100],
+                        color: isSelected ? scheme.primary : scheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: isSelected ? Colors.black : Colors.transparent),
+                        border: Border.all(color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent),
                       ),
                       child: Text(
                         c,
                         style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.black87,
+                          color: isSelected ? scheme.onPrimary : scheme.onSurface,
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                         ),
@@ -118,9 +121,9 @@ class _SpaceScreenState extends ConsumerState<SpaceScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.event_note, size: 64, color: Colors.grey[300]),
+                        Icon(Icons.event_note, size: 64, color: scheme.outlineVariant),
                         const SizedBox(height: 16),
-                        Text("No events found", style: TextStyle(color: Colors.grey[500], fontSize: 16)),
+                        Text("No events found", style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16)),
                       ],
                     ),
                   )
@@ -131,33 +134,44 @@ class _SpaceScreenState extends ConsumerState<SpaceScreen> {
                   ),
           ),
         ],
-      ),
-
-      // ✅ Bottom Center "My Events" Button
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4))
-          ],
-        ),
-        child: InkWell(
-          onTap: () => context.push('/space/my-events'),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.confirmation_number_outlined, color: Colors.white),
-              SizedBox(width: 8),
-              Text(
-                "My Events & Bookings",
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ],
           ),
-        ),
+          // My Events & Bookings – above the bottom nav bar
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 90,
+            child: Center(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => context.push('/space/my-events'),
+                  borderRadius: BorderRadius.circular(30),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4)),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.confirmation_number_outlined, color: scheme.onPrimary),
+                        const SizedBox(width: 8),
+                        Text(
+                          "My Events & Bookings",
+                          style: TextStyle(color: scheme.onPrimary, fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -61,12 +61,13 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("Report a problem"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
       ),
       body: Padding(
@@ -87,8 +88,8 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
               height: 46,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
+                  backgroundColor: scheme.primary,
+                  foregroundColor: scheme.onPrimary,
                 ),
                 onPressed: loading ? null : _submit,
                 child: Text(loading ? "Submitting..." : "Submit"),

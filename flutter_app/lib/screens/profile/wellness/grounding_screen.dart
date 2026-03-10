@@ -36,14 +36,15 @@ class _GroundingScreenState extends State<GroundingScreen> {
   @override
   Widget build(BuildContext context) {
     final step = steps[stepIndex];
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("5-4-3-2-1 Grounding"),
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
-        foregroundColor: Colors.black,
+        foregroundColor: scheme.onSurface,
       ),
       body: Center(
         child: Padding(
@@ -57,7 +58,7 @@ class _GroundingScreenState extends State<GroundingScreen> {
                       height: 120,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.black, width: 4),
+                        border: Border.all(color: scheme.primary, width: 4),
                       ),
                       alignment: Alignment.center,
                       child: Text(
@@ -89,8 +90,8 @@ class _GroundingScreenState extends State<GroundingScreen> {
                     ElevatedButton(
                       onPressed: _next,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
+                        backgroundColor: scheme.primary,
+                        foregroundColor: scheme.onPrimary,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 40,
                           vertical: 14,
@@ -109,14 +110,14 @@ class _GroundingScreenState extends State<GroundingScreen> {
                     Container(
                       width: 90,
                       height: 90,
-                      decoration: const BoxDecoration(
-                        color: Colors.black,
+                      decoration: BoxDecoration(
+                        color: scheme.primary,
                         shape: BoxShape.circle,
                       ),
                       alignment: Alignment.center,
-                      child: const Text(
+                      child: Text(
                         "✓",
-                        style: TextStyle(color: Colors.white, fontSize: 36),
+                        style: TextStyle(color: scheme.onPrimary, fontSize: 36),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -128,9 +129,9 @@ class _GroundingScreenState extends State<GroundingScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       "You are here, in this moment",
-                      style: TextStyle(color: Color(0xFF666666)),
+                      style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
                   ],
                 ),

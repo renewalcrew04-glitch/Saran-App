@@ -43,10 +43,11 @@ class _MutedContentScreenState extends State<MutedContentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: scheme.surface,
         title: const Text("Muted Content"),
         actions: [
           TextButton(onPressed: _save, child: const Text("Save"))
@@ -68,19 +69,20 @@ class _MutedContentScreenState extends State<MutedContentScreen> {
     TextEditingController controller,
     List<String> list,
   ) {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title,
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(
+                color: scheme.onSurface, fontWeight: FontWeight.bold)),
         const SizedBox(height: 10),
         TextField(
           controller: controller,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
+          style: TextStyle(color: scheme.onSurface),
+          decoration: InputDecoration(
             hintText: "Add and press enter",
-            hintStyle: TextStyle(color: Colors.white38),
+            hintStyle: TextStyle(color: scheme.onSurfaceVariant),
           ),
           onSubmitted: (v) {
             if (v.trim().isEmpty) return;

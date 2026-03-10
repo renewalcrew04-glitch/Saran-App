@@ -332,12 +332,25 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Report this account'),
-        content: TextField(
-          controller: reasonController,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'Reason for report (optional)',
-            border: OutlineInputBorder(),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Reports are reviewed within 24 hours. Violating content may be removed and accounts may be restricted.',
+                style: TextStyle(fontSize: 13, color: Colors.black54),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: reasonController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Reason for report (optional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
           ),
         ),
         actions: [
@@ -358,7 +371,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 await _settingsApi.reportUser(uid: widget.user.uid, reason: reason);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Report submitted')),
+                    const SnackBar(content: Text("Report submitted. We'll review within 24 hours.")),
                   );
                 }
               } catch (e) {
@@ -380,14 +393,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Widget build(BuildContext context) {
     final user = widget.user;
 
+    final scheme = Theme.of(context).colorScheme;
     if (_isBlockedView) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         appBar: AppBar(
           title: Text(user.username),
-          backgroundColor: Colors.white,
+          backgroundColor: scheme.surface,
           elevation: 0,
-          foregroundColor: Colors.black,
+          foregroundColor: scheme.onSurface,
         ),
         body: Center(
           child: Padding(
@@ -416,16 +430,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: Text(user.username),
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
-        foregroundColor: Colors.black,
+        foregroundColor: scheme.onSurface,
         actions: [
           if (!_isOwnProfile)
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_horiz, color: Colors.black),
+              icon: Icon(Icons.more_horiz, color: scheme.onSurface),
               onSelected: _onProfileMenuSelected,
               itemBuilder: (context) => [
                 PopupMenuItem(

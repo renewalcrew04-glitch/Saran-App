@@ -1,11 +1,20 @@
+import org.gradle.api.tasks.compile.JavaCompile
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(keystorePropertiesFile.inputStream())
+}
+
 android {
-    namespace = "com.example.saran_app"
+    namespace = "io.saran.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,16 +30,37 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.saran_app"
+        applicationId = "io.saran.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"] as String?
+                keyPassword = keystoreProperties["keyPassword"] as String?
+                storeFile = keystoreProperties["storeFile"]?.let { file(it.toString()) }
+                storePassword = keystoreProperties["storePassword"] as String?
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
 }
@@ -41,4 +71,9 @@ dependencies {
 
 flutter {
     source = "../.."
+}
+
+// Suppress Java 8 "obsolete options" warnings from dependencies
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.add("-Xlint:-options")
 }

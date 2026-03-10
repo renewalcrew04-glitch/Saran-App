@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-
 import '../../providers/auth_provider.dart';
 import '../../config/api_config.dart';
+import '../../utils/daily_quotes.dart';
 import '../../services/feed_service.dart';
 import '../../models/post_model.dart';
 import '../../widgets/app_header.dart';
@@ -82,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
           borderRadius: BorderRadius.circular(20),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: isActive ? theme.colorScheme.primary : theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(20),
@@ -96,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(
                 color: isActive ? Colors.white : theme.colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
-                fontSize: 14,
+                fontSize: 13,
               ),
             ),
           ),
@@ -105,26 +105,29 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Primary pill-shaped quote banner.
+  /// Compact quote chip – one quote per day.
   Widget _buildQuoteBanner() {
     final theme = Theme.of(context);
+    final quote = getDailyQuote();
     return Container(
-      margin: const EdgeInsets.only(top: 0),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary,
-        borderRadius: BorderRadius.circular(28),
+        color: theme.colorScheme.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.4), width: 1),
       ),
-      child: const Center(
-        child: Text(
-          'You are not too much. You are enough.',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-            color: Colors.white,
-          ),
-          textAlign: TextAlign.center,
+      alignment: Alignment.center,
+      child: Text(
+        quote,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 13,
+          color: theme.colorScheme.primary,
         ),
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -143,23 +146,23 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: colorScheme.outline),
         ),
         child: Row(
           children: [
             CircleAvatar(
-              radius: 20,
+              radius: 18,
               backgroundColor: colorScheme.outlineVariant,
               backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
               child: avatarUrl == null
                   ? Icon(Icons.person, color: colorScheme.onSurfaceVariant, size: 22)
                   : null,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 "What's on your mind?",
@@ -181,7 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   child: Text(
                     'Post',
                     style: TextStyle(
@@ -202,6 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppHeader(
@@ -210,6 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
         unreadCount: 0,
         onOpenNotifications: () => context.push('/notifications'),
         onOpenMessages: () => context.push('/messages'),
+        onOpenAI: () => context.push('/ai'),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -218,33 +223,45 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         color: theme.colorScheme.primary,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(8, 12, 8, 24),
+          padding: EdgeInsets.fromLTRB(0, 6, 0, MediaQuery.of(context).padding.bottom + 100),
           children: [
             // S-Frame row (rectangular dashed create + user frames) — refresh when user shares a story
             SFrameRow(
               key: ValueKey(_sframeRefresh),
+              darkTheme: isDark,
               onStoryCreated: () => setState(() => _sframeRefresh++),
             ),
-            _buildQuoteBanner(),
-            const SizedBox(height: 16),
-
-            // Category tabs (For You, Following, etc.)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                children: _homeTabs.map((label) => _buildChip(context, label)).toList(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildQuoteBanner(),
+                ],
               ),
             ),
-
-            const SizedBox(height: 14),
-            _buildPostComposer(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
+            // Category tabs (For You, Following, etc.) – end to end with space between
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+              child: Row(
+                children: [
+                  ..._homeTabs.map((label) => _buildChip(context, label)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: _buildPostComposer(),
+            ),
+            const SizedBox(height: 10),
 
             // Feed section header
             if (!_loading && _error == null && _posts.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(left: 4, bottom: 6),
                 child: Text(
                   _selectedTab,
                   style: TextStyle(
@@ -257,7 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             if (_loading)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 48),
+                padding: const EdgeInsets.symmetric(vertical: 32),
                 child: Column(
                   children: [
                     const SizedBox(
@@ -279,7 +296,7 @@ class _HomeScreenState extends State<HomeScreen> {
               )
             else if (_error != null)
               Container(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
@@ -294,8 +311,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Column(
                   children: [
-                    Icon(Icons.error_outline_rounded, size: 48, color: theme.colorScheme.onSurfaceVariant),
-                    const SizedBox(height: 12),
+                    Icon(Icons.error_outline_rounded, size: 40, color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(height: 8),
                     Text(
                       'Couldn’t load feed',
                       style: TextStyle(
@@ -304,7 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontSize: 16,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
                       _error!,
                       textAlign: TextAlign.center,
@@ -312,7 +329,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     FilledButton.icon(
                       onPressed: _loadFeed,
                       icon: const Icon(Icons.refresh_rounded, size: 20),
@@ -328,18 +345,18 @@ class _HomeScreenState extends State<HomeScreen> {
               )
             else if (_posts.isEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 48),
+                padding: const EdgeInsets.symmetric(vertical: 32),
                 child: Column(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surfaceContainerHighest,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.article_outlined, size: 48, color: theme.colorScheme.onSurfaceVariant),
+                      child: Icon(Icons.article_outlined, size: 40, color: theme.colorScheme.onSurfaceVariant),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
                     Text(
                       'No posts yet',
                       style: TextStyle(
@@ -354,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       textAlign: TextAlign.center,
                       style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 14),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -371,7 +388,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         OutlinedButton.icon(
                           onPressed: () => context.push('/explore'),
                           icon: const Icon(Icons.explore_rounded, size: 20),
@@ -390,12 +407,23 @@ class _HomeScreenState extends State<HomeScreen> {
               ..._posts.asMap().entries.map((entry) {
                 final index = entry.key;
                 final post = entry.value;
+                final authorUid = post.originalPost?.uid ?? post.quotedPost?.uid ?? post.uid;
                 return Padding(
-                  padding: EdgeInsets.only(bottom: index < _posts.length - 1 ? 6 : 0),
+                  padding: EdgeInsets.only(bottom: index < _posts.length - 1 ? 4 : 0),
                   child: PostCard(
                     post: post,
                     onPostDeleted: () {
                       if (mounted) _loadFeed();
+                    },
+                    onBlockedUser: () {
+                      if (mounted) {
+                        setState(() {
+                          _posts.removeWhere((p) {
+                            final a = p.originalPost?.uid ?? p.quotedPost?.uid ?? p.uid;
+                            return a == authorUid;
+                          });
+                        });
+                      }
                     },
                   ),
                 );

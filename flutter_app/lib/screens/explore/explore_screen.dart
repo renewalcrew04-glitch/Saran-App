@@ -245,25 +245,23 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final hasQuery = _searchController.text.trim().isNotEmpty;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Explore',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800, fontSize: 22),
+          style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.w800, fontSize: 22),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.black),
+            icon: Icon(Icons.notifications_none, color: theme.colorScheme.onSurface),
             onPressed: () => context.push('/notifications'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.person_outline, color: Colors.black),
-            onPressed: () => context.push('/profile'),
           ),
         ],
       ),
@@ -278,7 +276,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
             Container(
   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
   decoration: BoxDecoration(
-    color: Colors.grey.shade100,
+    color: scheme.surfaceContainerHighest,
     borderRadius: BorderRadius.circular(14),
   ),
   child: Row(
@@ -286,7 +284,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
       Icon(
         Icons.search,
         size: 20,
-        color: Colors.grey.shade600,
+        color: scheme.onSurfaceVariant,
       ),
       const SizedBox(width: 10),
       Expanded(
@@ -301,7 +299,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
           decoration: InputDecoration(
             hintText: 'Search People, posts, topics...',
             hintStyle: TextStyle(
-              color: Colors.grey.shade600,
+              color: scheme.onSurfaceVariant,
               fontSize: 14,
               fontWeight: FontWeight.w400,
             ),
@@ -324,7 +322,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
           child: Icon(
             Icons.close,
             size: 18,
-            color: Colors.grey.shade600,
+            color: scheme.onSurfaceVariant,
           ),
         ),
     ],
@@ -345,14 +343,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
-                          color: isActive ? Colors.black : Colors.grey.shade200,
+                          color: isActive ? scheme.primary : scheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(18),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           f,
                           style: TextStyle(
-                            color: isActive ? Colors.white : Colors.black87,
+                            color: isActive ? scheme.onPrimary : scheme.onSurface,
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
                           ),
@@ -376,12 +374,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
             else ...[
               // Suggestions for you: only in All tab (horizontal cards + View more)
               if (_selectedFilter == 'All' && _suggestions.isNotEmpty) ...[
-                const Text(
+                Text(
                   'Suggestions for you',
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
-                    color: Colors.black87,
+                    color: scheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -413,11 +411,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 Center(
                   child: GestureDetector(
                     onTap: _loadSuggestions,
-                    child: const Text(
+                    child: Text(
                       'View more',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: Colors.black54,
+                        color: scheme.primary,
                         fontSize: 13,
                       ),
                     ),
@@ -428,12 +426,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
               // People tab: show people in a vertical list (no suggestions header)
               if (_selectedFilter == 'People') ...[
                 if (_suggestions.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 40),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 40),
                     child: Center(
                       child: Text(
                         'No people to show.',
-                        style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+                        style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600),
                       ),
                     ),
                   )
@@ -465,6 +463,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   }
 
   Widget _buildSearchResults() {
+    final scheme = Theme.of(context).colorScheme;
     final showUsers = (_selectedFilter == 'All' || _selectedFilter == 'People') && _users.isNotEmpty;
     final filteredPosts = _filteredSearchPosts;
     final showPosts = filteredPosts.isNotEmpty;
@@ -477,7 +476,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
             _selectedFilter == 'People'
                 ? 'No people found.'
                 : 'No results for $_selectedFilter.',
-            style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+            style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600),
           ),
         ),
       );
@@ -522,6 +521,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   }
 
   Widget _buildExploreGrid(List<Post> posts) {
+    final scheme = Theme.of(context).colorScheme;
     if (posts.isEmpty) {
       final message = _selectedFilter == 'All'
           ? 'Nothing to explore yet.'
@@ -531,7 +531,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         child: Center(
           child: Text(
             message,
-            style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+            style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600),
           ),
         ),
       );
@@ -561,7 +561,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
             child: ClipRRect(
               borderRadius: BorderRadius.zero,
               child: Container(
-                color: Colors.grey.shade200,
+                color: scheme.surfaceContainerHighest,
                 child: _ExploreTile(post: post),
               ),
             ),
@@ -615,7 +615,7 @@ class _PeopleListTile extends StatelessWidget {
                   Text(
                     '@${user.username}',
                     style: TextStyle(
-                      color: Colors.grey.shade600,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 13,
                     ),
                   ),
@@ -625,8 +625,8 @@ class _PeopleListTile extends StatelessWidget {
             TextButton(
               onPressed: isFollowing ? null : onFollow,
               style: TextButton.styleFrom(
-                backgroundColor: (isFollowing || isFollowPending) ? Colors.grey : Colors.black,
-                foregroundColor: Colors.white,
+                backgroundColor: (isFollowing || isFollowPending) ? Theme.of(context).colorScheme.surfaceContainerHighest : Theme.of(context).colorScheme.primary,
+                foregroundColor: (isFollowing || isFollowPending) ? Theme.of(context).colorScheme.onSurfaceVariant : Theme.of(context).colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 minimumSize: Size.zero,
                 shape: RoundedRectangleBorder(
@@ -695,8 +695,8 @@ class _SuggestionCard extends StatelessWidget {
               child: TextButton(
                 onPressed: isFollowing ? null : onFollow,
                 style: TextButton.styleFrom(
-                  backgroundColor: (isFollowing || isFollowPending) ? Colors.grey : Colors.black,
-                  foregroundColor: Colors.white,
+                  backgroundColor: (isFollowing || isFollowPending) ? Theme.of(context).colorScheme.surfaceContainerHighest : Theme.of(context).colorScheme.primary,
+                  foregroundColor: (isFollowing || isFollowPending) ? Theme.of(context).colorScheme.onSurfaceVariant : Theme.of(context).colorScheme.onPrimary,
                   padding: EdgeInsets.zero,
                   minimumSize: Size.zero,
                   shape: RoundedRectangleBorder(
@@ -724,6 +724,7 @@ class _ExploreTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     if (post.media.isNotEmpty) {
       return Stack(
         fit: StackFit.expand,
@@ -765,9 +766,10 @@ class _ExploreTile extends StatelessWidget {
         post.text.isNotEmpty ? post.text : 'Text',
         maxLines: 5,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
+          color: scheme.onSurface,
         ),
       ),
     );
@@ -788,16 +790,17 @@ class _ErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: scheme.errorContainer,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
         message,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        style: TextStyle(color: scheme.onErrorContainer, fontWeight: FontWeight.w600),
       ),
     );
   }

@@ -275,19 +275,20 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: Text(
           widget.eventId != null ? "Edit Event" : "Create Event",
-          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w800),
+          style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w800),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: IconThemeData(color: scheme.onSurface),
       ),
       body: _isLoadingEvent
-          ? const Center(child: CircularProgressIndicator(color: Colors.black))
+          ? Center(child: CircularProgressIndicator(color: scheme.primary))
           : SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -302,9 +303,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                   height: 180,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: scheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: scheme.outlineVariant),
                     image: _coverImage != null
                         ? DecorationImage(image: FileImage(_coverImage!), fit: BoxFit.cover)
                         : null,
@@ -317,7 +318,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                               fit: BoxFit.cover,
                               width: double.infinity,
                               height: 180,
-                              placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: Colors.black)),
+                              placeholder: (_, __) => Center(child: CircularProgressIndicator(color: scheme.primary)),
                               errorWidget: (_, __, ___) => _coverPlaceholder(),
                             )
                           : _coverPlaceholder()),
@@ -332,7 +333,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
               DropdownButtonFormField<String>(
                 initialValue: _selectedCategory,
                 decoration: _inputDeco(),
-                dropdownColor: Colors.white,
+                dropdownColor: scheme.surface,
                 items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                 onChanged: (val) => setState(() => _selectedCategory = val!),
               ),
@@ -370,22 +371,22 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
+                    color: scheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: scheme.outlineVariant),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.videocam_outlined, color: Colors.black87),
+                      Icon(Icons.videocam_outlined, color: scheme.onSurface),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _videoFile != null ? "Video Selected: ${_videoFile!.path.split('/').last}" : "Add Video",
-                          style: TextStyle(fontWeight: FontWeight.w600, color: _videoFile != null ? Colors.blue : Colors.black54),
+                          style: TextStyle(fontWeight: FontWeight.w600, color: _videoFile != null ? scheme.primary : scheme.onSurfaceVariant),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (_videoFile != null) Icon(Icons.check_circle, color: Colors.blue),
+                      if (_videoFile != null) Icon(Icons.check_circle, color: scheme.primary),
                     ],
                   ),
                 ),
@@ -460,14 +461,15 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.grey[50], borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade200),
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: scheme.outlineVariant),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text("Q: ${e.value['question']}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                    if (e.value['answer']!.isNotEmpty) Text("A: ${e.value['answer']}", style: TextStyle(color: Colors.grey[700])),
+                    if (e.value['answer']!.isNotEmpty) Text("A: ${e.value['answer']}", style: TextStyle(color: scheme.onSurfaceVariant)),
                   ],
                 ),
               )),
@@ -475,7 +477,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: scheme.outlineVariant),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -494,8 +496,8 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
                         onPressed: _addFaq,
-                        icon: const Icon(Icons.add_circle, color: Colors.black),
-                        label: const Text("Add FAQ", style: TextStyle(color: Colors.black)),
+                        icon: Icon(Icons.add_circle, color: scheme.primary),
+                        label: Text("Add FAQ", style: TextStyle(color: scheme.primary)),
                       ),
                     )
                   ],
@@ -510,14 +512,14 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black, // ✅ Black Button
-                    foregroundColor: Colors.white,
+                    backgroundColor: scheme.primary,
+                    foregroundColor: scheme.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                   child: _isLoading
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: scheme.onPrimary, strokeWidth: 2))
                       : Text(
                           widget.eventId != null ? "Update Event" : "Publish Event",
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -535,12 +537,13 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   // --- Widgets ---
 
   Widget _coverPlaceholder() {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.add_photo_alternate_outlined, size: 40, color: Colors.grey[500]),
+        Icon(Icons.add_photo_alternate_outlined, size: 40, color: scheme.onSurfaceVariant),
         const SizedBox(height: 8),
-        Text("Add Cover Image", style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
+        Text("Add Cover Image", style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
       ],
     );
   }
@@ -548,7 +551,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   Widget _sectionHeader(String title) {
     return Text(
       title,
-      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Colors.black87),
+      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Theme.of(context).colorScheme.onSurface),
     );
   }
 
@@ -557,7 +560,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.w600, fontSize: 14),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.w600, fontSize: 14),
       ),
     );
   }
@@ -573,7 +576,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
           keyboardType: TextInputType.multiline,
           textInputAction: TextInputAction.newline,
           validator: (val) => val == null || val.isEmpty ? "Required" : null,
-          style: const TextStyle(color: Colors.black),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
           decoration: _inputDeco(),
         ),
       ],
@@ -581,29 +584,30 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   }
 
   Widget _locationTypeChip(String label, IconData icon, bool selected) {
+    final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: () => setState(() => _isOnline = (label == 'Online')),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
         decoration: BoxDecoration(
-          color: selected ? Colors.black : Colors.grey.shade100,
+          color: selected ? scheme.primary : scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? Colors.black : Colors.grey.shade300,
+            color: selected ? scheme.primary : scheme.outlineVariant,
             width: selected ? 2 : 1,
           ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 20, color: selected ? Colors.white : Colors.black87),
+            Icon(icon, size: 20, color: selected ? scheme.onPrimary : scheme.onSurface),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : Colors.black87,
+                color: selected ? scheme.onPrimary : scheme.onSurface,
                 fontSize: 14,
               ),
             ),
@@ -624,7 +628,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
           keyboardType: isNumber ? TextInputType.number : (maxLines > 1 ? TextInputType.multiline : TextInputType.text),
           textInputAction: maxLines > 1 ? TextInputAction.newline : TextInputAction.done,
           validator: (val) => val!.isEmpty ? "Required" : null,
-          style: const TextStyle(color: Colors.black),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
           decoration: _inputDeco(),
         ),
       ],
@@ -632,31 +636,40 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   }
 
   InputDecoration _inputDeco() {
+    final scheme = Theme.of(context).colorScheme;
     return InputDecoration(
       filled: true,
-      fillColor: Colors.grey[50],
+      fillColor: scheme.surfaceContainerHighest,
       contentPadding: const EdgeInsets.all(16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.black, width: 1.5)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: scheme.outlineVariant)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: scheme.outlineVariant)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: scheme.primary, width: 1.5)),
     );
   }
 
   Widget _pickerBox({required IconData icon, required String text, required VoidCallback onTap, String? label}) {
+    final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade300)),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (label != null) ...[Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w600)), const SizedBox(height: 4)],
+            if (label != null) ...[
+              Text(label, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+            ],
             Row(
               children: [
-                Icon(icon, size: 20, color: Colors.black87),
+                Icon(icon, size: 20, color: scheme.onSurface),
                 const SizedBox(width: 8),
-                Text(text, style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.black87)),
+                Text(text, style: TextStyle(fontWeight: FontWeight.w700, color: scheme.onSurface)),
               ],
             ),
           ],

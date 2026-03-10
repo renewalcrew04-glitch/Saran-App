@@ -14,6 +14,7 @@ class StoriesRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         itemCount: 10, // Mock stories count
         itemBuilder: (context, index) {
+          final scheme = Theme.of(context).colorScheme;
           final isAddStory = index == 0;
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -36,25 +37,25 @@ class StoriesRow extends StatelessWidget {
                                 ],
                               ),
                         border: isAddStory
-                            ? Border.all(color: Colors.grey[300]!, width: 2)
+                            ? Border.all(color: scheme.outlineVariant, width: 2)
                             : null,
                       ),
                       padding: const EdgeInsets.all(2),
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.white,
+                          color: scheme.surface,
                         ),
                         child: isAddStory
                             ? Icon(
                                 Icons.add,
-                                color: Colors.grey[700],
+                                color: scheme.onSurfaceVariant,
                                 size: 24,
                               )
                             : Container(
-                                decoration: const BoxDecoration(
+                                decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: Colors.grey,
+                                  color: scheme.outlineVariant,
                                 ),
                               ),
                       ),
@@ -66,7 +67,7 @@ class StoriesRow extends StatelessWidget {
                   isAddStory ? 'Your story' : 'Username',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.black87,
+                    color: scheme.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

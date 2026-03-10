@@ -39,10 +39,11 @@ class _LikedPostsScreenState extends State<LikedPostsScreen> {
   }
 
   Widget _buildPostMedia(String mediaUrl) {
+    final scheme = Theme.of(context).colorScheme;
     final url = ApiConfig.networkImageUrl(mediaUrl);
     if (url == null) {
       return Container(
-        color: Colors.grey[200],
+        color: scheme.surfaceContainerHighest,
         child: const Center(child: Icon(Icons.broken_image)),
       );
     }
@@ -56,22 +57,23 @@ class _LikedPostsScreenState extends State<LikedPostsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(
             height: 0.5,
-            color: Colors.grey[300],
+            color: scheme.outlineVariant,
           ),
         ),
-        title: const Text(
+        title: Text(
           'Liked Posts',
           style: TextStyle(
-            color: Colors.black,
+            color: scheme.onSurface,
             fontWeight: FontWeight.bold,
             fontSize: 24,
           ),
@@ -93,6 +95,7 @@ class _LikedPostsScreenState extends State<LikedPostsScreen> {
                     ),
                     itemCount: _likedPosts.length,
                     itemBuilder: (context, index) {
+                      final scheme = Theme.of(context).colorScheme;
                       final post = _likedPosts[index];
                       return GestureDetector(
                         onTap: () {
@@ -101,7 +104,7 @@ class _LikedPostsScreenState extends State<LikedPostsScreen> {
                         child: post.media.isNotEmpty
                             ? _buildPostMedia(post.media.first)
                             : Container(
-                                color: Colors.grey[200],
+                                color: scheme.surfaceContainerHighest,
                                 child: const Icon(Icons.text_fields),
                               ),
                       );
@@ -112,18 +115,9 @@ class _LikedPostsScreenState extends State<LikedPostsScreen> {
   }
 
   Widget _buildEmptyState() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Color(0xFFF5F5F5),
-            Colors.white,
-          ],
-        ),
-      ),
+      color: scheme.surface,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -131,11 +125,11 @@ class _LikedPostsScreenState extends State<LikedPostsScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: scheme.surfaceContainerHighest,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black12,
+                    color: scheme.shadow.withValues(alpha: 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -144,7 +138,7 @@ class _LikedPostsScreenState extends State<LikedPostsScreen> {
               child: Icon(
                 Icons.favorite_border,
                 size: 64,
-                color: Colors.black,
+                color: scheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 24),
@@ -153,7 +147,7 @@ class _LikedPostsScreenState extends State<LikedPostsScreen> {
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
+                color: scheme.onSurface,
                 letterSpacing: 0.5,
               ),
             ),
@@ -165,7 +159,7 @@ class _LikedPostsScreenState extends State<LikedPostsScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
-                  color: Colors.grey[600],
+                  color: scheme.onSurfaceVariant,
                   height: 1.5,
                 ),
               ),

@@ -1,3 +1,7 @@
+// SARAN App - Social wellness application
+// Supports: iPhone, iPad (including 13-inch iPad Pro)
+// Layout is responsive and scales for both phone and tablet form factors.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;

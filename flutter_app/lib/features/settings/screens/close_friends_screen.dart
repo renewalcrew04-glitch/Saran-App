@@ -75,12 +75,13 @@ class _CloseFriendsScreenState extends State<CloseFriendsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("Close Friends"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
       ),
       body: loading
@@ -105,8 +106,8 @@ class _CloseFriendsScreenState extends State<CloseFriendsScreen> {
                         height: 52,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            foregroundColor: Colors.white,
+                            backgroundColor: scheme.primary,
+                            foregroundColor: scheme.onPrimary,
                           ),
                           onPressed: _add,
                           child: const Text("Add"),
@@ -133,7 +134,7 @@ class _CloseFriendsScreenState extends State<CloseFriendsScreen> {
                               subtitle: Text("@$username"),
                               trailing: TextButton(
                                 onPressed: () => _remove(uid),
-                                child: const Text("Remove", style: TextStyle(color: Colors.black)),
+                                child: Text("Remove", style: TextStyle(color: scheme.primary)),
                               ),
                             );
                           },

@@ -159,12 +159,13 @@ class _MuteSearchScreenState extends State<MuteSearchScreen> {
   Widget build(BuildContext context) {
     final q = controller.text.trim();
 
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("Muted"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
       ),
       body: Column(
@@ -220,7 +221,7 @@ class _MuteSearchScreenState extends State<MuteSearchScreen> {
                   return SettingsUserTile(
                     user: u,
                     buttonText: "Unmute",
-                    buttonColor: Colors.black,
+                    buttonColor: scheme.primary,
                     onPressed: () => _unmute(u),
                   );
                 },
@@ -261,7 +262,8 @@ class _MuteSearchScreenState extends State<MuteSearchScreen> {
                       return SettingsUserTile(
                         user: u,
                         buttonText: alreadyMuted ? "Muted" : "Mute",
-                        buttonColor: alreadyMuted ? Colors.grey : Colors.black,
+                        buttonColor: alreadyMuted ? scheme.surfaceVariant : scheme.primary,
+                        buttonForegroundColor: alreadyMuted ? scheme.onSurfaceVariant : null,
                         onPressed: alreadyMuted ? () {} : () => _mute(u),
                       );
                     },

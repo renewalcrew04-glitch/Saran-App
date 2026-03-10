@@ -41,7 +41,9 @@ class SpaceService {
         } else if (data is List) {
           list = data;
         }
-        return list.map((e) => SpaceEvent.fromJson(e)).toList();
+        final events = list.map((e) => SpaceEvent.fromJson(e)).toList();
+        final now = DateTime.now();
+        return events.where((e) => e.date.isAfter(now)).toList();
       }
       return [];
     } catch (e) {
@@ -49,14 +51,16 @@ class SpaceService {
     }
   }
 
-  /// ✅ Fetch HOSTED Events
+  /// ✅ Fetch HOSTED Events (excludes expired)
   Future<List<SpaceEvent>> fetchHostedEvents() async {
     try {
       final options = await _getAuthOptions();
       final response = await _dio.get('/space/hosted-events', options: options);
       if (response.statusCode == 200) {
         final List data = response.data is List ? response.data : [];
-        return data.map((e) => SpaceEvent.fromJson(e)).toList();
+        final events = data.map((e) => SpaceEvent.fromJson(e)).toList();
+        final now = DateTime.now();
+        return events.where((e) => e.date.isAfter(now)).toList();
       }
       return [];
     } catch (e) {
@@ -64,14 +68,16 @@ class SpaceService {
     }
   }
 
-  /// ✅ Fetch BOOKED Events
+  /// ✅ Fetch BOOKED Events (excludes expired)
   Future<List<SpaceEvent>> fetchBookedEvents() async {
     try {
       final options = await _getAuthOptions();
       final response = await _dio.get('/space/booked-events', options: options);
       if (response.statusCode == 200) {
         final List data = response.data is List ? response.data : [];
-        return data.map((e) => SpaceEvent.fromJson(e)).toList();
+        final events = data.map((e) => SpaceEvent.fromJson(e)).toList();
+        final now = DateTime.now();
+        return events.where((e) => e.date.isAfter(now)).toList();
       }
       return [];
     } catch (e) {

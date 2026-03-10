@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../features/sframe/widgets/sframe_row.dart';
 import '../models/post_model.dart';
 import 'category_chips.dart';
 import 'daily_quote_card.dart';
 import 'post_card.dart';
-import '../features/sframe/widgets/sframe_row.dart';
 import 'share_story_card.dart';
 
 class HomeFeed extends StatefulWidget {
@@ -46,9 +46,9 @@ class _HomeFeedState extends State<HomeFeed> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               const SFrameRow(),
-              const SizedBox(height: 10),
+              const SizedBox(height: 4),
               const DailyQuoteCard(),
               const SizedBox(height: 12),
 
@@ -69,8 +69,8 @@ class _HomeFeedState extends State<HomeFeed> {
                 child: Text(
                   "Showing: $_activeCategory",
                   style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -91,7 +91,7 @@ class _HomeFeedState extends State<HomeFeed> {
               child: Text(
                 "No posts for $_activeCategory",
                 style: TextStyle(
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
+import '../utils/daily_quotes.dart';
+
 class DailyQuoteCard extends StatefulWidget {
   const DailyQuoteCard({super.key});
 
@@ -13,83 +15,10 @@ class _DailyQuoteCardState extends State<DailyQuoteCard>
   bool expanded = false;
   bool saved = false;
 
-  static const List<String> quotes = [
-    "She believed in herself even when the world doubted her.",
-    "A woman’s strength is quiet, deep, and unstoppable.",
-    "You are not too much. You are enough.",
-    "Strong women don’t wait for permission.",
-    "Confidence looks good on you.",
-    "Your power begins the moment you stop apologizing.",
-    "She stood tall, even when she felt small.",
-    "You are braver than you think.",
-    "Your voice matters. Use it.",
-    "Strength grows every time you choose yourself.",
-    "A woman who chooses herself changes everything.",
-    "Freedom is a woman owning her choices.",
-    "Independent doesn’t mean alone.",
-    "She built her own wings.",
-    "You don’t need saving — you need space.",
-    "Be free enough to be yourself.",
-    "Your life, your rules.",
-    "Independence is self-respect in action.",
-    "Walk your path unapologetically.",
-    "You were never meant to shrink.",
-    "She rises every time she falls.",
-    "Courage looks like continuing.",
-    "Healing is a brave act.",
-    "Even broken wings remember how to fly.",
-    "Pain shaped her, but didn’t define her.",
-    "Resilience is her second name.",
-    "Every scar tells a survival story.",
-    "She turns wounds into wisdom.",
-    "Falling is not failing.",
-    "You are worthy without proving anything.",
-    "Self-love is revolutionary.",
-    "Know your value, then add tax.",
-    "She stopped chasing validation.",
-    "You don’t need approval to shine.",
-    "Your worth isn’t negotiable.",
-    "Being yourself is your superpower.",
-    "Confidence is quiet, not loud.",
-    "You are allowed to take up space.",
-    "Loving yourself is powerful.",
-    "Dream boldly. You belong there.",
-    "Her ambition scares those who lack it.",
-    "Women can be soft and unstoppable.",
-    "Your dreams are valid.",
-    "She dares greatly.",
-    "Go after what sets your soul on fire.",
-    "Success has many faces — yours is one.",
-    "You are allowed to want more.",
-    "Build the life you imagine.",
-    "She creates her own future.",
-    "Growth is not linear — and that’s okay.",
-    "Healing takes time, not weakness.",
-    "Rest is productive.",
-    "Becoming yourself is a journey.",
-    "She blooms at her own pace.",
-    "You are allowed to pause.",
-    "Growth feels uncomfortable before it feels right.",
-    "Every day you heal a little more.",
-    "Progress is still progress.",
-    "Gentle with yourself, always.",
-  ];
-
-  String getDailyQuote() {
-    final today = DateTime.now().toIso8601String().substring(0, 10); // YYYY-MM-DD
-    int hash = 0;
-
-    for (int i = 0; i < today.length; i++) {
-      hash = today.codeUnitAt(i) + ((hash << 5) - hash);
-    }
-
-    final index = hash.abs() % quotes.length;
-    return quotes[index];
-  }
-
   @override
   Widget build(BuildContext context) {
     final quote = getDailyQuote();
+    final scheme = Theme.of(context).colorScheme;
 
     return GestureDetector(
       onTap: () {
@@ -101,17 +30,17 @@ class _DailyQuoteCardState extends State<DailyQuoteCard>
         margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(21),
-          border: Border.all(color: Colors.black, width: 1.5),
+          border: Border.all(color: scheme.outline, width: 1.5),
         ),
         child: Column(
           children: [
             Text(
               quote,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.black,
+              style: TextStyle(
+                color: scheme.onSurface,
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
                 height: 1.35,
@@ -174,6 +103,7 @@ class _ActionItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -181,13 +111,13 @@ class _ActionItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
           children: [
-            FaIcon(icon, size: 14, color: Colors.black),
+            FaIcon(icon, size: 14, color: scheme.onSurface),
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: Colors.black,
+                color: scheme.onSurface,
                 fontWeight: FontWeight.w500,
               ),
             ),

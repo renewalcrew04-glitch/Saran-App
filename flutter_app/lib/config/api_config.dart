@@ -57,6 +57,11 @@ class ApiConfig {
       final base = mediaBaseUrl.endsWith('/') ? mediaBaseUrl : '$mediaBaseUrl/';
       return base + (path.startsWith('/') ? path.substring(1) : path);
     }
+    // Bare filename from backend (e.g. "1770583615597-944127833.jpg") -> assume uploads/
+    if (!path.contains('/') && path.contains('.')) {
+      final base = mediaBaseUrl.endsWith('/') ? mediaBaseUrl : '$mediaBaseUrl/';
+      return '${base}uploads/$path';
+    }
     return null;
   }
 

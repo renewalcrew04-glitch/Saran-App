@@ -52,12 +52,13 @@ class _AccountPrivacyScreenState extends State<AccountPrivacyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("Account Privacy"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
         actions: [
           TextButton(

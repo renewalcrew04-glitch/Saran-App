@@ -31,7 +31,7 @@ class CategoryChips extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.black : Colors.white,
+                color: isSelected ? Theme.of(context).colorScheme.primary : Colors.white,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(color: Colors.black12),
               ),
@@ -41,7 +41,7 @@ class CategoryChips extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: isSelected ? Colors.white : Colors.black,
+                    color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),

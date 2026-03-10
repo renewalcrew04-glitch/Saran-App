@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/api_config.dart';
+import '../../utils/media_utils.dart';
 import '../../models/space_event_model.dart';
 import '../../features/space/space_provider_riverpod.dart';
 
@@ -45,13 +46,14 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        title: const Text("My Events", style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
-        backgroundColor: Colors.white,
+        title: Text("My Events", style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w800)),
+        backgroundColor: scheme.surface,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: IconThemeData(color: scheme.onSurface),
       ),
       body: Column(
         children: [
@@ -59,19 +61,19 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen> with SingleTick
           Container(
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: scheme.outlineVariant),
             ),
             child: TabBar(
               controller: _tabController,
               indicator: BoxDecoration(
-                color: Colors.white,
+                color: scheme.surface,
                 borderRadius: BorderRadius.circular(10),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)],
+                boxShadow: [BoxShadow(color: scheme.shadow.withValues(alpha: 0.1), blurRadius: 4)],
               ),
-              labelColor: Colors.black,
-              unselectedLabelColor: Colors.grey,
+              labelColor: scheme.onSurface,
+              unselectedLabelColor: scheme.onSurfaceVariant,
               labelStyle: const TextStyle(fontWeight: FontWeight.bold),
               indicatorPadding: const EdgeInsets.all(2),
               dividerColor: Colors.transparent,
@@ -85,7 +87,7 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen> with SingleTick
           // ✅ Tab Content
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Colors.black))
+                ? Center(child: CircularProgressIndicator(color: scheme.primary))
                 : TabBarView(
                     controller: _tabController,
                     children: [
@@ -100,16 +102,17 @@ class _MyEventsScreenState extends ConsumerState<MyEventsScreen> with SingleTick
   }
 
   Widget _buildEventList(List<SpaceEvent> events, {required bool isHosted}) {
+    final scheme = Theme.of(context).colorScheme;
     if (events.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.event_busy, size: 64, color: Colors.grey[200]),
+            Icon(Icons.event_busy, size: 64, color: scheme.outlineVariant),
             const SizedBox(height: 16),
             Text(
               isHosted ? "You haven't posted any events." : "You haven't joined any events.",
-              style: TextStyle(color: Colors.grey[500]),
+              style: TextStyle(color: scheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -155,6 +158,7 @@ class _MyEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () => context.push('/space/details', extra: event),
       borderRadius: BorderRadius.circular(16),
@@ -162,11 +166,11 @@ class _MyEventCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: scheme.outlineVariant),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(color: scheme.shadow.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4)),
           ],
         ),
         child: Row(
@@ -177,7 +181,7 @@ class _MyEventCard extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: Colors.grey[200],
+              color: scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
             ),
             clipBehavior: Clip.antiAlias,
@@ -187,10 +191,10 @@ class _MyEventCard extends StatelessWidget {
                     fit: BoxFit.cover,
                     width: 80,
                     height: 80,
-                    placeholder: (_, __) => const Center(child: Icon(Icons.image, color: Colors.grey)),
-                    errorWidget: (_, __, ___) => const Icon(Icons.image, color: Colors.grey),
+                    placeholder: (_, __) => const ImageLoadingPlaceholder(width: 80, height: 80),
+                    errorWidget: (_, __, ___) => Icon(Icons.image, color: scheme.outline),
                   )
-                : const Icon(Icons.image, color: Colors.grey),
+                : Icon(Icons.image, color: scheme.outline),
           ),
           const SizedBox(width: 12),
           
@@ -216,9 +220,9 @@ class _MyEventCard extends StatelessWidget {
                           onReturnFromEdit?.call();
                         },
                         behavior: HitTestBehavior.opaque,
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(Icons.edit, size: 20, color: Colors.black),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Icon(Icons.edit, size: 20, color: scheme.onSurface),
                         ),
                       ),
                   ],
@@ -226,12 +230,12 @@ class _MyEventCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   "${DateFormat('MMM d').format(event.date)} • ${DateFormat('HH:mm').format(event.date)}",
-                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   event.location,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 8),
@@ -243,7 +247,7 @@ class _MyEventCard extends StatelessWidget {
                         Icon(
                           isHosted ? Icons.people_outline : Icons.check_circle,
                           size: 14,
-                          color: isHosted ? Colors.grey : Colors.black87,
+                          color: isHosted ? scheme.outline : scheme.onSurface,
                         ),
                         const SizedBox(width: 4),
                         Text(
@@ -251,7 +255,7 @@ class _MyEventCard extends StatelessWidget {
                               ? "${event.attendeesCount}/${event.capacity} joined"
                               : "You joined • ${event.attendeesCount}/${event.capacity} going",
                           style: TextStyle(
-                            color: isHosted ? Colors.grey[600] : Colors.black87,
+                            color: isHosted ? scheme.onSurfaceVariant : scheme.onSurface,
                             fontSize: 12,
                             fontWeight: isHosted ? FontWeight.w500 : FontWeight.w600,
                           ),
@@ -259,7 +263,7 @@ class _MyEventCard extends StatelessWidget {
                       ],
                     ),
                     if (isHosted)
-                      const Icon(Icons.delete_outline, size: 18, color: Colors.black),
+                      Icon(Icons.delete_outline, size: 18, color: scheme.onSurface),
                   ],
                 ),
               ],

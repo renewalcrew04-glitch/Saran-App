@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/api_config.dart';
+import '../../utils/media_utils.dart';
 import '../../models/space_event_model.dart';
 import 'package:intl/intl.dart';
 
@@ -21,6 +22,7 @@ class SpaceEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final dateStr = DateFormat('MMM d, h:mm a').format(event.date);
 
     final isJoined = event.isJoined;
@@ -32,17 +34,17 @@ class SpaceEventCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: scheme.shadow.withValues(alpha: 0.08),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
           ],
           border: Border.all(
-            color: isJoined ? Colors.black.withValues(alpha: 0.2) : Colors.grey.shade100,
+            color: isJoined ? scheme.primary.withValues(alpha: 0.4) : scheme.outlineVariant,
             width: isJoined ? 1.5 : 1,
           ),
         ),
@@ -54,7 +56,7 @@ class SpaceEventCard extends StatelessWidget {
               height: 140,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: scheme.surfaceContainerHighest,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               ),
               clipBehavior: Clip.antiAlias,
@@ -64,10 +66,10 @@ class SpaceEventCard extends StatelessWidget {
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: 140,
-                      placeholder: (_, __) => Center(child: Icon(Icons.image, size: 40, color: Colors.grey.shade300)),
-                      errorWidget: (_, __, ___) => Center(child: Icon(Icons.image, size: 40, color: Colors.grey.shade300)),
-                    )
-                  : Center(child: Icon(Icons.image, size: 40, color: Colors.grey.shade300)),
+                      placeholder: (_, __) => const ImageLoadingPlaceholder(width: double.infinity, height: 140),
+                      errorWidget: (_, __, ___) => Center(child: Icon(Icons.image, size: 40, color: scheme.outline)),
+                  )
+                  : Center(child: Icon(Icons.image, size: 40, color: scheme.outline)),
             ),
             
             Padding(

@@ -18,6 +18,14 @@ class AuthProvider extends ChangeNotifier {
 
   bool get isLoggedIn => _token != null && _token!.isNotEmpty;
 
+  /// Clears session synchronously (e.g. on auth timeout). Redirect will go to login.
+  void clearSessionSafe() {
+    _token = null;
+    _user = null;
+    ApiClient.clearToken();
+    _authService.clearToken(); // fire-and-forget
+  }
+
   /// Update in-memory user from a profile API response (e.g. after avatar/cover update).
   /// Use this so the UI updates immediately without waiting for loadUser().
   void updateUserFromMap(Map<String, dynamic>? userMap) {

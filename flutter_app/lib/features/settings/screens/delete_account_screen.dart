@@ -78,12 +78,13 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("Delete Account"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
       ),
       body: Padding(
@@ -100,8 +101,8 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
               height: 46,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
+                  backgroundColor: scheme.primary,
+                  foregroundColor: scheme.onPrimary,
                 ),
                 onPressed: loading ? null : _delete,
                 child: Text(loading ? "Deleting..." : "Delete My Account"),

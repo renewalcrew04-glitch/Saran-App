@@ -131,4 +131,8 @@ Future<void> reportUser({required String uid, required String reason}) async {
   await _dio.post('/report/user/$uid', data: {"reason": reason});
 }
 
+Future<void> reportPost({required String postId, required String reason}) async {
+  await _dio.post('/report/post/$postId', data: {"reason": reason});
+}
+
 }

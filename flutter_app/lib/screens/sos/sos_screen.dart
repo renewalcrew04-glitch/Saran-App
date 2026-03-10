@@ -190,14 +190,15 @@ class _SosScreenState extends State<SosScreen> {
   Widget build(BuildContext context) {
     final sosActive = context.watch<SosProvider>().isActive;
 
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("Emergency SOS"),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
       ),
       body: SafeArea(
         child: Padding(
@@ -210,9 +211,9 @@ class _SosScreenState extends State<SosScreen> {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 "Your safety is our priority",
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: scheme.onSurfaceVariant),
               ),
 
               const SizedBox(height: 24),
@@ -359,6 +360,7 @@ class _AlertCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Expanded(
       child: InkWell(
         onTap: onTap,
@@ -368,7 +370,7 @@ class _AlertCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: selected ? Colors.black : Colors.grey.shade300,
+              color: selected ? scheme.primary : scheme.outlineVariant,
               width: 1.4,
             ),
           ),
@@ -378,7 +380,7 @@ class _AlertCard extends StatelessWidget {
               Text(title,
                   style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
-              Text(subtitle, style: const TextStyle(color: Colors.grey)),
+              Text(subtitle, style: TextStyle(color: scheme.onSurfaceVariant)),
             ],
           ),
         ),

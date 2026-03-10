@@ -195,6 +195,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Widget _userSearchTile(DmUserModel u) {
+    final scheme = Theme.of(context).colorScheme;
     final avatarUrl = u.avatar != null ? ApiConfig.networkImageUrl(u.avatar!) : null;
     return InkWell(
       onTap: () => _openDmWithUser(u),
@@ -202,11 +203,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: scheme.shadow.withValues(alpha: 0.06),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -216,7 +217,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: Colors.grey[300],
+              backgroundColor: scheme.surfaceContainerHighest,
               backgroundImage: avatarUrl != null
                   ? CachedNetworkImageProvider(avatarUrl)
                   : null,
@@ -224,7 +225,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ? Text(
                       u.name.isNotEmpty ? u.name[0].toUpperCase() : "U",
                       style: TextStyle(
-                        color: Colors.grey[700],
+                        color: scheme.onSurface,
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
                       ),
@@ -238,10 +239,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 children: [
                   Text(
                     u.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
-                      color: Colors.black,
+                      color: scheme.onSurface,
                     ),
                   ),
                   if (u.username.isNotEmpty)
@@ -249,13 +250,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       "@${u.username}",
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey[600],
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                 ],
               ),
             ),
-            Icon(Icons.chat_bubble_outline, size: 20, color: Colors.grey[500]),
+            Icon(Icons.chat_bubble_outline, size: 20, color: scheme.onSurfaceVariant),
           ],
         ),
       ),
@@ -282,6 +283,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Widget _tile(ConversationModel c) {
+    final scheme = Theme.of(context).colorScheme;
     final other = c.otherUser;
 
     final name = other?.name ?? "User"; // ignore: dead_null_aware_expression
@@ -293,12 +295,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
       key: ValueKey(c.id),
       background: _SwipeActionBg(
         label: c.isPinned == true ? "Unpin" : "Pin",
-        color: Colors.black,
+        color: scheme.primary,
         alignLeft: true,
       ),
       secondaryBackground: _SwipeActionBg(
         label: c.isArchived == true ? "Unarchive" : "Archive",
-        color: Colors.black,
+        color: scheme.primary,
         alignLeft: false,
       ),
       confirmDismiss: (direction) async {
@@ -317,11 +319,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: scheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
+                color: scheme.shadow.withValues(alpha: 0.06),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -337,11 +339,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.grey[200]!, width: 2),
+                        border: Border.all(color: scheme.outlineVariant, width: 2),
                       ),
                       child: CircleAvatar(
                         radius: 28,
-                        backgroundColor: Colors.grey[300],
+                        backgroundColor: scheme.surfaceContainerHighest,
                         backgroundImage: avatarUrl != null
                             ? CachedNetworkImageProvider(avatarUrl)
                             : null,
@@ -349,7 +351,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             ? Text(
                                 name[0].toUpperCase(),
                                 style: TextStyle(
-                                  color: Colors.grey[700],
+                                  color: scheme.onSurface,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
                                 ),
@@ -367,7 +369,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           decoration: BoxDecoration(
                             color: Colors.green,
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2.5),
+                            border: Border.all(color: scheme.surface, width: 2.5),
                           ),
                         ),
                       ),
@@ -405,7 +407,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         ),
                         Text(
                           _formatTime(c.lastMessageAt),
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
                         ),
                       ],
                     ),
@@ -415,7 +417,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         Expanded(
                           child: Text(
                             c.lastMessage.isNotEmpty ? c.lastMessage : "Photo",
-                            style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                            style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -451,9 +453,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   void _showMenu(ConversationModel c) {
+    final scheme = Theme.of(context).colorScheme;
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -467,7 +470,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.black12,
+                  color: scheme.outlineVariant,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -493,9 +496,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 },
               ),
               ListTile(
-                title: const Text(
+                title: Text(
                   "Delete chat",
-                  style: TextStyle(color: Colors.black),
+                  style: TextStyle(color: scheme.error),
                 ),
                 onTap: () async {
                   Navigator.pop(context);
@@ -516,30 +519,30 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<MessageProvider>();
-
+    final scheme = Theme.of(context).colorScheme;
     final pinned = provider.pinnedConversations;
     final normal = provider.normalConversations;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(height: 0.5, color: Colors.grey[300]),
+          child: Container(height: 0.5, color: scheme.outlineVariant),
         ),
-        title: const Text(
+        title: Text(
           'Messages',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 24),
+          style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.bold, fontSize: 24),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.black),
+            icon: Icon(Icons.refresh, color: scheme.onSurface),
             onPressed: _refresh,
           ),
           IconButton(
-            icon: const Icon(Icons.edit_outlined, color: Colors.black),
+            icon: Icon(Icons.edit_outlined, color: scheme.onSurface),
             onPressed: () {
               Navigator.push(
                 context,
@@ -581,9 +584,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
             child: Container(
               height: 42,
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey[300]!),
+                border: Border.all(color: scheme.outlineVariant),
               ),
               child: TextField(
                 controller: _searchController,
@@ -601,8 +604,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 },
                 decoration: InputDecoration(
                   hintText: 'Search messages or users',
-                  hintStyle: TextStyle(color: Colors.grey[600], fontSize: 15),
-                  prefixIcon: Icon(Icons.search, size: 22, color: Colors.grey[600]),
+                  hintStyle: TextStyle(color: scheme.onSurfaceVariant, fontSize: 15),
+                  prefixIcon: Icon(Icons.search, size: 22, color: scheme.onSurfaceVariant),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                 ),
@@ -638,7 +641,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           "Start chat with",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.grey[700],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                             fontSize: 13,
                           ),
                         ),
@@ -687,20 +690,21 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Widget _buildEmptyState(bool archivedTab) {
+    final scheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[400]),
+          Icon(Icons.chat_bubble_outline, size: 64, color: scheme.outline),
           const SizedBox(height: 16),
           Text(
             archivedTab ? "No archived chats" : "No messages yet",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[700]),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: scheme.onSurface),
           ),
           const SizedBox(height: 8),
           Text(
             archivedTab ? "Archive chats to see them here" : "Start a conversation from someone's profile",
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
         ],
@@ -747,20 +751,21 @@ class _TabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? Colors.black : const Color(0xFFF2F2F2),
+          color: selected ? scheme.primary : scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Center(
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? Colors.white : Colors.black,
+              color: selected ? scheme.onPrimary : scheme.onSurface,
               fontWeight: FontWeight.w600,
             ),
           ),

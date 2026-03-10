@@ -20,11 +20,12 @@ class MenuSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return SafeArea(
       top: false,
       child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: scheme.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
         ),
         child: Column(
@@ -35,14 +36,14 @@ class MenuSheet extends StatelessWidget {
               width: 46,
               height: 5,
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.15),
+                color: scheme.onSurface.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
             const SizedBox(height: 14),
 
             ListTile(
-              leading: const Icon(Icons.settings, color: Colors.black),
+              leading: Icon(Icons.settings, color: scheme.onSurface),
               title: const Text(
                 "Settings",
                 style: TextStyle(fontWeight: FontWeight.w700),
@@ -78,11 +79,11 @@ class MenuSheet extends StatelessWidget {
             const Divider(height: 1),
 
             ListTile(
-              leading: const Icon(Icons.logout, color: Colors.black),
-              title: const Text(
+              leading: Icon(Icons.logout, color: scheme.onSurface),
+              title: Text(
                 "Logout",
                 style: TextStyle(
-                  color: Colors.black,
+                  color: scheme.onSurface,
                   fontWeight: FontWeight.w700,
                 ),
               ),

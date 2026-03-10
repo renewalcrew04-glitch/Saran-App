@@ -6,13 +6,14 @@ class CalmCornerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("Calm Corner"),
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
-        foregroundColor: Colors.black,
+        foregroundColor: scheme.onSurface,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -53,6 +54,7 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -61,7 +63,7 @@ class _Card extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEEEEEE)),
+          border: Border.all(color: scheme.outlineVariant),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,7 +72,7 @@ class _Card extends StatelessWidget {
                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             Text(desc,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF666666))),
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
           ],
         ),
       ),

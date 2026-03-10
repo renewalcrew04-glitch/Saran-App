@@ -176,13 +176,14 @@ class _FollowersListScreenState extends State<FollowersListScreen> {
       }
     }
 
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: Text("${widget.username} • Followers"),
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
-        foregroundColor: Colors.black,
+        foregroundColor: scheme.onSurface,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -193,11 +194,11 @@ class _FollowersListScreenState extends State<FollowersListScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.lock_outline, size: 48, color: Colors.grey.shade600),
+                        Icon(Icons.lock_outline, size: 48, color: scheme.onSurfaceVariant),
                         const SizedBox(height: 16),
                         Text(
                           "Only accepted followers can see this list.",
-                          style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
+                          style: TextStyle(fontSize: 15, color: scheme.onSurfaceVariant),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -209,8 +210,9 @@ class _FollowersListScreenState extends State<FollowersListScreen> {
                   : ListView.separated(
                   itemCount: _followers.length,
                   separatorBuilder: (_, __) =>
-                      Divider(color: Colors.grey.shade200),
-                  itemBuilder: (context, index) {
+                      Divider(color: scheme.outlineVariant),
+                    itemBuilder: (context, index) {
+                    final scheme = Theme.of(context).colorScheme;
                     final u = _followers[index];
                     final uid = _userId(Map<String, dynamic>.from(u));
                     final name = (u['name'] ?? '').toString();
@@ -225,8 +227,8 @@ class _FollowersListScreenState extends State<FollowersListScreen> {
                       trailingButton = OutlinedButton(
                         onPressed: loading ? null : () => _toggleFollow(uid, true, false),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.black,
-                          side: BorderSide(color: Colors.grey.shade400),
+                          foregroundColor: scheme.onSurface,
+                          side: BorderSide(color: scheme.outlineVariant),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           minimumSize: const Size(100, 36),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -237,8 +239,8 @@ class _FollowersListScreenState extends State<FollowersListScreen> {
                       trailingButton = OutlinedButton(
                         onPressed: loading ? null : () => _toggleFollow(uid, false, true),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.grey.shade700,
-                          side: BorderSide(color: Colors.grey.shade400),
+                          foregroundColor: scheme.onSurfaceVariant,
+                          side: BorderSide(color: scheme.outlineVariant),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           minimumSize: const Size(100, 36),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -249,8 +251,8 @@ class _FollowersListScreenState extends State<FollowersListScreen> {
                       trailingButton = ElevatedButton(
                         onPressed: loading ? null : () => _toggleFollow(uid, false, false),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
+                          backgroundColor: scheme.primary,
+                          foregroundColor: scheme.onPrimary,
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           minimumSize: const Size(100, 36),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -262,7 +264,7 @@ class _FollowersListScreenState extends State<FollowersListScreen> {
                     return ListTile(
                       onTap: () => _openProfile(u),
                       leading: CircleAvatar(
-                        backgroundColor: Colors.grey.shade300,
+                        backgroundColor: scheme.surfaceContainerHighest,
                         backgroundImage:
                             avatar != null && avatar.startsWith('http')
                                 ? NetworkImage(avatar)
@@ -270,8 +272,8 @@ class _FollowersListScreenState extends State<FollowersListScreen> {
                         child: avatar == null || !avatar.startsWith('http')
                             ? Text(
                                 name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                style: const TextStyle(
-                                    color: Colors.white,
+                                style: TextStyle(
+                                    color: scheme.onSurface,
                                     fontWeight: FontWeight.w600),
                               )
                             : null,

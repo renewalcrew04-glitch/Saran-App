@@ -279,12 +279,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // ✅ show typing from other user
     final otherTyping = chat.typingMap[widget.otherUserId] == true;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0.5,
         title: GestureDetector(
           onTap: () {
@@ -309,12 +310,12 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               CircleAvatar(
                 radius: 18,
-                backgroundColor: Colors.black12,
+                backgroundColor: scheme.surfaceContainerHighest,
                 backgroundImage: (widget.otherAvatar != null && widget.otherAvatar!.isNotEmpty)
                     ? NetworkImage(widget.otherAvatar!)
                     : null,
                 child: (widget.otherAvatar == null || widget.otherAvatar!.isEmpty)
-                    ? const Icon(Icons.person, color: Colors.black)
+                    ? Icon(Icons.person, color: scheme.onSurface)
                     : null,
               ),
               const SizedBox(width: 10),
@@ -341,7 +342,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: Text(
                   "Typing…",
                   style: TextStyle(
-                    color: Colors.grey[600],
+                    color: scheme.onSurfaceVariant,
                     fontSize: 13,
                     fontStyle: FontStyle.italic,
                   ),

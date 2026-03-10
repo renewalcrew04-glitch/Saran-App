@@ -3,15 +3,15 @@ import 'package:flutter/material.dart';
 /// Modern light theme for SARAN app.
 /// Clean, minimal, with soft accents and consistent spacing.
 class AppLightTheme {
-  // Palette
-  static const Color primary = Color(0xFF000000);
-  static const Color primaryLight = Color(0xFF1A1A1A);
-  static const Color primaryDark = Color(0xFF000000);
+  // Palette – vibrant blue (matching profile reference)
+  static const Color primary = Color(0xFF2563EB);
+  static const Color primaryLight = Color(0xFF3B82F6);
+  static const Color primaryDark = Color(0xFF1D4ED8);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFF8FAFC);
-  static const Color background = Color(0xFFF1F5F9);
-  static const Color onSurface = Color(0xFF0F172A);
-  static const Color onSurfaceVariant = Color(0xFF64748B);
+  static const Color surfaceVariant = Color(0xFFF5F5F5);
+  static const Color background = Color(0xFFFFFFFF);
+  static const Color onSurface = Color(0xFF000000);
+  static const Color onSurfaceVariant = Color(0xFF666666);
   static const Color outline = Color(0xFFE2E8F0);
   static const Color outlineVariant = Color(0xFFCBD5E1);
   static const Color error = Color(0xFFDC2626);
@@ -24,7 +24,7 @@ class AppLightTheme {
       colorScheme: const ColorScheme.light(
         primary: primary,
         onPrimary: Colors.white,
-        primaryContainer: Color(0xFFE5E5E5),
+        primaryContainer: Color(0xFFDBEAFE),
         onPrimaryContainer: primaryDark,
         secondary: Color(0xFF64748B),
         onSecondary: Colors.white,

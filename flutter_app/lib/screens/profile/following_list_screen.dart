@@ -146,13 +146,14 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
       }
     }
 
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: Text("${widget.username} • Following"),
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
-        foregroundColor: Colors.black,
+        foregroundColor: scheme.onSurface,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -163,11 +164,11 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.lock_outline, size: 48, color: Colors.grey.shade600),
+                        Icon(Icons.lock_outline, size: 48, color: scheme.onSurfaceVariant),
                         const SizedBox(height: 16),
                         Text(
                           "Only accepted followers can see this list.",
-                          style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
+                          style: TextStyle(fontSize: 15, color: scheme.onSurfaceVariant),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -179,7 +180,7 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
                   : ListView.separated(
                   itemCount: _following.length,
                   separatorBuilder: (_, __) =>
-                      Divider(color: Colors.grey.shade200),
+                      Divider(color: scheme.outlineVariant),
                   itemBuilder: (context, index) {
                     final u = _following[index];
                     final uid = (u['uid'] ?? u['_id'] ?? '').toString();
@@ -195,8 +196,8 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
                       trailingButton = OutlinedButton(
                         onPressed: loading ? null : () => _toggleFollow(uid, true, false),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.black,
-                          side: BorderSide(color: Colors.grey.shade400),
+                          foregroundColor: scheme.onSurface,
+                          side: BorderSide(color: scheme.outlineVariant),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           minimumSize: const Size(100, 36),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -207,8 +208,8 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
                       trailingButton = OutlinedButton(
                         onPressed: loading ? null : () => _toggleFollow(uid, false, true),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.grey.shade700,
-                          side: BorderSide(color: Colors.grey.shade400),
+                          foregroundColor: scheme.onSurfaceVariant,
+                          side: BorderSide(color: scheme.outlineVariant),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           minimumSize: const Size(100, 36),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -219,8 +220,8 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
                       trailingButton = ElevatedButton(
                         onPressed: loading ? null : () => _toggleFollow(uid, false, false),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
+                          backgroundColor: scheme.primary,
+                          foregroundColor: scheme.onPrimary,
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           minimumSize: const Size(100, 36),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -232,7 +233,7 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
                     return ListTile(
                       onTap: () => _openProfile(u),
                       leading: CircleAvatar(
-                        backgroundColor: Colors.grey.shade300,
+                        backgroundColor: scheme.surfaceContainerHighest,
                         backgroundImage:
                             avatar != null && avatar.startsWith('http')
                                 ? NetworkImage(avatar)
@@ -240,8 +241,8 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
                         child: avatar == null || !avatar.startsWith('http')
                             ? Text(
                                 name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                style: const TextStyle(
-                                    color: Colors.white,
+                                style: TextStyle(
+                                    color: scheme.onSurface,
                                     fontWeight: FontWeight.w600),
                               )
                             : null,

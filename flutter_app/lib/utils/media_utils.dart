@@ -1,6 +1,74 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 
+/// Animated loading placeholder shown while images are loading.
+class ImageLoadingPlaceholder extends StatelessWidget {
+  final double? width;
+  final double? height;
+  final bool circular;
+  final double? size;
+
+  const ImageLoadingPlaceholder({
+    super.key,
+    this.width,
+    this.height,
+    this.circular = false,
+    this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final baseColor = Colors.grey[300]!;
+    final s = size ?? 40.0;
+
+    if (circular) {
+      return SizedBox(
+        width: s,
+        height: s,
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: baseColor,
+          ),
+          child: Center(
+            child: SizedBox(
+              width: s * 0.45,
+              height: s * 0.45,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[600]!),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: width,
+      height: height ?? 200,
+      color: baseColor,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[600]!),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Icon(Icons.image_outlined, color: Colors.black38, size: 24),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// URLs that failed to load (404 etc.) - show placeholder and avoid repeated requests/exceptions.
 final Set<String> _failedImageUrls = {};
 
@@ -123,12 +191,7 @@ class _FullAspectNetworkImageState extends State<FullAspectNetworkImage> {
             height: height,
             loadingBuilder: (_, child, progress) {
               if (progress == null) return child;
-              return Container(
-                width: width,
-                height: height,
-                color: Colors.grey[300],
-                child: const Center(child: Icon(Icons.image_outlined, color: Colors.black45)),
-              );
+              return ImageLoadingPlaceholder(width: width, height: height);
             },
             errorBuilder: (_, __, ___) {
               markImageUrlFailed(widget.url);
@@ -220,11 +283,9 @@ class _AutoAspectNetworkImageState extends State<AutoAspectNetworkImage> {
         height: double.infinity,
         loadingBuilder: (_, child, progress) {
           if (progress == null) return child;
-          return Container(
+          return const ImageLoadingPlaceholder(
             width: double.infinity,
             height: double.infinity,
-            color: Colors.grey[300],
-            child: const Center(child: Icon(Icons.image_outlined, color: Colors.black45)),
           );
         },
         errorBuilder: (_, __, ___) {
@@ -275,7 +336,7 @@ Widget safeAvatarNetworkImage({
         height: size,
         loadingBuilder: (_, child, progress) {
           if (progress == null) return child;
-          return _avatarPlaceholder(size: size, backgroundColor: backgroundColor);
+          return ImageLoadingPlaceholder(circular: true, size: size);
         },
         errorBuilder: (_, __, ___) {
           markImageUrlFailed(url);
@@ -319,7 +380,7 @@ Widget safeNetworkImage({
     height: height,
     loadingBuilder: (context, child, loadingProgress) {
       if (loadingProgress == null) return child;
-      return _imagePlaceholder(width: width, height: height ?? 200, icon: Icons.image_outlined);
+      return ImageLoadingPlaceholder(width: width, height: height ?? 200);
     },
     errorBuilder: (context, error, stackTrace) {
       markImageUrlFailed(url);

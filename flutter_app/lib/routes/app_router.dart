@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
+import '../screens/ai/ai_chat_screen.dart';
 import 'package:saran_app/models/post_model.dart';
 import 'package:saran_app/models/space_event_model.dart'; // ✅ Added for Detail Screen
 import 'package:saran_app/features/settings/settings_routes.dart';
@@ -81,6 +81,14 @@ class AppRouter {
         path: '/home',
         builder: (context, state) => const MainNavigation(),
       ),
+
+      // =========================
+      // AI CHAT
+      // =========================
+      GoRoute(
+        path: '/ai',
+        builder: (context, state) => const AIChatScreen(),
+        ),
 
       // =========================
       // SPACE ROUTES (✅ ADDED)
@@ -276,12 +284,13 @@ class _RouterErrorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("Route Error"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
       ),
       body: Padding(

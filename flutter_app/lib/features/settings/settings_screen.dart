@@ -5,23 +5,21 @@ import 'package:url_launcher/url_launcher.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
-  Future<void> _openPolicies() async {
-    final uri = Uri.parse("https://www.saranapp.com/policies.html");
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text("Settings"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         elevation: 0,
       ),
       body: ListView(
         children: [
+          _Item(title: "Appearance", subtitle: "Light, Dark, or System", onTap: () => context.push('/settings/appearance')),
           _Item(title: "Notifications", onTap: () => context.push('/settings/notifications')),
           _Item(title: "Account Privacy", onTap: () => context.push('/settings/privacy')),
           _Item(title: "Close Friends", onTap: () => context.push('/settings/close-friends/search')),
@@ -34,7 +32,10 @@ class SettingsScreen extends StatelessWidget {
 
           const Divider(height: 24),
 
-          _Item(title: "Terms & Policies", onTap: _openPolicies),
+          _Item(title: "Terms of Use", onTap: () => _openUrl("https://saranapp.com/terms-of-use.html")),
+          _Item(title: "Privacy Policy", onTap: () => _openUrl("https://saranapp.com/privacy-policy.html")),
+          _Item(title: "Wellness Feature Disclosure", onTap: () => _openUrl("https://saranapp.com/wellness-feature-disclosure.html")),
+          _Item(title: "Community Guidelines & Moderation", onTap: () => context.push('/settings/moderation-info')),
 
           const SizedBox(height: 30),
         ],
@@ -45,21 +46,32 @@ class SettingsScreen extends StatelessWidget {
 
 class _Item extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final VoidCallback onTap;
 
-  const _Item({required this.title, required this.onTap});
+  const _Item({required this.title, this.subtitle, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return ListTile(
       title: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.w600,
-          color: Colors.black,
+          color: theme.colorScheme.onSurface,
         ),
       ),
-      trailing: const Icon(Icons.chevron_right),
+      subtitle: subtitle != null
+          ? Text(
+              subtitle!,
+              style: TextStyle(
+                fontSize: 13,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            )
+          : null,
+      trailing: Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
       onTap: onTap,
     );
   }

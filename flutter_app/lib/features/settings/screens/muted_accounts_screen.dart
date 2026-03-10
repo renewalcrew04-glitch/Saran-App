@@ -75,12 +75,13 @@ class _MutedAccountsScreenState extends State<MutedAccountsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("Muted Accounts"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
       ),
       body: loading
@@ -105,8 +106,8 @@ class _MutedAccountsScreenState extends State<MutedAccountsScreen> {
                         height: 52,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            foregroundColor: Colors.white,
+                            backgroundColor: scheme.primary,
+                            foregroundColor: scheme.onPrimary,
                           ),
                           onPressed: _mute,
                           child: const Text("Mute"),
@@ -133,7 +134,7 @@ class _MutedAccountsScreenState extends State<MutedAccountsScreen> {
                               subtitle: Text("@$username"),
                               trailing: TextButton(
                                 onPressed: () => _unmute(uid),
-                                child: const Text("Unmute", style: TextStyle(color: Colors.black)),
+                                child: Text("Unmute", style: TextStyle(color: scheme.primary)),
                               ),
                             );
                           },

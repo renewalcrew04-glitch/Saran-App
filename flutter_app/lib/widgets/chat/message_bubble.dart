@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../config/api_config.dart';
+import '../../utils/media_utils.dart';
 import '../../models/message_model.dart';
 import '../../models/user_model.dart';
 import '../../screens/profile/user_profile_screen.dart';
@@ -38,6 +39,7 @@ class MessageBubble extends StatelessWidget {
             width: 200,
             height: 200,
             fit: BoxFit.cover,
+            placeholder: (_, __) => const ImageLoadingPlaceholder(width: 200, height: 200),
             errorWidget: (_, __, ___) => const Icon(Icons.broken_image, size: 48, color: Colors.grey),
           ),
         ),

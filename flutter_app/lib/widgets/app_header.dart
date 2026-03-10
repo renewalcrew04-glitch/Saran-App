@@ -10,6 +10,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenMessages;
   final VoidCallback? onOpenSearch;
+  final VoidCallback? onOpenAI;
 
   const AppHeader({
     super.key,
@@ -21,10 +22,11 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     this.onOpenNotifications,
     this.onOpenMessages,
     this.onOpenSearch,
+    this.onOpenAI,
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(56);
+  Size get preferredSize => const Size.fromHeight(50);
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +72,17 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
       actions: showBack
           ? []
           : [
+              if (onOpenAI != null)
+                IconButton(
+                  onPressed: onOpenAI,
+                  icon: Image.asset(
+                    'assets/ai_logo.png',
+                    width: 24,
+                    height: 24,
+                    fit: BoxFit.contain,
+                  ),
+                  tooltip: 'SARAN AI',
+                ),
               Stack(
                 children: [
                   IconButton(

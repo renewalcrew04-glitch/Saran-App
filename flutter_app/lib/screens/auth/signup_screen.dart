@@ -33,11 +33,11 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _handleSignup() async {
-    if (!_agreeToTerms) {
+        if (!_agreeToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please agree to the Terms and Conditions to continue.'),
-          backgroundColor: Colors.black,
+        SnackBar(
+          content: const Text('Please agree to the Terms and Conditions to continue.'),
+          backgroundColor: Theme.of(context).colorScheme.inverseSurface,
         ),
       );
       return;
@@ -61,9 +61,9 @@ class _SignupScreenState extends State<SignupScreen> {
         context.go('/home');
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration failed. Please try again.'),
-            backgroundColor: Colors.black,
+          SnackBar(
+            content: const Text('Registration failed. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.inverseSurface,
           ),
         );
       }
@@ -74,7 +74,7 @@ class _SignupScreenState extends State<SignupScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
-            backgroundColor: Colors.black,
+            backgroundColor: Theme.of(context).colorScheme.inverseSurface,
             duration: const Duration(seconds: 5),
           ),
         );
@@ -84,27 +84,20 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        foregroundColor: scheme.onSurface,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.grey[800]),
+          icon: Icon(Icons.arrow_back, color: scheme.onSurface),
           onPressed: () => context.go('/login'),
         ),
       ),
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              Color(0xFFF5F5F5),
-              Colors.white,
-            ],
-          ),
-        ),
+        color: scheme.surface,
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
@@ -114,17 +107,12 @@ class _SignupScreenState extends State<SignupScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 20),
-                  ShaderMask(
-                    shaderCallback: (bounds) => LinearGradient(
-                    colors: [Colors.black, Colors.black],
-                    ).createShader(bounds),
-                    child: const Text(
-                      'Create Account',
-                      style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                  Text(
+                    'Create Account',
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: scheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -132,13 +120,13 @@ class _SignupScreenState extends State<SignupScreen> {
                     'Join SARAN and start your wellness journey',
                     style: TextStyle(
                       fontSize: 17,
-                      color: Colors.grey[700],
+                      color: scheme.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 40),
                 // Username Field
-                _buildTextField(
+                _buildTextField(scheme: scheme,
                   controller: _usernameController,
                   label: 'Username',
                   hint: 'Choose a username',
@@ -159,7 +147,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 const SizedBox(height: 18),
                 // Name Field
-                _buildTextField(
+                _buildTextField(scheme: scheme,
                   controller: _nameController,
                   label: 'Full Name',
                   hint: 'Enter your full name',
@@ -174,7 +162,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 const SizedBox(height: 18),
                 // Email Field
-                _buildTextField(
+                _buildTextField(scheme: scheme,
                   controller: _emailController,
                   label: 'Email',
                   hint: 'Enter your email',
@@ -193,7 +181,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 const SizedBox(height: 18),
                 // Password Field
-                _buildPasswordField(
+                _buildPasswordField(scheme: scheme,
                   controller: _passwordController,
                   label: 'Password',
                   hint: 'Enter your password',
@@ -216,7 +204,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 const SizedBox(height: 18),
                 // Confirm Password Field
-                _buildPasswordField(
+                _buildPasswordField(scheme: scheme,
                   controller: _confirmPasswordController,
                   label: 'Confirm Password',
                   hint: 'Re-enter your password',
@@ -250,7 +238,7 @@ Row(
         value: _agreeToTerms,
         onChanged: (value) =>
             setState(() => _agreeToTerms = value ?? false),
-        activeColor: Colors.black,
+        activeColor: scheme.primary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(4),
         ),
@@ -263,7 +251,7 @@ Row(
         child: RichText(
           text: TextSpan(
             style: TextStyle(
-              color: Colors.grey[800],
+              color: scheme.onSurfaceVariant,
               fontSize: 14,
               height: 1.4,
             ),
@@ -275,7 +263,7 @@ Row(
                 child: GestureDetector(
                   onTap: () async {
                     final uri = Uri.parse(
-                        'https://www.saranapp.com/policies.html');
+                        'https://saranapp.com/terms-of-use.html');
                     if (await canLaunchUrl(uri)) {
                       await launchUrl(
                         uri,
@@ -283,10 +271,10 @@ Row(
                       );
                     }
                   },
-                  child: const Text(
-                    'Terms and Conditions',
+                  child: Text(
+                    'Terms of Use',
                     style: TextStyle(
-                      color: Colors.black,
+                      color: scheme.primary,
                       fontWeight: FontWeight.w600,
                       decoration: TextDecoration.underline,
                       fontSize: 14,
@@ -294,7 +282,35 @@ Row(
                   ),
                 ),
               ),
-              const TextSpan(text: ' of SARAN'),
+              const TextSpan(text: ' and the '),
+              WidgetSpan(
+                alignment: PlaceholderAlignment.baseline,
+                baseline: TextBaseline.alphabetic,
+                child: GestureDetector(
+                  onTap: () async {
+                    final uri = Uri.parse(
+                        'https://saranapp.com/privacy-policy.html');
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    }
+                  },
+                  child: Text(
+                    'Privacy Policy',
+                    style: TextStyle(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              const TextSpan(
+                text: '. SARAN has no tolerance for objectionable content or abusive users.',
+              ),
             ],
           ),
         ),
@@ -314,7 +330,7 @@ Row(
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.3),
+                            color: scheme.shadow.withValues(alpha: 0.3),
                             blurRadius: 15,
                             offset: const Offset(0, 8),
                           ),
@@ -331,21 +347,21 @@ Row(
                           ),
                         ),
                         child: authProvider.isLoading
-                            ? const SizedBox(
+                            ? SizedBox(
                                 height: 24,
                                 width: 24,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2.5,
                                   valueColor:
-                                      AlwaysStoppedAnimation<Color>(Colors.white),
+                                      AlwaysStoppedAnimation<Color>(scheme.onPrimary),
                                 ),
                               )
-                            : const Text(
+                            : Text(
                                 'Sign Up',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: scheme.onPrimary,
                                   letterSpacing: 1,
                                 ),
                               ),
@@ -361,7 +377,7 @@ Row(
                     Text(
                       'Already have an account? ',
                       style: TextStyle(
-                        color: Colors.grey[700],
+                        color: scheme.onSurfaceVariant,
                         fontSize: 15,
                       ),
                     ),
@@ -369,11 +385,11 @@ Row(
                       onPressed: () {
                         context.go('/login');
                       },
-                      child: Text(
-                        'Login',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                        child: Text(
+                          'Login',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: scheme.primary,
                           fontSize: 15,
                         ),
                       ),
@@ -391,6 +407,7 @@ Row(
   }
 
   Widget _buildTextField({
+    required ColorScheme scheme,
     required TextEditingController controller,
     required String label,
     required String hint,
@@ -401,11 +418,11 @@ Row(
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: scheme.shadow.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -416,13 +433,13 @@ Row(
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
-          prefixIcon: Icon(icon, color: Colors.black),
+          prefixIcon: Icon(icon, color: scheme.onSurface),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,
           ),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: scheme.surfaceContainerHighest,
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         ),
         keyboardType: keyboardType,
@@ -433,6 +450,7 @@ Row(
   }
 
   Widget _buildPasswordField({
+    required ColorScheme scheme,
     required TextEditingController controller,
     required String label,
     required String hint,
@@ -444,11 +462,11 @@ Row(
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: scheme.shadow.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -459,11 +477,11 @@ Row(
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
-          prefixIcon: Icon(Icons.lock_outlined, color: Colors.black),
+          prefixIcon: Icon(Icons.lock_outlined, color: scheme.onSurface),
           suffixIcon: IconButton(
             icon: Icon(
               obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-              color: Colors.grey[600],
+              color: scheme.onSurfaceVariant,
             ),
             onPressed: onToggleVisibility,
           ),
@@ -472,7 +490,7 @@ Row(
             borderSide: BorderSide.none,
           ),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: scheme.surfaceContainerHighest,
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         ),
         obscureText: obscureText,

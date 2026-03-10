@@ -159,12 +159,13 @@ class _CloseFriendsSearchScreenState extends State<CloseFriendsSearchScreen> {
   Widget build(BuildContext context) {
     final q = controller.text.trim();
 
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("Close Friends"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
       ),
       body: Column(
@@ -220,7 +221,7 @@ class _CloseFriendsSearchScreenState extends State<CloseFriendsSearchScreen> {
                   return SettingsUserTile(
                     user: u,
                     buttonText: "Remove",
-                    buttonColor: Colors.black,
+                    buttonColor: scheme.primary,
                     onPressed: () => _removeCloseFriend(u),
                   );
                 },
@@ -261,7 +262,8 @@ class _CloseFriendsSearchScreenState extends State<CloseFriendsSearchScreen> {
                       return SettingsUserTile(
                         user: u,
                         buttonText: already ? "Added" : "Add",
-                        buttonColor: already ? Colors.grey : Colors.black,
+                        buttonColor: already ? scheme.surfaceVariant : scheme.primary,
+                        buttonForegroundColor: already ? scheme.onSurfaceVariant : null,
                         onPressed: already ? () {} : () => _addCloseFriend(u),
                       );
                     },

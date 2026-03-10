@@ -64,15 +64,37 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   bool get _canPublish =>
       _textController.text.trim().isNotEmpty || _pickedMediaPaths.isNotEmpty;
 
-  List<String> _parseHashtags(String input) {
-    return input
-        .replaceAll("\n", " ")
-        .split(RegExp(r"[ ,]+"))
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .map((e) => e.startsWith("#") ? e : "#$e")
-        .toSet()
-        .toList();
+  /// Parse hashtags from the hashtag field (user explicitly adds #wellness or wellness).
+  List<String> _parseHashtagsFromField(String input, {int maxCount = 10}) {
+    final seen = <String>{};
+    final result = <String>[];
+    for (final part in input.replaceAll("\n", " ").split(RegExp(r"[ ,]+"))) {
+      final e = part.trim();
+      if (e.isEmpty) continue;
+      final tag = e.startsWith("#") ? e : "#$e";
+      final lower = tag.toLowerCase();
+      if (seen.contains(lower)) continue;
+      seen.add(lower);
+      result.add(tag);
+      if (result.length >= maxCount) break;
+    }
+    return result;
+  }
+
+  /// Extract only explicit #hashtags from post text – do NOT convert plain words.
+  List<String> _parseHashtagsFromText(String text, {int maxCount = 10}) {
+    final seen = <String>{};
+    final result = <String>[];
+    final regex = RegExp(r'#\w+');
+    for (final match in regex.allMatches(text)) {
+      final tag = match.group(0)!;
+      final lower = tag.toLowerCase();
+      if (seen.contains(lower)) continue;
+      seen.add(lower);
+      result.add(tag);
+      if (result.length >= maxCount) break;
+    }
+    return result;
   }
 
   Future<void> _pickImage() async {
@@ -112,7 +134,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     try {
       final text = _textController.text.trim();
-      final hashtags = _parseHashtags(_hashtagsController.text);
+      final fromField = _parseHashtagsFromField(_hashtagsController.text, maxCount: 10);
+      final fromText = _parseHashtagsFromText(text, maxCount: 10);
+      final seen = <String>{};
+      final hashtags = <String>[];
+      for (final tag in [...fromField, ...fromText, ..._selectedCategories.map((c) => "#$c")]) {
+        final lower = tag.toLowerCase();
+        if (seen.contains(lower)) continue;
+        seen.add(lower);
+        hashtags.add(tag);
+        if (hashtags.length >= 3) break;
+      }
 
       if (_quotedPost != null) {
         await _postService.quotePost(
@@ -139,10 +171,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         visibility: _visibility,
         category:
             _selectedCategories.isNotEmpty ? _selectedCategories.first : null,
-        hashtags: [
-          ...hashtags,
-          ..._selectedCategories.map((c) => "#$c"),
-        ],
+        hashtags: hashtags,
       );
 
       if (mounted) Navigator.pop(context, true);
@@ -156,13 +185,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final auth = context.watch<AuthProvider>();
     final user = auth.user;
 
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black),
+          icon: Icon(Icons.close, color: scheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -171,9 +201,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             child: ElevatedButton(
               onPressed: _canPublish && !_publishing ? _publish : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.grey.shade300,
+                backgroundColor: scheme.primary,
+                foregroundColor: scheme.onPrimary,
+                disabledBackgroundColor: scheme.surfaceContainerHighest,
                 elevation: 0,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -182,11 +212,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ),
               ),
               child: _publishing
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
+                        color: scheme.onPrimary,
                         strokeWidth: 2,
                       ),
                     )
@@ -214,7 +244,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           ApiConfig.networkImageUrl(user!.avatar!) ??
                               user.avatar!)
                       : null,
-                  backgroundColor: Colors.grey.shade300,
+                  backgroundColor: scheme.surfaceContainerHighest,
                 ),
                 const SizedBox(width: 12),
                 Column(
@@ -230,7 +260,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     Text(
                       '@${user?.username ?? ''}',
                       style: TextStyle(
-                        color: Colors.grey.shade600,
+                        color: scheme.onSurfaceVariant,
                         fontSize: 13,
                       ),
                     ),
@@ -248,16 +278,16 @@ TextField(
   minLines: 5,        // space for 5 lines
   maxLines: null,     // grows as user types
   maxLength: 1098,    // character limit
-  style: const TextStyle(
+  style: TextStyle(
     fontSize: 18,
-    color: Colors.black,
+    color: scheme.onSurface,
     height: 1.45,
     fontWeight: FontWeight.w400,
   ),
   decoration: InputDecoration(
     hintText: "What's on your mind?",
     hintStyle: TextStyle(
-      color: Colors.grey.shade500,
+      color: scheme.onSurfaceVariant,
       fontSize: 16,
       fontWeight: FontWeight.w400,
     ),
@@ -274,7 +304,7 @@ TextField(
 const SizedBox(height: 16),
 
 Divider(
-  color: Colors.grey.shade200,
+  color: scheme.outlineVariant,
   thickness: 1,
   height: 1,
 ),
@@ -303,14 +333,14 @@ Divider(
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.blueGrey.shade100),
+                  border: Border.all(color: scheme.outlineVariant),
                 ),
                 child: TextField(
                   controller: _hashtagsController,
                   style: const TextStyle(fontSize: 14),
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.tag, size: 18),
-                    hintText: "Add hashtags (#wellness #health)",
+                    hintText: "Add hashtags (max 3: #wellness #health)",
                     border: InputBorder.none,
                   ),
                 ),
@@ -327,6 +357,7 @@ Divider(
   }
 
   Widget _buildBottomToolbar() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: EdgeInsets.only(
         left: 20,
@@ -334,25 +365,25 @@ Divider(
         top: 10,
         bottom: MediaQuery.of(context).viewInsets.bottom + 10,
       ),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFFF5F5F5))),
-        color: Colors.white,
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: scheme.outlineVariant)),
+        color: scheme.surface,
       ),
       child: Row(
         children: [
           IconButton(
             onPressed: _pickImage,
-            icon: const Icon(Icons.image_outlined, color: Colors.blueAccent),
+            icon: Icon(Icons.image_outlined, color: scheme.primary),
           ),
           IconButton(
             onPressed: _pickVideo,
-            icon: const Icon(Icons.videocam_outlined, color: Colors.blueAccent),
+            icon: Icon(Icons.videocam_outlined, color: scheme.primary),
           ),
           const Spacer(),
           Text(
             'Everyone can reply',
             style: TextStyle(
-              color: Colors.grey.shade500,
+              color: scheme.onSurfaceVariant,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -362,7 +393,9 @@ Divider(
     );
   }
 
-  Widget _categorySelector() => GestureDetector(
+  Widget _categorySelector() {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
         onTap: () {
           showModalBottomSheet(
             context: context,
@@ -383,7 +416,7 @@ Divider(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.blue.shade50,
+            color: scheme.primaryContainer,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -394,20 +427,22 @@ Divider(
                     ? "Select Topic"
                     : _selectedCategories.first,
                 style: TextStyle(
-                  color: Colors.blue.shade700,
+                  color: scheme.onPrimaryContainer,
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
                 ),
               ),
               const SizedBox(width: 4),
               Icon(Icons.keyboard_arrow_down,
-                  size: 16, color: Colors.blue.shade700),
+                  size: 16, color: scheme.onPrimaryContainer),
             ],
           ),
         ),
       );
+  }
 
   Widget _mediaPreview() {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -426,12 +461,12 @@ Divider(
                     child: _isVideo
                         ? Container(
                             width: double.infinity,
-                            color: Colors.black87,
+                            color: scheme.surface,
                             alignment: Alignment.center,
-                            child: const Icon(
+                            child: Icon(
                               Icons.play_circle_fill,
                               size: 50,
-                              color: Colors.white,
+                              color: scheme.onSurface,
                             ),
                           )
                         : Image.file(
@@ -447,11 +482,11 @@ Divider(
                       onTap: () => _removeMediaAt(index),
                       child: Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: Colors.black54,
+                        decoration: BoxDecoration(
+                          color: scheme.inverseSurface.withValues(alpha: 0.8),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.close, color: Colors.white, size: 18),
+                        child: Icon(Icons.close, color: scheme.onInverseSurface, size: 18),
                       ),
                     ),
                   ),
@@ -475,7 +510,7 @@ Divider(
                     height: 6,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: i == page ? Colors.black54 : Colors.grey.shade400,
+                      color: i == page ? scheme.primary : scheme.outline,
                     ),
                   ),
                 ),

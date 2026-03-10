@@ -1,6 +1,9 @@
-import 'api_config_constants.dart';
 
-/// Base URL for API. Always uses live backend (no localhost).
+/// Returns API base URL for mobile platforms (Android / iOS)
+/// For local development we use the laptop IP so the phone can reach the server.
 String getApiBaseUrl() {
-  return kProductionApiUrl;
+
+  // LIVE BACKEND (production)
+  return "http://13.233.133.213:3000/api/";
+
 }

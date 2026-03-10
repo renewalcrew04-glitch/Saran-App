@@ -111,12 +111,13 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("Blocked Accounts"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
       ),
       body: Padding(
@@ -128,20 +129,20 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
               height: 46,
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.black, width: 1.2),
+                border: Border.all(color: scheme.outline, width: 1.2),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.search, color: Colors.black),
+                  Icon(Icons.search, color: scheme.onSurface),
                   const SizedBox(width: 10),
                   Expanded(
                     child: TextField(
                       controller: searchController,
                       onChanged: _onSearchChanged,
-                      style: const TextStyle(
-                        color: Colors.black,
+                      style: TextStyle(
+                        color: scheme.onSurface,
                         fontWeight: FontWeight.w600,
                       ),
                       decoration: const InputDecoration(
@@ -160,10 +161,10 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
                         height: 28,
                         width: 28,
                         decoration: BoxDecoration(
-                          color: Colors.black,
+                          color: scheme.primary,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.close, color: Colors.white, size: 18),
+                        child: Icon(Icons.close, color: scheme.onPrimary, size: 18),
                       ),
                     ),
                 ],
@@ -197,23 +198,23 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFEDEDED)),
-                      color: Colors.white,
+                      border: Border.all(color: scheme.outlineVariant),
+                      color: scheme.surfaceContainerHighest,
                     ),
                     child: Row(
                       children: [
                         CircleAvatar(
                           radius: 22,
-                          backgroundColor: Colors.grey.shade200,
+                          backgroundColor: scheme.surfaceContainerHighest,
                           backgroundImage: (user.avatar != null && user.avatar!.isNotEmpty)
                               ? NetworkImage(user.avatar!)
                               : null,
                           child: (user.avatar == null || user.avatar!.isEmpty)
                               ? Text(
                                   user.name.isNotEmpty ? user.name[0].toUpperCase() : "S",
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w800,
-                                    color: Colors.black,
+                                    color: scheme.onSurface,
                                   ),
                                 )
                               : null,
@@ -234,8 +235,8 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 "@${user.username}",
-                                style: const TextStyle(
-                                  color: Colors.black54,
+                                style: TextStyle(
+                                  color: scheme.onSurfaceVariant,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 12,
                                 ),
@@ -258,8 +259,8 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
                               height: 36,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black,
-                                  foregroundColor: Colors.white,
+                                  backgroundColor: scheme.primary,
+                                  foregroundColor: scheme.onPrimary,
                                 ),
                                 onPressed: () => _blockUser(user),
                                 child: const Text("Block"),

@@ -29,6 +29,7 @@ class PostDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     if (_isFullScreenFeed) {
       return _FullScreenPostView(
         posts: _effectivePosts,
@@ -37,15 +38,15 @@ class PostDetailScreen extends StatelessWidget {
       );
     }
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text(
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
+        title: Text(
           "Post",
           style: TextStyle(
-            color: Colors.black,
+            color: scheme.onSurface,
             fontWeight: FontWeight.w800,
           ),
         ),

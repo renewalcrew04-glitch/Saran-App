@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -49,11 +50,27 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
   DateTime _storyStartedAt = DateTime.now();
 
   final TextEditingController _replyCtrl = TextEditingController();
+  final FocusNode _replyFocusNode = FocusNode();
   bool _replyHasText = false;
+
+  void _onReplyFocusChanged() {
+    if (!mounted) return;
+    final hasFocus = _replyFocusNode.hasFocus;
+    setState(() => paused = hasFocus);
+    if (hasFocus) {
+      timer?.cancel();
+      _progressTimer?.cancel();
+    } else {
+      _storyStartedAt = DateTime.now();
+      _startTimer();
+      _startProgressUpdates();
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _replyFocusNode.addListener(_onReplyFocusChanged);
     index = widget.startIndex;
     _markViewed();
     _storyStartedAt = DateTime.now();
@@ -132,7 +149,13 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
     } else {
       timer?.cancel();
       _progressTimer?.cancel();
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      }
     }
   }
 
@@ -153,6 +176,8 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
 
   @override
   void dispose() {
+    _replyFocusNode.removeListener(_onReplyFocusChanged);
+    _replyFocusNode.dispose();
     timer?.cancel();
     _progressTimer?.cancel();
     _replyCtrl.dispose();
@@ -212,7 +237,11 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
     try {
       await SFrameService.deleteFrame(frame.id);
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      if (context.canPop()) {
+        context.pop(true);
+      } else {
+        context.go('/home');
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -283,7 +312,13 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
         backgroundColor: Colors.black,
         body: Center(
           child: TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
             child: const Text('Close', style: TextStyle(color: Colors.white)),
           ),
         ),
@@ -318,47 +353,86 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
                 child: frame.mediaType == "text"
-                    ? Padding(
+                    ? DefaultTextStyle(
                         key: ValueKey(frame.id),
-                        padding: const EdgeInsets.all(32),
-                        child: Text(
-                          frame.textContent ?? "",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w500,
+                          shadows: [
+                            Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2)),
+                            Shadow(color: Colors.black26, blurRadius: 2),
+                          ],
+                        ),
+                        textAlign: TextAlign.center,
+                        child: Container(
+                          width: double.infinity,
+                          color: Colors.black,
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.all(32),
+                          child: Text(frame.textContent ?? ""),
                         ),
                       )
                     : frame.mediaType == "photo"
-                        ? ColorFiltered(
+                        ? Stack(
                             key: ValueKey(frame.id),
-                            colorFilter: filterToColor(
-                              parseSFrameFilter(frame.filter),
-                            ) ??
-                                const ColorFilter.mode(
-                                  Colors.transparent,
-                                  BlendMode.dst,
-                                ),
-                            child: CachedNetworkImage(
-                              imageUrl: frame.mediaUrl!,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                              placeholder: (_, __) =>
-                                  const Center(
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
+                            fit: StackFit.expand,
+                            children: [
+                              ColorFiltered(
+                                colorFilter: filterToColor(
+                                  parseSFrameFilter(frame.filter),
+                                ) ??
+                                    const ColorFilter.mode(
+                                      Colors.transparent,
+                                      BlendMode.dst,
+                                    ),
+                                child: CachedNetworkImage(
+                                  imageUrl: frame.mediaUrl!,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  placeholder: (_, __) =>
+                                      const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  errorWidget:
+                                      (_, __, ___) => const Icon(
+                                    Icons.broken_image,
+                                    color: Colors.white,
+                                    size: 32,
+                                  ),
                                 ),
                               ),
-                              errorWidget:
-                                  (_, __, ___) => const Icon(
-                                Icons.broken_image,
-                                color: Colors.white,
-                                size: 32,
-                              ),
-                            ),
+                              if (frame.textContent != null &&
+                                  frame.textContent!.trim().isNotEmpty)
+                                Positioned.fill(
+                                  child: DefaultTextStyle(
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w600,
+                                      shadows: [
+                                        Shadow(
+                                            color: Colors.black87,
+                                            blurRadius: 8,
+                                            offset: Offset(0, 2)),
+                                        Shadow(
+                                            color: Colors.black54,
+                                            blurRadius: 4),
+                                      ],
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    child: Center(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(24),
+                                        child: Text(frame.textContent!),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           )
                         : _VideoPlayer(
                             key: ValueKey(frame.id),
@@ -576,6 +650,8 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
                     Expanded(
                       child: TextField(
                         controller: _replyCtrl,
+                        focusNode: _replyFocusNode,
+                        cursorColor: Colors.white,
                         onChanged: (_) => setState(() => _replyHasText = _replyCtrl.text.trim().isNotEmpty),
                         style: const TextStyle(
                           color: Colors.white,
@@ -660,7 +736,13 @@ class _SFrameViewerScreenState extends State<SFrameViewerScreen> {
                       ),
                     ),
                   GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
+                    onTap: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/home');
+                      }
+                    },
                     child: const Icon(
                       Icons.close,
                       color: Colors.white,

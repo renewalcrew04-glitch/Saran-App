@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import '../config/api_config.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../providers/auth_provider.dart';
 import '../utils/time_formatter.dart';
 import '../utils/media_utils.dart';
@@ -12,41 +14,18 @@ import 'repost_bottom_sheet.dart';
 import '../screens/post/post_analytics_screen.dart';
 import '../screens/profile/user_profile_screen.dart';
 import '../screens/comments/comments_screen.dart';
+import '../features/settings/services/settings_api.dart';
 import '../screens/post/post_detail_screen.dart';
+import '../utils/hashtag_utils.dart';
 import '../widgets/quote_post_embed.dart';
-
-List<TextSpan> _buildTextSpansWithHashtags(String text) {
-  if (text.isEmpty) return [];
-  final regex = RegExp(r'(#\w+)');
-  final spans = <TextSpan>[];
-  int lastEnd = 0;
-  for (final match in regex.allMatches(text)) {
-    if (match.start > lastEnd) {
-      spans.add(TextSpan(
-        text: text.substring(lastEnd, match.start),
-        style: const TextStyle(color: Colors.black87, fontSize: 15, fontWeight: FontWeight.w500),
-      ));
-    }
-    spans.add(TextSpan(
-      text: match.group(0),
-      style: const TextStyle(color: Colors.blue, fontSize: 15, fontWeight: FontWeight.w600),
-    ));
-    lastEnd = match.end;
-  }
-  if (lastEnd < text.length) {
-    spans.add(TextSpan(
-      text: text.substring(lastEnd),
-      style: const TextStyle(color: Colors.black87, fontSize: 15, fontWeight: FontWeight.w500),
-    ));
-  }
-  return spans;
-}
 
 class PostCard extends StatefulWidget {
   final Post post;
   final VoidCallback? onTap;
   /// Called after this post is successfully deleted (e.g. to refresh list or pop screen).
   final VoidCallback? onPostDeleted;
+  /// Called after user blocks the post author (removes post from feed).
+  final VoidCallback? onBlockedUser;
   /// Called after user successfully undoes a repost (e.g. remove from profile Reposted tab).
   final VoidCallback? onUndoRepostSuccess;
   /// Initial saved state (e.g. true when showing in profile Saved tab).
@@ -59,6 +38,7 @@ class PostCard extends StatefulWidget {
     required this.post,
     this.onTap,
     this.onPostDeleted,
+    this.onBlockedUser,
     this.onUndoRepostSuccess,
     this.initialIsSaved,
     this.onSavedChanged,
@@ -77,6 +57,50 @@ class _PostCardState extends State<PostCard>
   int _repostsCount = 0;
   bool _hasReposted = false;
   late bool _isSaved;
+
+  bool _expanded = false;
+
+Widget _buildExpandableText(String text) {
+  const limit = 152;
+
+  final shouldTrim = text.length > limit;
+  final displayText =
+      !_expanded && shouldTrim ? "${text.substring(0, limit).trim()}..." : text;
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      RichText(
+        text: TextSpan(
+          children: buildTextSpansWithHashtags(
+            displayText,
+            textColor: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87,
+            hashtagColor: Colors.blue,
+          ),
+        ),
+      ),
+      if (shouldTrim)
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              _expanded = !_expanded;
+            });
+          },
+          child: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              _expanded ? "Show less" : "See more",
+              style: const TextStyle(
+                color: Colors.blue,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        )
+    ],
+  );
+}
 
   @override
   void initState() {
@@ -189,101 +213,69 @@ class _PostCardState extends State<PostCard>
     super.dispose();
   }
 
-  static const double _mediaHeight = 320.0;
-  static const double _mediaSectionHeight = 348.0; // _mediaHeight + 8 gap + ~20 dots
+Widget _buildFullWidthMedia(Post post) {
+  final media = post.media;
+  if (media.isEmpty) return const SizedBox.shrink();
 
+  final screenWidth = MediaQuery.of(context).size.width;
+
+  return SizedBox(
+    width: screenWidth,
+    child: _buildPostMediaCarousel(media),
+  );
+}
   /// Same size for all photos. Full image visible with letterboxing (white space) as needed.
   Widget _buildPostMedia(String mediaUrl) {
-    final url = ApiConfig.networkImageUrl(mediaUrl);
-    if (url == null) {
-      return Container(
-        width: double.infinity,
-        height: _mediaHeight,
-        color: Colors.grey[300],
-        child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
+  final url = ApiConfig.networkImageUrl(mediaUrl);
+  if (url == null) return const SizedBox.shrink();
+
+  final screenWidth = MediaQuery.of(context).size.width;
+
+  return ClipRRect(
+    borderRadius: const BorderRadius.only(
+      bottomLeft: Radius.circular(12),
+      bottomRight: Radius.circular(12),
+    ),
+    child: Image.network(
+    url,
+    width: screenWidth,
+    fit: BoxFit.contain,
+    loadingBuilder: (_, child, progress) {
+      if (progress == null) return child;
+      return const SizedBox(
+        height: 250,
+        child: Center(child: CircularProgressIndicator()),
       );
-    }
-    return Container(
-      width: double.infinity,
-      height: _mediaHeight,
-      color: Colors.grey.shade100,
-      child: Image.network(
-        url,
-        fit: BoxFit.contain,
-        width: double.infinity,
-        height: double.infinity,
-        loadingBuilder: (_, child, progress) {
-          if (progress == null) return child;
-          return Container(
-            width: double.infinity,
-            height: double.infinity,
-            color: Colors.grey.shade100,
-            child: const Center(child: Icon(Icons.image_outlined, color: Colors.black45)),
-          );
-        },
-        errorBuilder: (_, __, ___) {
-          return Container(
-            width: double.infinity,
-            height: double.infinity,
-            color: Colors.grey.shade100,
-            child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
-          );
-        },
-      ),
-    );
+    },
+    errorBuilder: (_, __, ___) {
+      return const SizedBox(
+        height: 250,
+        child: Center(child: Icon(Icons.broken_image)),
+      );
+    },
+  ),
+  );
+}
+
+Widget _buildPostMediaCarousel(List<String> mediaUrls) {
+  if (mediaUrls.isEmpty) return const SizedBox.shrink();
+
+  if (mediaUrls.length == 1) {
+    return _buildPostMedia(mediaUrls.first);
   }
 
-  Widget _buildPostMediaCarousel(List<String> mediaUrls) {
-    if (mediaUrls.isEmpty) return const SizedBox.shrink();
-    if (mediaUrls.length == 1) {
-      return _buildPostMedia(mediaUrls.first);
-    }
-    return _PostMediaCarousel(
-      mediaUrls: mediaUrls,
-      buildItem: _buildPostMedia,
-      itemHeight: _mediaHeight,
-    );
-  }
+  return _PostMediaCarousel(
+  mediaUrls: mediaUrls,
+  buildItem: _buildPostMedia,
+);
+}
 
   Widget _buildMediaSection(Post post) {
-    final media = post.media;
-    if (media.isEmpty) return const SizedBox.shrink();
-    final sectionHeight =
-        media.length == 1 ? _mediaHeight : _mediaSectionHeight;
-    return _buildFullBleedMedia(
-      _buildPostMediaCarousel(media),
-      height: sectionHeight,
-    );
-  }
+  final media = post.media;
+  if (media.isEmpty) return const SizedBox.shrink();
 
-  Widget _buildFullBleedMedia(Widget child, {double? height}) {
-    final sectionHeight = height ?? _mediaSectionHeight;
-    return SizedBox(
-      height: sectionHeight,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final screenWidth = MediaQuery.of(context).size.width;
-          final extendAmount = (screenWidth - constraints.maxWidth) / 2;
-          if (extendAmount <= 0) {
-            return child;
-          }
-          return OverflowBox(
-            alignment: Alignment.centerLeft,
-            maxWidth: screenWidth,
-            maxHeight: sectionHeight,
-            child: Transform.translate(
-              offset: Offset(-extendAmount, 0),
-              child: SizedBox(
-                width: screenWidth,
-                height: sectionHeight,
-                child: child,
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
+  return _buildPostMediaCarousel(media);
+}
 
   @override
   Widget build(BuildContext context) {
@@ -293,112 +285,132 @@ class _PostCardState extends State<PostCard>
     final bool isOwnRepost = isRepost &&
         (context.read<AuthProvider>().user?.uid == post.repostedByUid);
 
-    const horizontalPadding = 14.0;
+    const horizontalPadding = 12.0;
 
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.zero,
+   const cardRadius = 16.0;
+
+   return GestureDetector(
+  onTap: widget.onTap,
+  child: Container(
+    margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(cardRadius),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.06),
+          blurRadius: 12,
+          offset: const Offset(0, 2),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(horizontalPadding, 14, horizontalPadding, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _Header(
-                    post: post,
-                    onPostDeleted: widget.onPostDeleted,
-                    displayPost: isRepost ? embeddedOriginal : null,
-                    isOwnRepost: isRepost ? isOwnRepost : null,
-                  ),
-                  if (isRepost) ...[
-                    if (embeddedOriginal.text.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      RichText(
-                        text: TextSpan(
-                          style: const TextStyle(
-                            color: Colors.black87,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          children: _buildTextSpansWithHashtags(embeddedOriginal.text),
-                        ),
-                      ),
-                    ],
-                  ] else ...[
-                    if (post.text.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      RichText(
-                        text: TextSpan(
-                          style: const TextStyle(
-                            color: Colors.black87,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          children: _buildTextSpansWithHashtags(post.text),
-                        ),
-                      ),
-                    ],
-                    if (post.isQuote && embeddedOriginal != null) ...[
-                      const SizedBox(height: 12),
-                      QuotePostEmbed(
-                        originalPost: embeddedOriginal,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => PostDetailScreen(post: embeddedOriginal),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ],
-                ],
+      ],
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(horizontalPadding, 10, horizontalPadding, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Header(
+                post: post,
+                onPostDeleted: widget.onPostDeleted,
+                onBlockedUser: widget.onBlockedUser,
+                displayPost: isRepost ? embeddedOriginal : null,
+                isOwnRepost: isRepost ? isOwnRepost : null,
               ),
-            ),
-            if (isRepost && embeddedOriginal.media.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _buildMediaSection(embeddedOriginal),
-            ],
-            if (!isRepost && post.media.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _buildMediaSection(post),
-            ],
-            Padding(
-              padding: const EdgeInsets.fromLTRB(horizontalPadding, 12, horizontalPadding, 14),
-              child: _Actions(
-                    post: post,
-                    likeController: _likeController,
-                    isLikedOverride: _isLiked,
-                    likesCountOverride: _likesCount,
-                    commentsCountOverride: _commentsCount,
-                    repostsCountOverride: isRepost ? embeddedOriginal.repostsCount : _repostsCount,
-                    hasRepostedOverride: _hasReposted,
-                    isSavedOverride: _isSaved,
-                    onSaveTap: _handleSaveToggle,
-                    onRepost: _handleRepost,
-                    onUndoRepost: _handleUndoRepost,
-                    onLikeTap: _handleLike,
-                    onCommentsTap: () async {
-                      final newCount = await Navigator.push<int>(
+
+              /// REPOST TEXT
+              if (isRepost) ...[
+                if (embeddedOriginal.text.isNotEmpty ||
+                    embeddedOriginal.hashtags.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  _buildExpandableText(
+                    combinedPostText(
+                      text: embeddedOriginal.text,
+                      hashtags: embeddedOriginal.hashtags,
+                    ),
+                  ),
+                ],
+              ] else ...[
+
+                /// NORMAL POST TEXT
+                if (post.text.isNotEmpty || post.hashtags.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: post.media.isEmpty
+                        ? const EdgeInsets.only(left: 30)
+                        : EdgeInsets.zero,
+                    child: _buildExpandableText(
+                      combinedPostText(
+                        text: post.text,
+                        hashtags: post.hashtags,
+                      ),
+                    ),
+                  ),
+                ],
+
+                /// QUOTE POST
+                if (post.isQuote && embeddedOriginal != null) ...[
+                  const SizedBox(height: 8),
+                  QuotePostEmbed(
+                    originalPost: embeddedOriginal,
+                    onTap: () {
+                      Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => CommentsScreen(postId: post.id),
+                          builder: (_) =>
+                              PostDetailScreen(post: embeddedOriginal),
                         ),
                       );
-                      if (newCount != null && mounted) {
-                        setState(() => _commentsCount = newCount);
-                      }
                     },
                   ),
-            ),
+                ],
+              ],
+            ],
+          ),
+        ),
+            if (isRepost && embeddedOriginal.media.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _buildMediaSection(embeddedOriginal),
+            ],
+           if (!isRepost && post.media.isNotEmpty) ...[
+  const SizedBox(height: 8),
+  SizedBox(
+    width: MediaQuery.of(context).size.width,
+    child: _buildPostMediaCarousel(post.media),
+  ),
+],
+            Padding(
+  padding: const EdgeInsets.fromLTRB(horizontalPadding, 8, horizontalPadding, 10),
+  child: _Actions(
+    post: post,
+    likeController: _likeController,
+    isLikedOverride: _isLiked,
+    likesCountOverride: _likesCount,
+    commentsCountOverride: _commentsCount,
+    repostsCountOverride: isRepost ? embeddedOriginal.repostsCount : _repostsCount,
+    hasRepostedOverride: _hasReposted,
+    isSavedOverride: _isSaved,
+    onSaveTap: _handleSaveToggle,
+    onRepost: _handleRepost,
+    onUndoRepost: _handleUndoRepost,
+    onLikeTap: _handleLike,
+    onCommentsTap: () async {
+      final newCount = await Navigator.push<int>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CommentsScreen(postId: post.id),
+        ),
+      );
+
+      if (newCount != null && mounted) {
+        setState(() => _commentsCount = newCount);
+      }
+    },
+  ),
+),
           ],
         ),
       ),
@@ -409,6 +421,7 @@ class _PostCardState extends State<PostCard>
 class _Header extends StatelessWidget {
   final Post post;
   final VoidCallback? onPostDeleted;
+  final VoidCallback? onBlockedUser;
   /// When set (e.g. for reposts), show this post's author/avatar/time instead of [post].
   final Post? displayPost;
   /// When true, show "You reposted" instead of "X reposted".
@@ -416,6 +429,7 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.post,
     this.onPostDeleted,
+    this.onBlockedUser,
     this.displayPost,
     this.isOwnRepost,
   });
@@ -447,6 +461,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     // Reposter name: explicit repostedByName, or post's author (uid) when this is a repost
     final reposterName = post.repostedByName ?? (displayPost != null ? post.userName ?? post.username : null);
     final showRepostLabel = reposterName != null || isOwnRepost == true;
@@ -485,12 +500,12 @@ class _Header extends StatelessWidget {
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Row(
                             children: [
-                              Icon(Icons.repeat_rounded, size: 14, color: Colors.grey[600]),
+                              Icon(Icons.repeat_rounded, size: 14, color: scheme.onSurfaceVariant),
                               const SizedBox(width: 4),
                               Text(
                                 repostLabel,
                                 style: TextStyle(
-                                  color: Colors.grey[700],
+                                  color: scheme.onSurfaceVariant,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -502,16 +517,16 @@ class _Header extends StatelessWidget {
                         children: [
                           Text(
                             author.userName ?? author.username,
-                            style: const TextStyle(
-                              color: Colors.black87,
+                            style: TextStyle(
+                              color: scheme.onSurface,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                           const SizedBox(width: 6),
                           Text(
                             '• ${TimeFormatter.format(author.createdAt)}',
-                            style: const TextStyle(
-                              color: Colors.black54,
+                            style: TextStyle(
+                              color: scheme.onSurfaceVariant,
                               fontSize: 12,
                             ),
                           ),
@@ -519,8 +534,8 @@ class _Header extends StatelessWidget {
                       ),
                       Text(
                         '@${author.username}',
-                        style: const TextStyle(
-                          color: Colors.black54,
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
                           fontSize: 12,
                         ),
                       ),
@@ -533,12 +548,12 @@ class _Header extends StatelessWidget {
         ),
 
         if (post.edited)
-  const Padding(
-    padding: EdgeInsets.only(left: 6),
+  Padding(
+    padding: const EdgeInsets.only(left: 6),
     child: Text(
       "Edited",
       style: TextStyle(
-        color: Colors.black45,
+        color: scheme.onSurfaceVariant,
         fontSize: 11,
       ),
     ),
@@ -551,12 +566,17 @@ class _Header extends StatelessWidget {
   ),
 
 IconButton(
-  icon: const Icon(Icons.more_horiz, color: Colors.black87),
+  icon: Icon(Icons.more_horiz, color: scheme.onSurface),
   onPressed: () {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => _PostOptions(post: post, onDeleted: onPostDeleted),
+      builder: (_) => _PostOptions(
+        post: post,
+        displayPost: displayPost,
+        onDeleted: onPostDeleted,
+        onBlockedUser: onBlockedUser,
+      ),
     );
   },
 ),
@@ -602,64 +622,94 @@ class _Actions extends StatelessWidget {
   bool _isRepostedByMe(BuildContext context) {
     if (hasRepostedOverride == true) return true;
     if (post.repostedByUid != null && post.repostedByUid!.isNotEmpty) return true;
+
     final myUid = context.read<AuthProvider>().user?.uid;
-    if (myUid != null && post.type == 'repost' && post.uid == myUid) return true;
+    if (myUid != null && post.type == 'repost' && post.uid == myUid) {
+      return true;
+    }
     return false;
   }
 
   @override
   Widget build(BuildContext context) {
     final isRepostedByMe = _isRepostedByMe(context);
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _IconAction(
-          icon: _isLiked ? Icons.favorite : Icons.favorite_border,
-          label: post.hideLikeCount ? "" : _likesCount.toString(),
-          color: _isLiked ? Colors.red : Colors.black87,
-          onTap: onLikeTap ?? () => likeController.forward(from: 0.9),
-          scale: likeController,
-        ),
-        _IconAction(
-          icon: Icons.mode_comment_outlined,
-          label: (commentsCountOverride ?? post.commentsCount).toString(),
-          color: Colors.black87,
-          onTap: onCommentsTap ?? () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => CommentsScreen(postId: post.id),
-              ),
-            );
-          },
-        ),
-        _IconAction(
-          icon: Icons.repeat,
-          label: (repostsCountOverride ?? post.repostsCount).toString(),
-          color: isRepostedByMe ? Colors.green : Colors.black87,
-          onTap: () {
-    RepostBottomSheet.show(
-      context: context,
-      alreadyReposted: isRepostedByMe,
-      onRepost: onRepost ?? () async {},
-      onUndo: onUndoRepost ?? () async {},
-      onQuote: () {
-        context.push('/post-create', extra: post);
-      },
-    );
-  },
+        Row(
+          children: [
+            _IconAction(
+              icon: _isLiked
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
+                  iconSize: 18,
+              label: post.hideLikeCount ? "" : _likesCount.toString(),
+              color: _isLiked
+                  ? Colors.red
+                  : Theme.of(context).colorScheme.onSurface,
+              onTap: onLikeTap ?? () => likeController.forward(from: 0.9),
+              scale: likeController,
+            ),
+
+            const SizedBox(width: 18),
+
+            _IconAction(
+  icon: FontAwesomeIcons.comment,
+  iconSize: 16,
+  label: (commentsCountOverride ?? post.commentsCount).toString(),
+  color: Theme.of(context).colorScheme.onSurface,
+  onTap: onCommentsTap ?? () {},
 ),
-        _IconAction(
-          icon: Icons.share_outlined,
-          label: '',
-          color: Colors.black87,
+
+            const SizedBox(width: 18),
+
+            _IconAction(
+              icon: FontAwesomeIcons.retweet,
+              iconSize: 15,
+              label: (repostsCountOverride ?? post.repostsCount).toString(),
+              color: isRepostedByMe
+                  ? Colors.green
+                  : Theme.of(context).colorScheme.onSurface,
+              onTap: () {
+                RepostBottomSheet.show(
+                  context: context,
+                  alreadyReposted: isRepostedByMe,
+                  onRepost: onRepost ?? () async {},
+                  onUndo: onUndoRepost ?? () async {},
+                  onQuote: () {
+                    context.push('/post-create', extra: post);
+                  },
+                );
+              },
+            ),
+
+            const SizedBox(width: 18),
+
+            _IconAction(
+              icon: FontAwesomeIcons.arrowUpFromBracket,
+              iconSize: 15,
+              label: '',
+              color: Theme.of(context).colorScheme.onSurface,
+              onTap: () {
+                Share.share('https://saran.app/post/${post.id}');
+              },
+            ),
+          ],
         ),
+
+        const Spacer(),
+        
         _IconAction(
-          icon: (isSavedOverride ?? false) ? Icons.bookmark : Icons.bookmark_border,
-          label: '',
-          color: Colors.black87,
-          onTap: onSaveTap ?? () {},
-        ),
+  icon: (isSavedOverride ?? false)
+      ? FontAwesomeIcons.solidBookmark
+      : FontAwesomeIcons.bookmark,
+  iconSize: 15,
+  label: '',
+  color: (isSavedOverride ?? false)
+      ? Colors.black87
+      : Theme.of(context).colorScheme.onSurface,
+  onTap: onSaveTap ?? () {},
+),
       ],
     );
   }
@@ -667,9 +717,16 @@ class _Actions extends StatelessWidget {
 
 class _PostOptions extends StatelessWidget {
   final Post post;
+  final Post? displayPost;
   final VoidCallback? onDeleted;
+  final VoidCallback? onBlockedUser;
 
-  const _PostOptions({required this.post, this.onDeleted});
+  const _PostOptions({
+    required this.post,
+    this.displayPost,
+    this.onDeleted,
+    this.onBlockedUser,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -754,15 +811,159 @@ class _PostOptions extends StatelessWidget {
                 "Report",
                 style: TextStyle(color: Colors.white),
               ),
-              onTap: () {
-                Navigator.pop(context);
-                // report flow
-              },
+              onTap: () => _showReportPostDialog(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.block, color: Colors.white),
+              title: const Text(
+                "Block user",
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () => _blockAuthorAndDismiss(context),
             ),
           ],
         ],
       ),
     );
+  }
+
+  Future<void> _showReportPostDialog(BuildContext context) async {
+    Navigator.pop(context);
+    final reasonCtrl = TextEditingController();
+    String? selectedReason;
+    const quickReasons = [
+      'Spam',
+      'Harassment or bullying',
+      'Hate speech or symbols',
+      'Violence or dangerous content',
+      'Nudity or sexual content',
+      'Self-harm or suicide',
+      'Scam or fraud',
+      'Other',
+    ];
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text("Report post"),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    "Help us understand the problem. Reports are reviewed within 24 hours.",
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 12),
+                  ...quickReasons.map((r) => RadioListTile<String>(
+                    title: Text(r, style: const TextStyle(fontSize: 14)),
+                    value: r,
+                    groupValue: selectedReason,
+                    onChanged: (v) => setDialogState(() => selectedReason = v),
+                  )),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: reasonCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      hintText: "Additional details (optional)",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () {
+                  if ((selectedReason ?? '').trim().isNotEmpty) {
+                    Navigator.of(ctx).pop(true);
+                  }
+                },
+                child: const Text("Submit"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final extra = reasonCtrl.text.trim();
+    reasonCtrl.dispose();
+    final reason = (selectedReason ?? 'Other').trim();
+    if (reason.isEmpty) return;
+    final fullReason = extra.isNotEmpty ? '$reason: $extra' : reason;
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.token == null) return;
+    final api = SettingsApi();
+    api.setToken(auth.token!);
+    try {
+      await api.reportPost(postId: post.id, reason: fullReason);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Report submitted. We'll review within 24 hours.")),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
+  }
+
+  Future<void> _blockAuthorAndDismiss(BuildContext context) async {
+    Navigator.pop(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Block user?"),
+        content: const Text(
+          "Their content will be removed from your feed. They won't be able to see your profile or contact you.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text("Block"),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.token == null) return;
+    final api = SettingsApi();
+    api.setToken(auth.token!);
+    final targetUid = (displayPost ?? post).uid;
+    try {
+      await api.blockUser(targetUid);
+      if (!context.mounted) return;
+      onBlockedUser?.call();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("User blocked. Their content has been removed from your feed.")),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 
   Future<void> _confirmAndDeletePost(BuildContext context) async {
@@ -811,13 +1012,11 @@ class _PostOptions extends StatelessWidget {
 class _PostMediaCarousel extends StatefulWidget {
   final List<String> mediaUrls;
   final Widget Function(String url) buildItem;
-  final double itemHeight;
 
   const _PostMediaCarousel({
-    required this.mediaUrls,
-    required this.buildItem,
-    this.itemHeight = 500,
-  });
+  required this.mediaUrls,
+  required this.buildItem,
+});
 
   @override
   State<_PostMediaCarousel> createState() => _PostMediaCarouselState();
@@ -839,15 +1038,15 @@ class _PostMediaCarouselState extends State<_PostMediaCarousel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          height: widget.itemHeight,
-          child: PageView.builder(
-            controller: _pageController,
-            itemCount: widget.mediaUrls.length,
-            onPageChanged: (i) => _currentPage.value = i,
-            itemBuilder: (_, index) => widget.buildItem(widget.mediaUrls[index]),
-          ),
-        ),
+  AspectRatio(
+  aspectRatio: 1,
+  child: PageView.builder(
+    controller: _pageController,
+    itemCount: widget.mediaUrls.length,
+    onPageChanged: (i) => _currentPage.value = i,
+    itemBuilder: (_, index) => widget.buildItem(widget.mediaUrls[index]),
+  ),
+),
         const SizedBox(height: 8),
         ValueListenableBuilder<int>(
           valueListenable: _currentPage,
@@ -878,6 +1077,7 @@ class _IconAction extends StatelessWidget {
   final Color? color;
   final VoidCallback? onTap;
   final Animation<double>? scale;
+  final double iconSize;
 
   const _IconAction({
     required this.icon,
@@ -885,13 +1085,17 @@ class _IconAction extends StatelessWidget {
     this.color,
     this.onTap,
     this.scale,
+    this.iconSize = 18,
   });
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = color ?? Colors.black87;
-    final iconWidget = Icon(icon, color: iconColor, size: 20);
-    final labelColor = color ?? Colors.black54;
+    final iconColor =
+    color ?? Theme.of(context).colorScheme.onSurface;
+final iconWidget = FaIcon(icon, color: iconColor, size: iconSize);
+
+final labelColor =
+    color ?? Theme.of(context).colorScheme.onSurfaceVariant;
 
     return GestureDetector(
       onTap: onTap,

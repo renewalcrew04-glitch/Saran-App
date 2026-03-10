@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../config/api_config.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../utils/media_utils.dart';
 import '../services/sframe_service.dart';
 import '../models/sframe_model.dart';
 
@@ -14,70 +15,114 @@ class SFrameRow extends StatelessWidget {
 
   const SFrameRow({super.key, this.darkTheme = false, this.onStoryCreated});
 
-  static const double _frameWidth = 72;
-  static const double _frameHeight = 96;
+  static const double _frameSize = 80; // square with curvy edges
 
-  /// Create S-Frame tile (clean + calm)
-  Widget _buildCreateFrame(BuildContext context) {
-    final fg = darkTheme ? Colors.white : Colors.black;
-    final mutedFg = fg.withOpacity(0.35);
+ Widget _buildCreateFrame(BuildContext context, {String? userAvatarUrl}) {
+  final fg = darkTheme ? Colors.white : Colors.black;
+  final mutedFg = fg.withOpacity(0.35);
 
-    final addBg = darkTheme
-        ? Colors.white.withOpacity(0.9)
-        : Colors.black.withOpacity(0.9);
-    final addFg = darkTheme ? Colors.black : Colors.white;
+  final addBg = darkTheme
+      ? Colors.white.withOpacity(0.9)
+      : Colors.black.withOpacity(0.9);
+  final addFg = darkTheme ? Colors.black : Colors.white;
 
-    return GestureDetector(
-      onTap: () async {
-        await context.push('/sframe-create');
-        onStoryCreated?.call();
-      },
-      child: Container(
-        width: _frameWidth,
-        height: _frameHeight,
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Stack(
-          children: [
-            CustomPaint(
-              size: const Size(_frameWidth, _frameHeight),
-              painter: _DashedRectPainter(color: mutedFg),
-            ),
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: addBg,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.add,
-                      color: addFg,
-                      size: 20,
+  final avatarUrl = userAvatarUrl != null && userAvatarUrl.isNotEmpty
+      ? (ApiConfig.networkImageUrl(userAvatarUrl) ?? userAvatarUrl)
+      : null;
+
+  return GestureDetector(
+    onTap: () async {
+      await context.push('/sframe-create');
+      onStoryCreated?.call();
+    },
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: _frameSize,
+          height: _frameSize,
+          margin: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Profile photo background
+              if (avatarUrl != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.network(
+                    avatarUrl,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (_, child, progress) {
+                      if (progress == null) return child;
+                      return CustomPaint(
+                        size: const Size(_frameSize, _frameSize),
+                        painter: _DashedRectPainter(color: mutedFg, radius: 14),
+                      );
+                    },
+                    errorBuilder: (_, __, ___) => CustomPaint(
+                      size: const Size(_frameSize, _frameSize),
+                      painter: _DashedRectPainter(color: mutedFg, radius: 14),
                     ),
                   ),
-                  const SizedBox(height: 22),
-                ],
+                )
+              else
+                CustomPaint(
+                  size: const Size(_frameSize, _frameSize),
+                  painter: _DashedRectPainter(color: mutedFg, radius: 14),
+                ),
+              Positioned(
+                right: 4,
+                bottom: 4,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: addBg,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.add,
+                    color: addFg,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        /// TEXT BELOW
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: SizedBox(
+            width: _frameSize + 16,
+            child: Text(
+              "Your S-frame",
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: darkTheme ? Colors.white70 : Colors.black87,
               ),
             ),
-          ],
+          ),
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
 
   static List<SFrame> _orderWithMeFirst(List<SFrame> onePerUser, String? myUid) {
     if (myUid == null || myUid.isEmpty) return onePerUser;
@@ -128,19 +173,28 @@ class SFrameRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: _frameWidth,
-            height: _frameHeight,
-            margin: const EdgeInsets.all(8),
+            width: _frameSize,
+            height: _frameSize,
+            margin: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: borderColor, width: 2),
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(12),
               child: avatarToShow != null
                   ? Image.network(
                       ApiConfig.networkImageUrl(avatarToShow) ?? avatarToShow,
                       fit: BoxFit.cover,
+                      loadingBuilder: (_, child, progress) {
+                        if (progress == null) return child;
+                        return Center(
+                          child: ImageLoadingPlaceholder(
+                            circular: true,
+                            size: 52,
+                          ),
+                        );
+                      },
                       errorBuilder: (_, __, ___) =>
                           Icon(Icons.person, color: iconColor, size: 36),
                     )
@@ -148,9 +202,9 @@ class SFrameRow extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: 4),
             child: SizedBox(
-              width: _frameWidth + 16,
+              width: _frameSize + 16,
               child: Text(
                 displayName,
                 maxLines: 1,
@@ -209,17 +263,17 @@ class SFrameRow extends StatelessWidget {
         final isLoading = snapshot.connectionState == ConnectionState.waiting;
 
         return SizedBox(
-          height: 138,
+          height: 135,
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 4),
             children: [
-              _buildCreateFrame(context),
+              _buildCreateFrame(context, userAvatarUrl: avatarUrl),
               if (isLoading)
                 Padding(
                   padding: const EdgeInsets.only(left: 8),
                   child: SizedBox(
-                    width: _frameWidth,
+                    width: _frameSize,
                     child: const Center(
                       child: SizedBox(
                         width: 24,
@@ -262,8 +316,9 @@ class SFrameRow extends StatelessWidget {
 
 class _DashedRectPainter extends CustomPainter {
   final Color color;
+  final double radius;
 
-  _DashedRectPainter({required this.color});
+  _DashedRectPainter({required this.color, this.radius = 14});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -283,7 +338,7 @@ class _DashedRectPainter extends CustomPainter {
         size.width - strokeWidth,
         size.height - strokeWidth,
       ),
-      const Radius.circular(4),
+      Radius.circular(radius - 2),
     );
 
     final path = Path()..addRRect(rrect);

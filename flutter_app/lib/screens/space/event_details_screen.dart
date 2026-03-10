@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/api_config.dart';
+import '../../utils/media_utils.dart';
 import '../../models/space_event_model.dart';
 import '../../features/space/space_provider_riverpod.dart';
 
@@ -147,7 +148,7 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: 200,
-                      placeholder: (_, __) => const Center(child: Icon(Icons.event, size: 80, color: Colors.black12)),
+                      placeholder: (_, __) => const ImageLoadingPlaceholder(width: double.infinity, height: 200),
                       errorWidget: (_, __, ___) => const Center(child: Icon(Icons.event, size: 80, color: Colors.black12)),
                     )
                   : const Center(child: Icon(Icons.event, size: 80, color: Colors.black12)),

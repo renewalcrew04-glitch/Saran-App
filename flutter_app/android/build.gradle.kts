@@ -5,6 +5,10 @@ allprojects {
         google()
         mavenCentral()
     }
+    // Suppress Java 8 "obsolete options" warnings from dependencies
+    tasks.withType<JavaCompile>().configureEach {
+        options.compilerArgs.add("-Xlint:-options")
+    }
 }
 
 val newBuildDir: Directory =
@@ -21,16 +25,6 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// Suppress Java 8 "obsolete options" warnings from plugins (register before any project is evaluated)
-gradle.projectsLoaded {
-    rootProject.allprojects {
-        afterEvaluate {
-            tasks.withType<JavaCompile>().configureEach {
-                options.compilerArgs.add("-Xlint:-options")
-            }
-        }
-    }
-}
 
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)

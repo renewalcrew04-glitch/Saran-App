@@ -77,24 +77,25 @@ class _DMControlScreenState extends State<DMControlScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     if (loading) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         appBar: AppBar(
           title: const Text("DM Controls"),
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
+          backgroundColor: scheme.surface,
+          foregroundColor: scheme.onSurface,
           elevation: 0,
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("DM Controls"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
         actions: [
           TextButton(

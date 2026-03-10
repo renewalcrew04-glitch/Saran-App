@@ -75,12 +75,13 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("Blocked Accounts"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
       ),
       body: RefreshIndicator(
@@ -106,14 +107,14 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFEDEDED)),
-                          color: Colors.white,
+                          border: Border.all(color: scheme.outlineVariant),
+                          color: scheme.surfaceContainerHighest,
                         ),
                         child: Row(
                           children: [
                             CircleAvatar(
                               radius: 22,
-                              backgroundColor: Colors.grey.shade200,
+                              backgroundColor: scheme.surfaceContainerHighest,
                               backgroundImage:
                                   (user.avatar != null && user.avatar!.isNotEmpty)
                                       ? NetworkImage(user.avatar!)
@@ -123,9 +124,9 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
                                       user.name.isNotEmpty
                                           ? user.name[0].toUpperCase()
                                           : "S",
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.w800,
-                                        color: Colors.black,
+                                        color: scheme.onSurface,
                                       ),
                                     )
                                   : null,
@@ -145,8 +146,8 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
                                   const SizedBox(height: 2),
                                   Text(
                                     "@${user.username}",
-                                    style: const TextStyle(
-                                      color: Colors.black54,
+                                    style: TextStyle(
+                                      color: scheme.onSurfaceVariant,
                                       fontWeight: FontWeight.w600,
                                       fontSize: 12,
                                     ),

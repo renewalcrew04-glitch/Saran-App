@@ -30,13 +30,14 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
   Widget build(BuildContext context) {
     final provider = context.watch<NotificationSettingsProvider>();
 
+    final scheme = Theme.of(context).colorScheme;
     if (provider.loading) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         appBar: AppBar(
           title: const Text("Notifications"),
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
+          backgroundColor: scheme.surface,
+          foregroundColor: scheme.onSurface,
           elevation: 0,
         ),
         body: const Center(child: CircularProgressIndicator()),
@@ -44,11 +45,11 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         title: const Text("Notifications"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
       ),
       body: ListView(

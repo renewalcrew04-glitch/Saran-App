@@ -5,6 +5,7 @@ class SettingsUserTile extends StatelessWidget {
   final User user;
   final String buttonText;
   final Color buttonColor;
+  final Color? buttonForegroundColor;
   final VoidCallback onPressed;
 
   const SettingsUserTile({
@@ -12,21 +13,23 @@ class SettingsUserTile extends StatelessWidget {
     required this.user,
     required this.buttonText,
     required this.buttonColor,
+    this.buttonForegroundColor,
     required this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: Colors.grey.shade200,
+        backgroundColor: scheme.surfaceContainerHighest,
         backgroundImage: (user.avatar != null && user.avatar!.isNotEmpty)
             ? NetworkImage(user.avatar!)
             : null,
-        child: (user.avatar == null || user.avatar!.isEmpty)
+            child: (user.avatar == null || user.avatar!.isEmpty)
             ? Text(
                 user.name.isNotEmpty ? user.name[0].toUpperCase() : "S",
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onSurface),
               )
             : null,
       ),
@@ -40,7 +43,7 @@ class SettingsUserTile extends StatelessWidget {
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: buttonColor,
-            foregroundColor: Colors.white,
+            foregroundColor: buttonForegroundColor ?? (buttonColor == scheme.primary ? scheme.onPrimary : scheme.onSurfaceVariant),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           onPressed: onPressed,

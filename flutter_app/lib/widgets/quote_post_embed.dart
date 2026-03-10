@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../config/api_config.dart';
 import '../models/post_model.dart';
+import '../utils/hashtag_utils.dart';
+import '../utils/media_utils.dart';
 import '../utils/time_formatter.dart';
 
 class QuotePostEmbed extends StatelessWidget {
@@ -16,9 +18,9 @@ class QuotePostEmbed extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final borderColor = isDark ? Colors.white12 : Colors.black12;
-    final containerColor = isDark ? Colors.black.withValues(alpha: 0.45) : Colors.grey.shade100;
+    final scheme = theme.colorScheme;
+    final borderColor = scheme.outlineVariant.withValues(alpha: 0.5);
+    final containerColor = scheme.surfaceContainerHighest;
 
     return GestureDetector(
       onTap: onTap,
@@ -38,7 +40,7 @@ class QuotePostEmbed extends StatelessWidget {
                 Text(
                   originalPost.userName ?? originalPost.username,
                   style: TextStyle(
-                    color: theme.textTheme.titleMedium?.color ?? Colors.black87,
+                    color: scheme.onSurface,
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
                   ),
@@ -47,21 +49,28 @@ class QuotePostEmbed extends StatelessWidget {
                 Text(
                   '• ${TimeFormatter.format(originalPost.createdAt)}',
                   style: TextStyle(
-                    color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.8) ?? Colors.black54,
+                    color: scheme.onSurfaceVariant,
                     fontSize: 12,
                   ),
                 ),
               ],
             ),
-            if (originalPost.text.isNotEmpty) ...[
+            if (originalPost.text.isNotEmpty || originalPost.hashtags.isNotEmpty) ...[
               const SizedBox(height: 6),
-              Text(
-                originalPost.text,
+              RichText(
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.9) ?? Colors.black87,
-                  fontSize: 13,
+                text: TextSpan(
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontSize: 13,
+                  ),
+                  children: buildTextSpansWithHashtags(
+                    combinedPostText(text: originalPost.text, hashtags: originalPost.hashtags),
+                    textColor: scheme.onSurface,
+                    hashtagColor: scheme.primary,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
@@ -103,11 +112,12 @@ class _QuoteMediaState extends State<_QuoteMedia> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     if (widget.mediaUrls.isEmpty) return const SizedBox.shrink();
     if (widget.mediaUrls.length == 1) {
       return SizedBox(
         height: _mediaHeight,
-        child: _buildSingle(widget.mediaUrls.first),
+        child: _buildSingle(context, widget.mediaUrls.first),
       );
     }
     return Column(
@@ -119,7 +129,7 @@ class _QuoteMediaState extends State<_QuoteMedia> {
             controller: _pageController,
             itemCount: widget.mediaUrls.length,
             onPageChanged: (i) => _currentPage.value = i,
-            itemBuilder: (_, i) => _buildSingle(widget.mediaUrls[i]),
+            itemBuilder: (context, i) => _buildSingle(context, widget.mediaUrls[i]),
           ),
         ),
         const SizedBox(height: 6),
@@ -135,7 +145,7 @@ class _QuoteMediaState extends State<_QuoteMedia> {
                 height: 5,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: i == page ? Colors.black54 : Colors.grey.shade400,
+                  color: i == page ? scheme.onSurfaceVariant : scheme.outlineVariant,
                 ),
               ),
             ),
@@ -145,22 +155,23 @@ class _QuoteMediaState extends State<_QuoteMedia> {
     );
   }
 
-  Widget _buildSingle(String mediaUrl) {
+  Widget _buildSingle(BuildContext context, String mediaUrl) {
+    final scheme = Theme.of(context).colorScheme;
     final url = ApiConfig.networkImageUrl(mediaUrl);
     if (url == null) {
       return Container(
         decoration: BoxDecoration(
-          color: Colors.grey.shade300,
+          color: scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
+        child: Center(child: Icon(Icons.broken_image, color: scheme.onSurfaceVariant)),
       );
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Container(
         height: _mediaHeight,
-        color: Colors.grey.shade100,
+        color: scheme.surfaceContainerHighest,
         child: Image.network(
           url,
           fit: BoxFit.contain,
@@ -168,15 +179,12 @@ class _QuoteMediaState extends State<_QuoteMedia> {
           height: double.infinity,
           loadingBuilder: (_, child, progress) {
             if (progress == null) return child;
-            return Container(
-              color: Colors.grey.shade100,
-              child: const Center(child: Icon(Icons.image_outlined, color: Colors.black45)),
-            );
+            return ImageLoadingPlaceholder(width: double.infinity, height: _mediaHeight);
           },
           errorBuilder: (_, __, ___) {
             return Container(
-              color: Colors.grey.shade100,
-              child: const Center(child: Icon(Icons.broken_image, color: Colors.black45)),
+              color: scheme.surfaceContainerHighest,
+              child: Center(child: Icon(Icons.broken_image, color: scheme.onSurfaceVariant)),
             );
           },
         ),

@@ -1,0 +1,94 @@
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+export async function analyzeMessage(message, recentMessages = []) {
+
+  try {
+
+    const context = recentMessages
+      .map(m => m?.content || "")
+      .join("\n");
+
+    const result = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0,
+      max_tokens: 80,
+      messages: [
+        {
+          role: "system",
+          content: `
+Analyze the user's message.
+
+Return ONLY JSON.
+
+Fields:
+
+emotion
+safety
+interests
+importantTopics
+
+emotion values:
+happy
+sad
+stressed
+lonely
+angry
+excited
+neutral
+
+safety values:
+normal
+distress
+relationship
+self_harm
+crisis
+
+Example output:
+
+{
+"emotion":"stressed",
+"safety":"normal",
+"interests":["cricket"],
+"importantTopics":["exams"]
+}
+`
+        },
+        {
+          role: "user",
+          content: `
+Conversation context:
+${context}
+
+User message:
+${message}
+`
+        }
+      ]
+    });
+
+    const raw = result?.choices?.[0]?.message?.content;
+
+    if (!raw) return {};
+
+    const jsonMatch = raw.match(/{[\s\S]*}/);
+
+    if (!jsonMatch) return {};
+
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch {
+      return {};
+    }
+
+  } catch (err) {
+
+    console.log("AI analysis failed:", err.message);
+    return {};
+
+  }
+
+}
