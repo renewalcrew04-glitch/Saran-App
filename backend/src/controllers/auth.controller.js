@@ -34,7 +34,7 @@ const generateToken = (id) => {
 // @access  Public
 export const register = async (req, res, next) => {
   try {
-    let { username, email, password, name } = req.body;
+    let { username, email, password, name, gender, dob, selfieImage } = req.body;
 
     // Validation
     if (!username || !email || !password || !name) {
@@ -77,8 +77,25 @@ export const register = async (req, res, next) => {
       username: usernameNorm,
       email: emailNorm,
       password,
-      name: (name || '').trim() || name
+      name: (name || '').trim() || name,
+      gender,
+      dob,
+      selfieImage,
+      verificationStatus: 'pending'
     });
+
+    // ---------------- FAKE AI VERIFICATION ----------------
+const aiApproved = Math.random() < 0.8;
+
+if (aiApproved) {
+  user.verificationStatus = 'verified';
+  user.verified = true;
+  await user.save();
+} else {
+  user.verificationStatus = 'pending';
+  await user.save();
+}
+// -----------------------------------------------------
 
     // Ensure uid is set (in case pre-save didn't run)
     if (!user.uid && user._id) {
@@ -136,6 +153,13 @@ export const login = async (req, res, next) => {
 
     // Check for user
     const user = await User.findOne({ email }).select('+password');
+
+    if (user.gender === 'male') {
+  return res.status(403).json({
+    success: false,
+    message: 'SARAN is exclusively for Women.'
+  });
+}
 
     if (!user) {
       return res.status(401).json({

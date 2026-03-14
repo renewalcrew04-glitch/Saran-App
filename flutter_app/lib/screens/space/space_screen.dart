@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/space/space_provider_riverpod.dart';
 import '../../widgets/space/space_event_card.dart';
+import '../../features/podcasts/screens/podcast_home_screen.dart';
+import '../../constants/space_categories.dart';
 
 class SpaceScreen extends ConsumerStatefulWidget {
   const SpaceScreen({super.key});
@@ -13,7 +15,7 @@ class SpaceScreen extends ConsumerStatefulWidget {
 
 class _SpaceScreenState extends ConsumerState<SpaceScreen> {
   String category = 'All';
-  final List<String> categories = ['All', 'Wellness', 'Workshop', 'Social', 'Tech', 'Art'];
+  final List<String> categories = SpaceCategories.all;
 
   @override
   void initState() {
@@ -21,12 +23,46 @@ class _SpaceScreenState extends ConsumerState<SpaceScreen> {
     Future.microtask(() => ref.read(spaceProvider.notifier).load(category: category));
   }
 
+  void _openCategoryFilter(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: scheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: categories.map((c) {
+            return ListTile(
+              title: Text(c),
+              trailing: category == c
+                  ? Icon(Icons.check, color: scheme.primary)
+                  : null,
+              onTap: () {
+                Navigator.pop(context);
+
+                setState(() => category = c);
+
+                ref.read(spaceProvider.notifier).reset();
+                ref.read(spaceProvider.notifier).load(category: category);
+              },
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final events = ref.watch(spaceProvider);
     final notifier = ref.read(spaceProvider.notifier);
-    
+
     final scheme = Theme.of(context).colorScheme;
+    
     return Scaffold(
       backgroundColor: scheme.surface,
       appBar: AppBar(
@@ -77,96 +113,126 @@ class _SpaceScreenState extends ConsumerState<SpaceScreen> {
         children: [
           Column(
             children: [
-              // Categories
-              SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: categories.map((c) {
-                final isSelected = category == c;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() => category = c);
-                      notifier.reset();
-                      notifier.load(category: category);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? scheme.primary : scheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent),
-                      ),
-                      child: Text(
-                        c,
-                        style: TextStyle(
-                          color: isSelected ? scheme.onPrimary : scheme.onSurface,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    /// My Events Button
+                    GestureDetector(
+                      onTap: () => context.push('/space/my-events'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.confirmation_number_outlined,
+                                size: 18, color: scheme.onSurface),
+                            const SizedBox(width: 6),
+                            Text(
+                              "My Events",
+                              style: TextStyle(
+                                color: scheme.onSurface,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
-                );
-              }).toList(),
-            ),
+
+                    const Spacer(),
+
+                    /// Filter Button
+                    GestureDetector(
+                      onTap: () => _openCategoryFilter(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.tune, size: 18, color: scheme.onSurface),
+                            const SizedBox(width: 6),
+                            Text(
+                              category,
+                              style: TextStyle(
+                                color: scheme.onSurface,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Event List
+              Expanded(
+                child: events.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.event_note, size: 64, color: scheme.outlineVariant),
+                            const SizedBox(height: 16),
+                            Text("No events found", style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16)),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(left: 16, right: 16, bottom: 100),
+                        itemCount: events.length,
+                        itemBuilder: (_, i) => SpaceEventCard(event: events[i]),
+                      ),
+              ),
+            ],
           ),
 
-          // Event List
-          Expanded(
-            child: events.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.event_note, size: 64, color: scheme.outlineVariant),
-                        const SizedBox(height: 16),
-                        Text("No events found", style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16)),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.only(left: 16, right: 16, bottom: 100),
-                    itemCount: events.length,
-                    itemBuilder: (_, i) => SpaceEventCard(event: events[i]),
-                  ),
-          ),
-        ],
-          ),
-          // My Events & Bookings – above the bottom nav bar
+          // Podcasts Floating Button
           Positioned(
-            left: 0,
-            right: 0,
-            bottom: 90,
-            child: Center(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => context.push('/space/my-events'),
-                  borderRadius: BorderRadius.circular(30),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4)),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.confirmation_number_outlined, color: scheme.onPrimary),
-                        const SizedBox(width: 8),
-                        Text(
-                          "My Events & Bookings",
-                          style: TextStyle(color: scheme.onPrimary, fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                      ],
-                    ),
+            bottom: 110,
+            right: 20,
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PodcastHomeScreen(),
                   ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                decoration: BoxDecoration(
+                  color: scheme.primary,
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.podcasts, color: scheme.onPrimary),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Podcasts",
+                      style: TextStyle(
+                        color: scheme.onPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

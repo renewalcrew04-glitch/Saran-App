@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../utils/media_utils.dart';
 
 void showSeenModal(
   BuildContext context,
@@ -73,16 +74,17 @@ void showSeenModal(
                   final echoed = user['echoed'] == true;
                   return ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    leading: CircleAvatar(
-                      radius: 24,
-                      backgroundImage: avatarUrl != null
-                          ? NetworkImage(avatarUrl.toString())
-                          : null,
-                      backgroundColor: Colors.white.withValues(alpha: 0.15),
-                      child: avatarUrl == null
-                          ? Icon(Icons.person_rounded, color: Colors.white.withValues(alpha: 0.6), size: 26)
-                          : null,
-                    ),
+                    leading: avatarUrl != null
+                        ? safeAvatarNetworkImage(
+                            url: avatarUrl.toString(),
+                            size: 48,
+                            backgroundColor: Colors.white.withValues(alpha: 0.15),
+                          )
+                        : CircleAvatar(
+                            radius: 24,
+                            backgroundColor: Colors.white.withValues(alpha: 0.15),
+                            child: Icon(Icons.person_rounded, color: Colors.white.withValues(alpha: 0.6), size: 26),
+                          ),
                     title: Text(
                       user['name'] ?? "Unknown",
                       style: const TextStyle(

@@ -1,9 +1,9 @@
 import 'dart:async';
-
+import '../../utils/category_gradients.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../../config/api_config.dart';
 import '../../models/post_model.dart';
 import '../../utils/media_utils.dart';
@@ -13,6 +13,7 @@ import '../../services/explore_service.dart';
 import '../../services/profile_service.dart';
 import '../post/post_detail_screen.dart';
 import '../profile/user_profile_screen.dart';
+import 'dart:ui';
 
 const List<String> _exploreFilters = ['All', 'People', 'Text', 'Photo', 'Video'];
 
@@ -273,156 +274,233 @@ class _ExploreScreenState extends State<ExploreScreen> {
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
           children: [
-            Container(
-  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-  decoration: BoxDecoration(
-    color: scheme.surfaceContainerHighest,
-    borderRadius: BorderRadius.circular(14),
-  ),
-  child: Row(
+            ClipRRect(
+  borderRadius: BorderRadius.circular(18),
+  child: Stack(
     children: [
-      Icon(
-        Icons.search,
-        size: 20,
-        color: scheme.onSurfaceVariant,
-      ),
-      const SizedBox(width: 10),
-      Expanded(
-        child: TextField(
-          controller: _searchController,
-          onChanged: _onSearchChanged, // ✅ SAME logic
-          textInputAction: TextInputAction.search,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-          ),
-          decoration: InputDecoration(
-            hintText: 'Search People, posts, topics...',
-            hintStyle: TextStyle(
-              color: scheme.onSurfaceVariant,
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
+      Container(color: Colors.transparent),
+      BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: LinearGradient(
+              colors: scheme.brightness == Brightness.dark
+                  ? [
+                      Colors.white.withValues(alpha: 0.08),
+                      Colors.white.withValues(alpha: 0.02),
+                    ]
+                  : [
+                      Colors.white.withValues(alpha: 0.25),
+                      Colors.white.withValues(alpha: 0.10),
+                    ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            border: InputBorder.none,
-            isDense: true,
+            border: Border.all(
+              color: scheme.brightness == Brightness.dark
+                  ? Colors.white.withValues(alpha: 0.15)
+                  : Colors.white.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.search,
+                size: 20,
+                color: scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: _onSearchChanged,
+                  textInputAction: TextInputAction.search,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Search People, posts, topics...',
+                    hintStyle: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                  ),
+                ),
+              ),
+              if (_searchController.text.isNotEmpty)
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _searchController.clear();
+                      _users = [];
+                      _searchPosts = [];
+                      _error = null;
+                      _searching = false;
+                    });
+                  },
+                  child: Icon(
+                    Icons.close,
+                    size: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+            ],
           ),
         ),
       ),
-      if (_searchController.text.isNotEmpty)
-        GestureDetector(
-          onTap: () {
-            setState(() {
-              _searchController.clear();
-              _users = [];
-              _searchPosts = [];
-              _error = null;
-              _searching = false;
-            });
-          },
-          child: Icon(
-            Icons.close,
-            size: 18,
-            color: scheme.onSurfaceVariant,
-          ),
-        ),
     ],
   ),
 ),
-            const SizedBox(height: 12),
+
+const SizedBox(height: 12),
             // Category filters: All, People, Text, Photo, Video
-            SizedBox(
-              height: 36,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: _exploreFilters.map((f) {
-                  final isActive = _selectedFilter == f;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedFilter = f),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isActive ? scheme.primary : scheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(18),
+SizedBox(
+  height: 36,
+  child: ListView(
+    scrollDirection: Axis.horizontal,
+    children: _exploreFilters.map((f) {
+      final isActive = _selectedFilter == f;
+
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: GestureDetector(
+          onTap: () => setState(() => _selectedFilter = f),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: isActive
+                      ? LinearGradient(
+                          colors: [
+                            scheme.primary,
+                            scheme.primary.withValues(alpha: 0.75),
+                          ],
+                        )
+                      : LinearGradient(
+                          colors: scheme.brightness == Brightness.dark
+                              ? [
+                                  Colors.white.withValues(alpha: 0.06),
+                                  Colors.white.withValues(alpha: 0.02),
+                                ]
+                              : [
+                                  Colors.white.withValues(alpha: 0.20),
+                                  Colors.white.withValues(alpha: 0.08),
+                                ],
                         ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          f,
-                          style: TextStyle(
-                            color: isActive ? scheme.onPrimary : scheme.onSurface,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Text(
+                  f,
+                  style: TextStyle(
+                    color: isActive ? scheme.onPrimary : scheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 16),
-            if (_error != null)
-              _ErrorCard(message: _error!)
-            else if (_loading || _searching)
-              const Padding(
-                padding: EdgeInsets.only(top: 40),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (hasQuery)
-              _buildSearchResults()
-            else ...[
-              // Suggestions for you: only in All tab (horizontal cards + View more)
-              if (_selectedFilter == 'All' && _suggestions.isNotEmpty) ...[
-                Text(
-                  'Suggestions for you',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    color: scheme.onSurface,
-                  ),
+          ),
+        ),
+      );
+    }).toList(),
+  ),
+),
+
+const SizedBox(height: 16),
+
+if (_error != null)
+  _ErrorCard(message: _error!)
+else if (_loading || _searching)
+  const Padding(
+    padding: EdgeInsets.only(top: 40),
+    child: Center(child: CircularProgressIndicator()),
+  )
+else if (hasQuery)
+  _buildSearchResults()
+else ...[
+  // Suggestions for you
+  if (_selectedFilter == 'All' && _suggestions.isNotEmpty) ...[
+    Text(
+      'Suggestions for you',
+      style: TextStyle(
+        fontWeight: FontWeight.w800,
+        fontSize: 16,
+        color: scheme.onSurface,
+      ),
+    ),
+
+    const SizedBox(height: 10),
+
+    SizedBox(
+      height: 140,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _suggestions.length,
+        itemBuilder: (context, i) {
+          final u = _suggestions[i];
+          final isFollowing =
+              _followingIds.contains(u.uid) || u.isFollowing == true;
+          final isFollowPending =
+              _pendingFollowIds.contains(u.uid) || u.isFollowPending == true;
+
+          return _SuggestionCard(
+            user: u,
+            isFollowing: isFollowing,
+            isFollowPending: isFollowPending,
+            onFollow: () => _onFollow(u),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => UserProfileScreen(user: u),
                 ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 140,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _suggestions.length,
-                    itemBuilder: (context, i) {
-                      final u = _suggestions[i];
-                      final isFollowing = _followingIds.contains(u.uid) || u.isFollowing == true;
-                      final isFollowPending = _pendingFollowIds.contains(u.uid) || u.isFollowPending == true;
-                      return _SuggestionCard(
-                        user: u,
-                        isFollowing: isFollowing,
-                        isFollowPending: isFollowPending,
-                        onFollow: () => _onFollow(u),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => UserProfileScreen(user: u)),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Center(
-                  child: GestureDetector(
-                    onTap: _loadSuggestions,
-                    child: Text(
-                      'View more',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: scheme.primary,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
+              );
+            },
+          );
+        },
+      ),
+    ),
+
+    const SizedBox(height: 8),
+
+    Center(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedFilter = 'People';
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 26,
+            color: scheme.primary,
+          ),
+        ),
+      ),
+    ),
+
+    const SizedBox(height: 20),
+  ],
+],
               // People tab: show people in a vertical list (no suggestions header)
               if (_selectedFilter == 'People') ...[
                 if (_suggestions.isEmpty)
@@ -456,7 +534,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 // All / Text / Photo / Video: show post grid
                 _buildExploreGrid(_filteredExplorePosts),
             ],
-          ],
+        
         ),
       ),
     );
@@ -521,55 +599,78 @@ class _ExploreScreenState extends State<ExploreScreen> {
   }
 
   Widget _buildExploreGrid(List<Post> posts) {
-    final scheme = Theme.of(context).colorScheme;
-    if (posts.isEmpty) {
-      final message = _selectedFilter == 'All'
-          ? 'Nothing to explore yet.'
-          : 'No $_selectedFilter posts.';
-      return Padding(
-        padding: const EdgeInsets.only(top: 40),
-        child: Center(
-          child: Text(
-            message,
-            style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600),
+  final scheme = Theme.of(context).colorScheme;
+
+  if (posts.isEmpty) {
+    final message = _selectedFilter == 'All'
+        ? 'Nothing to explore yet.'
+        : 'No $_selectedFilter posts.';
+    return Padding(
+      padding: const EdgeInsets.only(top: 40),
+      child: Center(
+        child: Text(
+          message,
+          style: TextStyle(
+            color: scheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    // Same 3-column grid as profile Post tab: tight spacing, grey background, same tile style
-    return Padding(
-      padding: const EdgeInsets.all(2),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: posts.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 2,
-          mainAxisSpacing: 2,
-        ),
-        itemBuilder: (context, index) {
-          final post = posts[index];
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => PostDetailScreen(post: post)),
-              );
-            },
-            child: ClipRRect(
-              borderRadius: BorderRadius.zero,
+  return Padding(
+    padding: const EdgeInsets.all(4),
+    child: MasonryGridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 4,
+      crossAxisSpacing: 4,
+      itemCount: posts.length,
+      itemBuilder: (context, index) {
+        final post = posts[index];
+
+        double height;
+
+        if (post.type == 'text') {
+          height = 180;
+        } else if (post.type == 'photo') {
+          height = index.isEven ? 200 : 240;
+        } else if (post.type == 'video') {
+          if (index % 3 == 0) {
+            height = 320;
+          } else {
+            height = 220;
+          }
+        } else {
+          height = 200;
+        }
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PostDetailScreen(post: post),
+              ),
+            );
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              height: height,
               child: Container(
                 color: scheme.surfaceContainerHighest,
                 child: _ExploreTile(post: post),
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
+          ),
+        );
+      },
+    ),
+  );
+}
 }
 
 /// Vertical list row for People tab: avatar, name, username, Follow button.
@@ -760,19 +861,29 @@ class _ExploreTile extends StatelessWidget {
       );
     }
     return Container(
-      padding: const EdgeInsets.all(10),
-      alignment: Alignment.topLeft,
-      child: Text(
-        post.text.isNotEmpty ? post.text : 'Text',
-        maxLines: 5,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: scheme.onSurface,
-        ),
+  decoration: BoxDecoration(
+    gradient: CategoryGradients.forCategory(post.category ?? ""),
+  ),
+  child: Container(
+    decoration: BoxDecoration(
+      color: Colors.black.withOpacity(0.15),
+    ),
+    alignment: Alignment.center,
+    padding: const EdgeInsets.all(12),
+    child: Text(
+      post.text.isNotEmpty ? post.text : 'Text',
+      maxLines: 5,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: Colors.white,
+        height: 1.3,
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _buildImage(String path) {

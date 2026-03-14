@@ -1,17 +1,24 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/rendering.dart';
+
 import '../../providers/auth_provider.dart';
 import '../../config/api_config.dart';
+import '../../utils/media_utils.dart';
 import '../../utils/daily_quotes.dart';
 import '../../services/feed_service.dart';
 import '../../models/post_model.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/post_card.dart';
 import '../../features/sframe/widgets/sframe_row.dart';
+import '../../constants/post_categories.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final Function(ScrollDirection direction)? onScrollDirection;
+
+  const HomeScreen({super.key, this.onScrollDirection});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -19,6 +26,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final FeedService _feedService = FeedService();
+  final ScrollController _scrollController = ScrollController();
 
   bool _loading = true;
   String? _error;
@@ -26,13 +34,28 @@ class _HomeScreenState extends State<HomeScreen> {
   int _sframeRefresh = 0;
 
   String _selectedTab = 'For You';
-
-  static const List<String> _homeTabs = ['For You', 'Following', 'Wellness', 'Career'];
+  final List<String> _homeTabs = PostCategories.homeChips;
 
   @override
   void initState() {
     super.initState();
     _loadFeed();
+
+    // Re-added the scroll listener from Version 1
+    _scrollController.addListener(() {
+      if (widget.onScrollDirection != null) {
+        widget.onScrollDirection!(
+          _scrollController.position.userScrollDirection,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // Re-added proper memory cleanup
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFeed() async {
@@ -43,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final bool followingOnly = _selectedTab == 'Following';
-      final String? category = ['Wellness', 'Career'].contains(_selectedTab)
+      final String? category = PostCategories.categories.contains(_selectedTab)
           ? _selectedTab
           : null;
 
@@ -105,17 +128,20 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Compact quote chip – one quote per day.
   Widget _buildQuoteBanner() {
     final theme = Theme.of(context);
     final quote = getDailyQuote();
+
     return Container(
       height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.4), width: 1),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.4),
+          width: 1,
+        ),
       ),
       alignment: Alignment.center,
       child: Text(
@@ -132,12 +158,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Post input row: avatar, "What's on your mind?", Post button.
   Widget _buildPostComposer() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final user = context.watch<AuthProvider>().user;
-    final avatarUrl = user?.avatar != null ? ApiConfig.networkImageUrl(user!.avatar!) ?? user.avatar : null;
+    final avatarUrl = user?.avatar != null
+        ? ApiConfig.networkImageUrl(user!.avatar!) ?? user.avatar
+        : null;
+
     return GestureDetector(
       onTap: () async {
         final result = await context.push<bool>('/post-create');
@@ -145,58 +173,73 @@ class _HomeScreenState extends State<HomeScreen> {
           _loadFeed();
         }
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colorScheme.outline),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: colorScheme.outlineVariant,
-              backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-              child: avatarUrl == null
-                  ? Icon(Icons.person, color: colorScheme.onSurfaceVariant, size: 22)
-                  : null,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                "What's on your mind?",
-                style: TextStyle(
-                  color: colorScheme.onSurfaceVariant,
-                  fontSize: 15,
-                ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withValues(alpha: 0.35),
+                  Colors.white.withValues(alpha: 0.08),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.35),
+                width: 1,
               ),
             ),
-            Material(
-              color: colorScheme.primary,
-              borderRadius: BorderRadius.circular(12),
-              child: InkWell(
-                onTap: () async {
-                  final result = await context.push<bool>('/post-create');
-                  if (result == true && mounted) {
-                    _loadFeed();
-                  }
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Row(
+              children: [
+                avatarUrl != null
+                    ? safeAvatarNetworkImage(url: avatarUrl, size: 36, backgroundColor: colorScheme.outlineVariant)
+                    : CircleAvatar(
+                        radius: 18,
+                        backgroundColor: colorScheme.outlineVariant,
+                        child: Icon(Icons.person, color: colorScheme.onSurfaceVariant, size: 22),
+                      ),
+                const SizedBox(width: 10),
+                Expanded(
                   child: Text(
-                    'Post',
+                    "What's on your mind?",
                     style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 15,
                     ),
                   ),
                 ),
-              ),
+                Material(
+                  color: colorScheme.primary,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    onTap: () async {
+                      final result = await context.push<bool>('/post-create');
+                      if (result == true && mounted) {
+                        _loadFeed();
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      child: Text(
+                        'Post',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -206,6 +249,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppHeader(
@@ -222,214 +266,191 @@ class _HomeScreenState extends State<HomeScreen> {
           if (mounted) setState(() => _sframeRefresh++);
         },
         color: theme.colorScheme.primary,
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(0, 6, 0, MediaQuery.of(context).padding.bottom + 100),
+        child: NotificationListener<UserScrollNotification>(
+          onNotification: (notification) {
+            if (widget.onScrollDirection != null) {
+              widget.onScrollDirection!(notification.direction);
+            }
+            return false;
+          },
+          child: ListView(
+            controller: _scrollController,
+            padding: EdgeInsets.fromLTRB(
+              0,
+              6,
+              0,
+              MediaQuery.of(context).padding.bottom + 100,
+            ),
+            children: [
+              SFrameRow(
+                key: ValueKey(_sframeRefresh),
+                darkTheme: isDark,
+                onStoryCreated: () => setState(() => _sframeRefresh++),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 15),
+                child: _buildQuoteBanner(),
+              ),
+              const SizedBox(height: 15),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  children: _homeTabs.map((label) => _buildChip(context, label)).toList(),
+                ),
+              ),
+              const SizedBox(height: 15),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: _buildPostComposer(),
+              ),
+              const SizedBox(height: 10),
+              _buildFeedContent(theme),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeedContent(ThemeData theme) {
+    if (_loading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Column(
           children: [
-            // S-Frame row (rectangular dashed create + user frames) — refresh when user shares a story
-            SFrameRow(
-              key: ValueKey(_sframeRefresh),
-              darkTheme: isDark,
-              onStoryCreated: () => setState(() => _sframeRefresh++),
+            const SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildQuoteBanner(),
-                ],
+            const SizedBox(height: 16),
+            Text(
+              'Loading your feed…',
+              style: TextStyle(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 10),
-            // Category tabs (For You, Following, etc.) – end to end with space between
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-              child: Row(
-                children: [
-                  ..._homeTabs.map((label) => _buildChip(context, label)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: _buildPostComposer(),
-            ),
-            const SizedBox(height: 10),
-
-            // Feed section header
-            if (!_loading && _error == null && _posts.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 4, bottom: 6),
-                child: Text(
-                  _selectedTab,
-                  style: TextStyle(
-                    color: theme.colorScheme.onSurface,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-
-            if (_loading)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32),
-                child: Column(
-                  children: [
-                    const SizedBox(
-                      width: 32,
-                      height: 32,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Loading your feed…',
-                      style: TextStyle(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else if (_error != null)
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 12,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                  border: Border.all(color: theme.colorScheme.outline),
-                ),
-                child: Column(
-                  children: [
-                    Icon(Icons.error_outline_rounded, size: 40, color: theme.colorScheme.onSurfaceVariant),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Couldn’t load feed',
-                      style: TextStyle(
-                        color: theme.colorScheme.onSurface,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: _loadFeed,
-                      icon: const Icon(Icons.refresh_rounded, size: 20),
-                      label: const Text('Try again'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else if (_posts.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.article_outlined, size: 40, color: theme.colorScheme.onSurfaceVariant),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No posts yet',
-                      style: TextStyle(
-                        color: theme.colorScheme.onSurface,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Follow people or share your first post',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 14),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        FilledButton.icon(
-                          onPressed: () async {
-                            final result = await context.push<bool>('/post-create');
-                            if (result == true && mounted) _loadFeed();
-                          },
-                          icon: const Icon(Icons.add_rounded, size: 20),
-                          label: const Text('Create post'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: theme.colorScheme.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        OutlinedButton.icon(
-                          onPressed: () => context.push('/explore'),
-                          icon: const Icon(Icons.explore_rounded, size: 20),
-                          label: const Text('Explore'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: theme.colorScheme.onSurface,
-                            side: BorderSide(color: theme.colorScheme.outline),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              )
-            else
-              ..._posts.asMap().entries.map((entry) {
-                final index = entry.key;
-                final post = entry.value;
-                final authorUid = post.originalPost?.uid ?? post.quotedPost?.uid ?? post.uid;
-                return Padding(
-                  padding: EdgeInsets.only(bottom: index < _posts.length - 1 ? 4 : 0),
-                  child: PostCard(
-                    post: post,
-                    onPostDeleted: () {
-                      if (mounted) _loadFeed();
-                    },
-                    onBlockedUser: () {
-                      if (mounted) {
-                        setState(() {
-                          _posts.removeWhere((p) {
-                            final a = p.originalPost?.uid ?? p.quotedPost?.uid ?? p.uid;
-                            return a == authorUid;
-                          });
-                        });
-                      }
-                    },
-                  ),
-                );
-              }),
           ],
         ),
+      );
+    }
+
+    if (_error != null) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 15),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.colorScheme.outline),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.error_outline_rounded, size: 40, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(height: 8),
+            const Text(
+              'Couldn’t load feed',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: _loadFeed,
+              icon: const Icon(Icons.refresh_rounded, size: 20),
+              label: const Text('Try again'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_posts.isEmpty) {
+      return _buildEmptyState(theme);
+    }
+
+    return Column(
+      children: _posts.asMap().entries.map((entry) {
+        final index = entry.key;
+        final post = entry.value;
+        final authorUid = post.originalPost?.uid ?? post.quotedPost?.uid ?? post.uid;
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: index < _posts.length - 1 ? 4 : 0),
+          child: PostCard(
+            post: post,
+            onPostDeleted: () {
+              if (mounted) _loadFeed();
+            },
+            onBlockedUser: () {
+              if (mounted) {
+                setState(() {
+                  _posts.removeWhere((p) {
+                    final a = p.originalPost?.uid ?? p.quotedPost?.uid ?? p.uid;
+                    return a == authorUid;
+                  });
+                });
+              }
+            },
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildEmptyState(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.article_outlined, size: 40, color: theme.colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'No posts yet',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Follow people or share your first post',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 14),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              FilledButton.icon(
+                onPressed: () async {
+                  final result = await context.push<bool>('/post-create');
+                  if (result == true && mounted) _loadFeed();
+                },
+                icon: const Icon(Icons.add_rounded, size: 20),
+                label: const Text('Create post'),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: () => context.push('/explore'),
+                icon: const Icon(Icons.explore_rounded, size: 20),
+                label: const Text('Explore'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -12,13 +12,13 @@ class AIService {
 
     try {
 
+      message = message.trim();
+
+      if (message.isEmpty) return null;
+
       final token = context.read<AuthProvider>().token;
 
       final url = Uri.parse("${ApiConfig.baseUrl}ai/chat");
-
-      // DEBUG LOGS
-      print("API BASE URL: ${ApiConfig.baseUrl}");
-      print("REQUEST URL: $url");
 
       final response = await http.post(
         url,
@@ -27,24 +27,20 @@ class AIService {
           "Authorization": "Bearer $token"
         },
         body: jsonEncode({
-          "message": message,
+          "message": message
         }),
-      );
-
-      print("AI STATUS: ${response.statusCode}");
-      print("AI BODY: ${response.body}");
+      ).timeout(const Duration(seconds: 6)); // ✅ ADDED TIMEOUT
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data["reply"];
       }
 
-      return "AI error";
+      return "Hmm something went wrong";
 
     } catch (e) {
 
-      print("AI Exception: $e");
-      return "Connection error";
+      return "Connection issue. Try again.";
 
     }
 

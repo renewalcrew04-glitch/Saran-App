@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../models/user_model.dart';
+import '../../../../utils/media_utils.dart';
 
 class SettingsUserTile extends StatelessWidget {
   final User user;
@@ -21,18 +22,15 @@ class SettingsUserTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: scheme.surfaceContainerHighest,
-        backgroundImage: (user.avatar != null && user.avatar!.isNotEmpty)
-            ? NetworkImage(user.avatar!)
-            : null,
-            child: (user.avatar == null || user.avatar!.isEmpty)
-            ? Text(
+      leading: (user.avatar != null && user.avatar!.isNotEmpty)
+          ? safeAvatarNetworkImage(url: user.avatar, size: 40, backgroundColor: scheme.surfaceContainerHighest)
+          : CircleAvatar(
+              backgroundColor: scheme.surfaceContainerHighest,
+              child: Text(
                 user.name.isNotEmpty ? user.name[0].toUpperCase() : "S",
                 style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onSurface),
-              )
-            : null,
-      ),
+              ),
+            ),
       title: Text(
         user.name,
         style: const TextStyle(fontWeight: FontWeight.w800),

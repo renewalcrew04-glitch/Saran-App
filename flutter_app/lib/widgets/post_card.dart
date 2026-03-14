@@ -328,9 +328,11 @@ Widget _buildPostMediaCarousel(List<String> mediaUrls) {
                   const SizedBox(height: 6),
                   _buildExpandableText(
                     combinedPostText(
-                      text: embeddedOriginal.text,
-                      hashtags: embeddedOriginal.hashtags,
-                    ),
+  text: embeddedOriginal.text,
+  hashtags: embeddedOriginal.hashtags
+      .where((h) => h != embeddedOriginal.category)
+      .toList(),
+),
                   ),
                 ],
               ] else ...[
@@ -344,9 +346,9 @@ Widget _buildPostMediaCarousel(List<String> mediaUrls) {
                         : EdgeInsets.zero,
                     child: _buildExpandableText(
                       combinedPostText(
-                        text: post.text,
-                        hashtags: post.hashtags,
-                      ),
+  text: post.text,
+  hashtags: post.hashtags.where((h) => h != post.category).toList(),
+),
                     ),
                   ),
                 ],
@@ -642,7 +644,7 @@ class _Actions extends StatelessWidget {
               icon: _isLiked
                   ? Icons.favorite_rounded
                   : Icons.favorite_border_rounded,
-                  iconSize: 18,
+                  iconSize: 22,
               label: post.hideLikeCount ? "" : _likesCount.toString(),
               color: _isLiked
                   ? Colors.red

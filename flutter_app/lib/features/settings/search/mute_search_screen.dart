@@ -262,7 +262,7 @@ class _MuteSearchScreenState extends State<MuteSearchScreen> {
                       return SettingsUserTile(
                         user: u,
                         buttonText: alreadyMuted ? "Muted" : "Mute",
-                        buttonColor: alreadyMuted ? scheme.surfaceVariant : scheme.primary,
+                        buttonColor: alreadyMuted ? scheme.surfaceContainerHighest : scheme.primary,
                         buttonForegroundColor: alreadyMuted ? scheme.onSurfaceVariant : null,
                         onPressed: alreadyMuted ? () {} : () => _mute(u),
                       );

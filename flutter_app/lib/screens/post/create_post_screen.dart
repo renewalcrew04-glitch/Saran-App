@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-
+import 'dart:ui';
 import '../../models/post_model.dart';
 import '../../services/post_service.dart';
 import '../../services/upload_service.dart';
@@ -10,6 +10,11 @@ import '../../widgets/category_multi_select_sheet.dart';
 import '../../widgets/quote_post_embed.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/api_config.dart';
+import '../../utils/media_utils.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
 
 class CreatePostScreen extends StatefulWidget {
   /// When set (e.g. from Quote flow), show quoted post and publish as quote.
@@ -97,14 +102,142 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     return result;
   }
 
-  Future<void> _pickImage() async {
-    final files = await ImagePicker().pickMultiImage(imageQuality: 85);
-    if (files.isEmpty) return;
-    setState(() {
-      _pickedMediaPaths.addAll(files.map((f) => f.path));
-      _isVideo = false;
-    });
+  Future<String?> _cropImage(String path) async {
+  final cropped = await ImageCropper().cropImage(
+    sourcePath: path,
+    compressQuality: 90,
+    aspectRatio: const CropAspectRatio(ratioX: 4, ratioY: 5),
+
+    uiSettings: [
+      AndroidUiSettings(
+        toolbarTitle: 'Crop Photo',
+        toolbarColor: Colors.black,
+        toolbarWidgetColor: Colors.white,
+        initAspectRatio: CropAspectRatioPreset.square,
+        lockAspectRatio: false,
+        aspectRatioPresets: const [
+          CropAspectRatioPreset.square,
+          CropAspectRatioPreset.original,
+          CropAspectRatioPreset.ratio4x3,
+        ],
+      ),
+
+      IOSUiSettings(
+        title: 'Crop Photo',
+        aspectRatioPresets: const [
+          CropAspectRatioPreset.square,
+          CropAspectRatioPreset.original,
+        ],
+      ),
+    ],
+  );
+
+  return cropped?.path;
+}
+
+Future<String> _processImage(String path) async {
+
+  /// 1️⃣ HEIC → JPEG conversion (for iPhone images)
+  if (path.toLowerCase().endsWith(".heic")) {
+    final dir = await getTemporaryDirectory();
+    final converted =
+        "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg";
+
+    final result = await FlutterImageCompress.compressAndGetFile(
+      path,
+      converted,
+      format: CompressFormat.jpeg,
+      quality: 95,
+    );
+
+    path = result?.path ?? path;
   }
+
+  /// 2️⃣ Read image bytes
+  final bytes = await File(path).readAsBytes();
+
+  img.Image? original = img.decodeImage(bytes);
+  if (original == null) return path;
+
+  /// 3️⃣ SMART RESIZE (Instagram uses 1080px max)
+  if (original.width > 1080) {
+    original = img.copyResize(original, width: 1080);
+  }
+
+  /// 4️⃣ AI-LIKE SHARPENING
+  original = img.convolution(original, filter: [
+    0, -1, 0,
+   -1,  5, -1,
+    0, -1, 0
+  ]);
+
+  /// 5️⃣ Save processed image
+  final dir = await getTemporaryDirectory();
+  final outputPath =
+      "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg";
+
+  final jpg = img.encodeJpg(original, quality: 88);
+
+  await File(outputPath).writeAsBytes(jpg);
+
+  return outputPath;
+}
+
+Future<String> _compressImage(String path) async {
+  final dir = Directory.systemTemp;
+
+  final targetPath =
+      "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg";
+
+  final result = await FlutterImageCompress.compressAndGetFile(
+    path,
+    targetPath,
+    quality: 88, // Instagram-like compression
+    minWidth: 1080,
+    minHeight: 1080,
+    format: CompressFormat.jpeg,
+  );
+
+  return result?.path ?? path;
+}
+
+  Future<void> _pickImage() async {
+  final files = await ImagePicker().pickMultiImage(imageQuality: 95);
+  if (files.isEmpty) return;
+
+  List<String> processedPaths = [];
+
+  for (final file in files) {
+
+    /// 1️⃣ Crop
+    final cropped = await _cropImage(file.path);
+    if (cropped == null) continue;
+
+    /// 2️⃣ Smart resize + sharpen
+    final processed = await _processImage(cropped);
+
+    /// 3️⃣ Final compression
+    final dir = await getTemporaryDirectory();
+    final target =
+        "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg";
+
+    final result = await FlutterImageCompress.compressAndGetFile(
+      processed,
+      target,
+      quality: 88,
+      format: CompressFormat.jpeg,
+    );
+
+    processedPaths.add(result?.path ?? processed);
+  }
+
+  if (processedPaths.isEmpty) return;
+
+  setState(() {
+    _pickedMediaPaths.addAll(processedPaths);
+    _isVideo = false;
+  });
+}
 
   Future<void> _pickVideo() async {
     final file = await ImagePicker().pickVideo(source: ImageSource.gallery);
@@ -138,7 +271,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       final fromText = _parseHashtagsFromText(text, maxCount: 10);
       final seen = <String>{};
       final hashtags = <String>[];
-      for (final tag in [...fromField, ...fromText, ..._selectedCategories.map((c) => "#$c")]) {
+      for (final tag in [...fromField, ...fromText]) {
         final lower = tag.toLowerCase();
         if (seen.contains(lower)) continue;
         seen.add(lower);
@@ -237,15 +370,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             /// PROFILE HEADER
             Row(
               children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundImage: user?.avatar != null
-                      ? NetworkImage(
-                          ApiConfig.networkImageUrl(user!.avatar!) ??
-                              user.avatar!)
-                      : null,
-                  backgroundColor: scheme.surfaceContainerHighest,
-                ),
+                user?.avatar != null
+                    ? safeAvatarNetworkImage(
+                        url: ApiConfig.networkImageUrl(user!.avatar!) ?? user.avatar,
+                        size: 44,
+                        backgroundColor: scheme.surfaceContainerHighest,
+                      )
+                    : CircleAvatar(
+                        radius: 22,
+                        backgroundColor: scheme.surfaceContainerHighest,
+                      ),
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,33 +406,61 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             const SizedBox(height: 16),
 
             /// CONTENT WRITING AREA (clean & premium)
-TextField(
-  controller: _textController,
-  autofocus: true,
-  minLines: 5,        // space for 5 lines
-  maxLines: null,     // grows as user types
-  maxLength: 1098,    // character limit
-  style: TextStyle(
-    fontSize: 18,
-    color: scheme.onSurface,
-    height: 1.45,
-    fontWeight: FontWeight.w400,
-  ),
-  decoration: InputDecoration(
-    hintText: "What's on your mind?",
-    hintStyle: TextStyle(
-      color: scheme.onSurfaceVariant,
-      fontSize: 16,
-      fontWeight: FontWeight.w400,
+ClipRRect(
+  borderRadius: BorderRadius.circular(18),
+  child: Stack(
+  children: [
+    Container(color: Colors.transparent),
+    BackdropFilter(
+    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+  colors: scheme.brightness == Brightness.dark
+      ? [
+          Colors.white.withValues(alpha: 0.08),
+          Colors.white.withValues(alpha: 0.02),
+        ]
+      : [
+          Colors.white.withValues(alpha: 0.25),
+          Colors.white.withValues(alpha: 0.10),
+        ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(
+  color: scheme.brightness == Brightness.dark
+      ? Colors.white.withValues(alpha: 0.15)
+      : Colors.white.withValues(alpha: 0.35),
+),
+      ),
+      child: TextField(
+        controller: _textController,
+        autofocus: true,
+        minLines: 5,
+        maxLines: null,
+        maxLength: 1098,
+        style: TextStyle(
+          fontSize: 18,
+          color: scheme.onSurface,
+          height: 1.45,
+        ),
+        decoration: InputDecoration(
+          hintText: "What's on your mind?",
+          hintStyle: TextStyle(
+            color: scheme.onSurfaceVariant,
+            fontSize: 16,
+          ),
+          border: InputBorder.none,
+          counterText: "",
+        ),
+        onChanged: (_) => setState(() {}),
+      ),
     ),
-    border: InputBorder.none,
-    counterText: "",
-    contentPadding: const EdgeInsets.symmetric(
-      horizontal: 10,
-      vertical: 8,
-    ),
+  ),],
   ),
-  onChanged: (_) => setState(() {}),
 ),
 
 const SizedBox(height: 16),
@@ -328,30 +490,58 @@ Divider(
               const SizedBox(height: 20),
 
               /// HASHTAGS BOX
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: scheme.outlineVariant),
-                ),
-                child: TextField(
-                  controller: _hashtagsController,
-                  style: const TextStyle(fontSize: 14),
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.tag, size: 18),
-                    hintText: "Add hashtags (max 3: #wellness #health)",
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
+              ClipRRect(
+  borderRadius: BorderRadius.circular(16),
+  child: Stack(
+  children: [
+    Container(color: Colors.transparent),
+    BackdropFilter(
+    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+  colors: scheme.brightness == Brightness.dark
+      ? [
+          Colors.white.withValues(alpha: 0.06),
+          Colors.white.withValues(alpha: 0.02),
+        ]
+      : [
+          Colors.white.withValues(alpha: 0.18),
+          Colors.white.withValues(alpha: 0.08),
+        ],
+),
+        border: Border.all(
+  color: scheme.brightness == Brightness.dark
+      ? Colors.white.withValues(alpha: 0.15)
+      : Colors.white.withValues(alpha: 0.35),
+),
+      ),
+      child: TextField(
+        controller: _hashtagsController,
+        style: const TextStyle(fontSize: 14),
+        decoration: const InputDecoration(
+          prefixIcon: Icon(Icons.tag, size: 18),
+          hintText: "Add hashtags (max 3: #wellness #health)",
+          border: InputBorder.none,
+        ),
+      ),
+    ),
+  ),],
+  ),
+),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
+
+              /// CATEGORY SELECTOR
               _categorySelector(),
             ],
           ],
         ),
       ),
+
+      /// BOTTOM TOOLBAR (media attach, visibility, etc.)
       bottomNavigationBar: _buildBottomToolbar(),
     );
   }
@@ -416,7 +606,12 @@ Divider(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: scheme.primaryContainer,
+            gradient: LinearGradient(
+  colors: [
+    scheme.primary,
+    scheme.primary.withValues(alpha: 0.75),
+  ],
+),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(

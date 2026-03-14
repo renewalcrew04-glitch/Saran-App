@@ -148,19 +148,20 @@ class _ProfileShareBubble extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: isOwn ? Colors.white24 : Colors.grey.shade300,
-              backgroundImage: avatar != null && avatar.isNotEmpty
-                  ? NetworkImage(ApiConfig.networkImageUrl(avatar) ?? avatar)
-                  : null,
-              child: avatar == null || avatar.isEmpty
-                  ? Text(
+            avatar != null && avatar.isNotEmpty
+                ? safeAvatarNetworkImage(
+                    url: ApiConfig.networkImageUrl(avatar) ?? avatar,
+                    size: 44,
+                    backgroundColor: isOwn ? Colors.white24 : Colors.grey.shade300,
+                  )
+                : CircleAvatar(
+                    radius: 22,
+                    backgroundColor: isOwn ? Colors.white24 : Colors.grey.shade300,
+                    child: Text(
                       (name ?? '?').isNotEmpty ? ((name ?? '?')[0].toUpperCase()) : '?',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: fg),
-                    )
-                  : null,
-            ),
+                    ),
+                  ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

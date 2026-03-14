@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../services/upload_service.dart';
 import '../../services/voice_recorder_service.dart';
+import '../../utils/media_utils.dart';
 import '../../widgets/chat/message_bubble.dart';
 import '../../widgets/chat/reaction_picker.dart';
 import '../profile/user_profile_screen.dart';
@@ -308,16 +309,13 @@ class _ChatScreenState extends State<ChatScreen> {
           behavior: HitTestBehavior.opaque,
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: scheme.surfaceContainerHighest,
-                backgroundImage: (widget.otherAvatar != null && widget.otherAvatar!.isNotEmpty)
-                    ? NetworkImage(widget.otherAvatar!)
-                    : null,
-                child: (widget.otherAvatar == null || widget.otherAvatar!.isEmpty)
-                    ? Icon(Icons.person, color: scheme.onSurface)
-                    : null,
-              ),
+              (widget.otherAvatar != null && widget.otherAvatar!.isNotEmpty)
+                  ? safeAvatarNetworkImage(url: widget.otherAvatar, size: 36, backgroundColor: scheme.surfaceContainerHighest)
+                  : CircleAvatar(
+                      radius: 18,
+                      backgroundColor: scheme.surfaceContainerHighest,
+                      child: Icon(Icons.person, color: scheme.onSurface),
+                    ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(

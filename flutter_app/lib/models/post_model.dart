@@ -193,4 +193,17 @@ class Post {
       originalPost: null,
     );
   }
+  double get gridAspectRatio {
+  // Text posts always square
+  if (type == 'text' || media.isEmpty) {
+    return 1;
+  }
+
+  // Photo / Video → tall
+  if (type == 'photo' || type == 'image' || type == 'video') {
+    return 4 / 5; // 1080x1350
+  }
+
+  return 1;
+}
 }

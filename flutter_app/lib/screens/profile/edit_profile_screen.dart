@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/upload_service.dart';
 import '../../services/profile_update_service.dart';
+import '../../utils/media_utils.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -251,25 +252,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 3),
             ),
-            child: CircleAvatar(
-              radius: 44,
-              backgroundColor: Colors.grey.shade300,
-              backgroundImage: _localAvatar != null
-                  ? FileImage(_localAvatar!)
-                  : (user?.avatar != null ? NetworkImage(user!.avatar!) : null)
-                      as ImageProvider?,
-              child: (user?.avatar == null && _localAvatar == null)
-                  ? Text(
-                      user?.name.isNotEmpty == true
-                          ? user!.name[0].toUpperCase()
-                          : "U",
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    )
-                  : null,
+            child: ClipOval(
+              child: SizedBox(
+                width: 88,
+                height: 88,
+                child: _localAvatar != null
+                    ? Image.file(_localAvatar!, fit: BoxFit.cover)
+                    : (user?.avatar != null && user!.avatar!.isNotEmpty)
+                        ? safeAvatarNetworkImage(url: user.avatar, size: 88)
+                        : CircleAvatar(
+                            radius: 44,
+                            backgroundColor: Colors.grey.shade300,
+                            child: Text(
+                              user?.name.isNotEmpty == true
+                                  ? user!.name[0].toUpperCase()
+                                  : "U",
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+              ),
             ),
           ),
           Positioned(

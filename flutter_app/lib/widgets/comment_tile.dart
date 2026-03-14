@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../config/api_config.dart';
+import '../utils/media_utils.dart';
 import '../models/user_model.dart';
 import '../screens/profile/user_profile_screen.dart';
 import '../services/comment_service.dart';
@@ -108,21 +109,24 @@ class _Bubble extends StatelessWidget {
         children: [
           GestureDetector(
             onTap: () => _openUserProfile(context, comment),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-              backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-              child: avatarUrl == null
-                  ? Text(
+            child: avatarUrl != null
+                ? safeAvatarNetworkImage(
+                    url: avatarUrl,
+                    size: 36,
+                    backgroundColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                  )
+                : CircleAvatar(
+                    radius: 18,
+                    backgroundColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                    child: Text(
                       username.isNotEmpty ? username[0].toUpperCase() : '?',
                       style: TextStyle(
                         color: theme.colorScheme.onPrimaryContainer,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),
-                    )
-                  : null,
-            ),
+                    ),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(

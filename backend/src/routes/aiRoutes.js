@@ -4,11 +4,13 @@ import { askAI } from "../services/aiService.js";
 
 const router = express.Router();
 
+const userCooldown = new Map();
+
 router.post("/chat", protect, async (req, res) => {
 
   try {
 
-    const userId = req.user._id;
+    const userId = req.user._id.toString();
     const { message } = req.body;
 
     if (!message) {
@@ -17,6 +19,18 @@ router.post("/chat", protect, async (req, res) => {
         message: "Message required"
       });
     }
+
+    const now = Date.now();
+    const last = userCooldown.get(userId) || 0;
+
+    if (now - last < 300) {
+      return res.json({
+        success: true,
+        reply: "..."
+      });
+    }
+
+    userCooldown.set(userId, now);
 
     const reply = await askAI(userId, message);
 

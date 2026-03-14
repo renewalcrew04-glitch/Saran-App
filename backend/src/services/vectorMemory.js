@@ -5,11 +5,11 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// ---------- STORE MEMORY ----------
-
 export async function storeMemory(userId, text) {
 
   try {
+
+    if (!text || text.length < 80) return;
 
     const embed = await openai.embeddings.create({
       model: "text-embedding-3-small",
@@ -32,8 +32,6 @@ export async function storeMemory(userId, text) {
 
 }
 
-// ---------- RECALL MEMORIES ----------
-
 export async function recallMemories(userId, message) {
 
   try {
@@ -46,12 +44,12 @@ export async function recallMemories(userId, message) {
     const queryVector = embed.data[0].embedding;
 
     const memories = await AIMemory
-  .find({ userId })
-  .sort({ createdAt: -1 })
-  .limit(50);
+      .find({ userId })
+      .sort({ createdAt: -1 })
+      .limit(50);
 
     let scored = memories
-      .filter(mem => mem.embedding && Array.isArray(mem.embedding) && mem.embedding.length > 0)
+      .filter(mem => mem.embedding)
       .map(mem => {
 
         const score = cosineSimilarity(queryVector, mem.embedding);
@@ -76,8 +74,6 @@ export async function recallMemories(userId, message) {
   }
 
 }
-
-// ---------- COSINE SIMILARITY ----------
 
 function cosineSimilarity(a,b){
 

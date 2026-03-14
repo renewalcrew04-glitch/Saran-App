@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../config/api_config.dart';
 import '../../models/user_model.dart';
+import '../../utils/media_utils.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/profile_service.dart';
 import 'user_profile_screen.dart';
@@ -232,21 +234,19 @@ class _FollowingListScreenState extends State<FollowingListScreen> {
 
                     return ListTile(
                       onTap: () => _openProfile(u),
-                      leading: CircleAvatar(
-                        backgroundColor: scheme.surfaceContainerHighest,
-                        backgroundImage:
-                            avatar != null && avatar.startsWith('http')
-                                ? NetworkImage(avatar)
-                                : null,
-                        child: avatar == null || !avatar.startsWith('http')
-                            ? Text(
+                      leading: (avatar != null && avatar.isNotEmpty)
+                          ? safeAvatarNetworkImage(
+                              url: ApiConfig.networkImageUrl(avatar) ?? avatar,
+                              size: 40,
+                              backgroundColor: scheme.surfaceContainerHighest,
+                            )
+                          : CircleAvatar(
+                              backgroundColor: scheme.surfaceContainerHighest,
+                              child: Text(
                                 name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                style: TextStyle(
-                                    color: scheme.onSurface,
-                                    fontWeight: FontWeight.w600),
-                              )
-                            : null,
-                      ),
+                                style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w600),
+                              ),
+                            ),
                       title: Text(
                         name,
                         style: const TextStyle(fontWeight: FontWeight.w700),

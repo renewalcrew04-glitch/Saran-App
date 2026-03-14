@@ -263,7 +263,7 @@ class SFrameRow extends StatelessWidget {
         final isLoading = snapshot.connectionState == ConnectionState.waiting;
 
         return SizedBox(
-          height: 135,
+          height: 120,
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 4),

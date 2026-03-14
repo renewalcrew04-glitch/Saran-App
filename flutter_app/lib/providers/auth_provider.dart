@@ -141,47 +141,50 @@ class AuthProvider extends ChangeNotifier {
   // REGISTER (UNCHANGED)
   // =========================
   Future<bool> register(
-    String username,
-    String email,
-    String password,
-    String name,
-  ) async {
-    try {
-      _isLoading = true;
-      notifyListeners();
+  String username,
+  String email,
+  String password,
+  String name,
+  String gender,
+  String dob,
+  String selfieImage,
+) async {
+  try {
+    _isLoading = true;
+    notifyListeners();
 
-      final data =
-          await _authService.register(username, email, password, name);
+    final data = await _authService.register(
+      username,
+      email,
+      password,
+      name,
+      gender,
+      dob,
+      selfieImage,
+    );
 
-      final token = data['token']?.toString();
-      final dynamic rawUser = data['user'];
+    final token = data['token'];
 
-      if (token == null || token.isEmpty) {
-        throw Exception("Token not received from backend");
-      }
-
+    if (token != null) {
       await _authService.setToken(token);
-      _token = token;
-      ApiClient.setToken(token);
 
-      if (rawUser is Map<String, dynamic>) {
-        _user = User.fromJson(rawUser);
-      } else {
-        final meData = await _authService.getCurrentUser();
-        final dynamic meUser = meData['user'] ?? meData;
-        if (meUser is Map<String, dynamic>) {
-          _user = User.fromJson(meUser);
-        }
-      }
+      final meData = await _authService.getCurrentUser();
+      _user = meData['user'];
 
-      return true;
-    } catch (e) {
-      rethrow;
-    } finally {
       _isLoading = false;
       notifyListeners();
+      return true;
     }
+
+    _isLoading = false;
+    notifyListeners();
+    return false;
+  } catch (e) {
+    _isLoading = false;
+    notifyListeners();
+    rethrow;
   }
+}
 
   // =========================
   // LOGOUT

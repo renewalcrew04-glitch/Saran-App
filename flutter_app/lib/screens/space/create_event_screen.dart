@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-
+import '../../constants/space_categories.dart';
 import '../../config/api_config.dart';
 import '../../features/space/space_provider_riverpod.dart';
 import '../../services/upload_service.dart';
@@ -52,9 +52,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   bool _isLoading = false;
   bool _isLoadingEvent = false;
 
-  final List<String> _categories = [
-    'Social', 'Wellness', 'Workshop', 'Tech', 'Art', 'Music', 'Business', 'Food', 'Travel'
-  ];
+  final List<String> _categories = SpaceCategories.createEvent;
 
   @override
   void initState() {

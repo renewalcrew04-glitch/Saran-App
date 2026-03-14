@@ -13,14 +13,26 @@ export async function analyzeMessage(message, recentMessages = []) {
       .join("\n");
 
     const result = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-mini",
       temperature: 0,
-      max_tokens: 80,
+      max_tokens: 120,
       messages: [
         {
           role: "system",
           content: `
-Analyze the user's message.
+You are analyzing messages from an Indian social app called SARAN.
+
+Users may speak in:
+- Tamil
+- Hindi
+- Telugu
+- Malayalam
+- Kannada
+- Bengali
+- English
+- Mixed languages (Tanglish / Hinglish etc)
+
+Your job is to analyze emotion and safety risk.
 
 Return ONLY JSON.
 
@@ -30,6 +42,8 @@ emotion
 safety
 interests
 importantTopics
+language
+mixedLanguage
 
 emotion values:
 happy
@@ -47,13 +61,28 @@ relationship
 self_harm
 crisis
 
-Example output:
+language values:
+tamil
+hindi
+telugu
+malayalam
+kannada
+bengali
+english
+unknown
+
+mixedLanguage:
+true or false
+
+Example:
 
 {
 "emotion":"stressed",
 "safety":"normal",
-"interests":["cricket"],
-"importantTopics":["exams"]
+"interests":["movies"],
+"importantTopics":["work"],
+"language":"tamil",
+"mixedLanguage":true
 }
 `
         },

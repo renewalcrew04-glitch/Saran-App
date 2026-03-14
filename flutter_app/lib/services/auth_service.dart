@@ -33,103 +33,58 @@ class AuthService {
     return prefs.getString('token');
   }
 
+  /// 🔹 GET CURRENT USER
   Future<Map<String, dynamic>> getCurrentUser() async {
-    try {
-      final token = await getToken();
-      if (token == null || token.isEmpty) {
-        throw Exception("No token found. Please login again.");
-      }
+    final token = await getToken();
 
-      final response = await _dio.get(
-        '${ApiConfig.auth}/me',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
+    final response = await _dio.get(
+      '${ApiConfig.auth}/me',
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      ),
+    );
 
-      return Map<String, dynamic>.from(response.data);
-    } catch (e) {
-      if (e is DioException) {
-        throw Exception(e.response?.data['message'] ?? 'Failed to get user');
-      }
-      throw Exception('Failed to get user');
-    }
+    return Map<String, dynamic>.from(response.data);
   }
 
+  /// 🔹 LOGIN
   Future<Map<String, dynamic>> login(String email, String password) async {
-    try {
-      final response = await _dio.post(
-        '${ApiConfig.auth}/login',
-        data: {'email': email, 'password': password},
-      );
+    final response = await _dio.post(
+      '${ApiConfig.auth}/login',
+      data: {
+        'email': email,
+        'password': password,
+      },
+    );
 
-      return Map<String, dynamic>.from(response.data as Map);
-    } catch (e) {
-      if (e is DioException) {
-        String errorMessage = 'Login failed';
-
-        if (e.response != null) {
-          final data = e.response!.data;
-          if (data is Map) {
-            errorMessage = (data['message'] ?? data['error'] ?? 'Login failed').toString();
-          } else if (data != null) {
-            errorMessage = data.toString();
-          }
-          if (e.response!.statusCode == 401) {
-            errorMessage = (data is Map ? (data['message'] ?? data['error']) : null)?.toString() ?? 'Invalid email or password.';
-          }
-        } else if (e.type == DioExceptionType.connectionTimeout) {
-          errorMessage = 'Connection timeout. Check if the server is running.';
-        } else if (e.type == DioExceptionType.connectionError) {
-          errorMessage = 'Cannot connect to server. Check internet or try again later.';
-        } else if (e.type == DioExceptionType.receiveTimeout) {
-          errorMessage = 'Server response timeout. Please try again.';
-        }
-
-        throw Exception(errorMessage);
-      }
-      throw Exception('Login failed');
-    }
+    return Map<String, dynamic>.from(response.data);
   }
 
+  /// 🔹 REGISTER
   Future<Map<String, dynamic>> register(
     String username,
     String email,
     String password,
     String name,
+    String gender,
+    String dob,
+    String selfieImage,
   ) async {
-    try {
-      final response = await _dio.post(
-        '${ApiConfig.auth}/register',
-        data: {
-          'username': username,
-          'email': email,
-          'password': password,
-          'name': name,
-        },
-      );
+    final response = await _dio.post(
+      '${ApiConfig.auth}/register',
+      data: {
+        'username': username,
+        'email': email,
+        'password': password,
+        'name': name,
+        'gender': gender,
+        'dob': dob,
+        'selfieImage': selfieImage,
+      },
+    );
 
-      return Map<String, dynamic>.from(response.data);
-    } catch (e) {
-      if (e is DioException) {
-        String errorMessage = 'Registration failed';
-
-        if (e.response != null) {
-          errorMessage = e.response?.data['message'] ??
-              e.response?.data['error'] ??
-              'Registration failed';
-        } else if (e.type == DioExceptionType.connectionTimeout) {
-          errorMessage =
-              'Connection timeout. Please check if backend server is running.';
-        } else if (e.type == DioExceptionType.connectionError) {
-          errorMessage =
-              'Cannot connect to server. Please check backend at ${ApiConfig.baseUrl}';
-        } else if (e.type == DioExceptionType.receiveTimeout) {
-          errorMessage = 'Server response timeout. Please try again.';
-        }
-
-        throw Exception(errorMessage);
-      }
-
-      throw Exception('Registration failed: ${e.toString()}');
-    }
+    return Map<String, dynamic>.from(response.data);
   }
 }

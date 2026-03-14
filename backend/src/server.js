@@ -5,14 +5,15 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { connectDB } from './config/database.js';
-import "./jobs/spaceReminder.job.js";
-import { errorHandler, notFound } from './middleware/errorMiddleware.js';
-import { protect } from './middleware/auth.middleware.js';
-import aiRoutes from "./routes/aiRoutes.js";
-import aiProfileRoutes from "./routes/aiProfile.routes.js";
 import { createPost } from './controllers/post.controller.js';
 import { uploadSingle } from './controllers/upload.controller.js';
+import "./jobs/spaceReminder.job.js";
+import { protect } from './middleware/auth.middleware.js';
+import { errorHandler, notFound } from './middleware/errorMiddleware.js';
+import aiProfileRoutes from "./routes/aiProfile.routes.js";
+import aiRoutes from "./routes/aiRoutes.js";
 import eventReminderRoutes from "./routes/eventReminder.routes.js";
+import podcastRoutes from "./routes/podcast.routes.js";
 
 // Routes
 import authRoutes from './routes/auth.routes.js';
@@ -109,6 +110,9 @@ app.use("/api/sframes", sframeRoutes);
 
 // Event Reminders
 app.use("/api/event-reminders", eventReminderRoutes);
+
+// Podcast routes
+app.use("/api", podcastRoutes);
 
 // ✅ SPACE (FIXED)
 app.use('/api/space', spaceRoutes);

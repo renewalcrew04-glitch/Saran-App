@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import '../../utils/category_gradients.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -7,7 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:saran_app/features/menu/menu_sheet.dart';
 import 'package:saran_app/services/wellness_streak_service.dart';
-
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../../config/api_config.dart';
 import '../../models/post_model.dart';
 import '../../models/user_model.dart';
@@ -130,18 +130,29 @@ class _PostGridTile extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(10),
-      alignment: Alignment.topLeft,
-      child: Text(
-        post.text.isNotEmpty ? post.text : 'Text',
-        maxLines: 5,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
+  decoration: BoxDecoration(
+    gradient: CategoryGradients.forCategory(post.category ?? ""),
+  ),
+  child: Container(
+    decoration: BoxDecoration(
+      color: Colors.black.withOpacity(0.15),
+    ),
+    alignment: Alignment.center,
+    padding: const EdgeInsets.all(12),
+    child: Text(
+      post.text.isNotEmpty ? post.text : 'Text',
+      maxLines: 5,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: Colors.white,
+        height: 1.3,
       ),
-    );
+    ),
+  ),
+);
   }
 }
 
@@ -797,206 +808,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildPostsSection() {
-    final theme = Theme.of(context);
-    final list = _filteredPosts;
-    final isRepostTab = _activePostTab == 'repost';
+  final theme = Theme.of(context);
+  final posts = _filteredPosts;
 
-    if (list.isEmpty) {
-      if (isRepostTab) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Icon(Icons.repeat, size: 44, color: theme.colorScheme.onSurfaceVariant),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'No reposts or quotes yet',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'When you repost or quote something, it will show here.',
-                    style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurfaceVariant),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        );
+  if (posts.isEmpty) {
+    return const SizedBox(height: 200);
+  }
+
+  return Padding(
+  padding: const EdgeInsets.all(4),
+  child: MasonryGridView.count(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    crossAxisCount: 2,
+    mainAxisSpacing: 4,
+    crossAxisSpacing: 4,
+    itemCount: posts.length,
+    itemBuilder: (context, index) {
+      final post = posts[index];
+
+      double height;
+
+      if (post.type == 'text') {
+        height = 180;
+      } else if (post.type == 'photo') {
+        height = index.isEven ? 200 : 240;
+      } else if (post.type == 'video') {
+        if (index % 3 == 0) {
+          height = 320;
+        } else {
+          height = 220;
+        }
+      } else {
+        height = 200;
       }
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Icon(Icons.photo_camera_outlined, size: 48, color: theme.colorScheme.onSurfaceVariant),
+
+      return GestureDetector(
+        onTap: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PostDetailScreen(
+                posts: posts,
+                initialIndex: index,
+                onRepostUndone: _loadUserPosts,
               ),
-              const SizedBox(height: 24),
-              Text(
-                'Create your first post',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Share your point of view.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: theme.colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                height: 44,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final result = await context.push<bool>('/post-create');
-                    if (result == true && mounted) _loadUserPosts();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: theme.colorScheme.onPrimary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: const Text('Create'),
-                ),
-              ),
-            ],
+            ),
+          );
+          if (mounted) _loadUserPosts();
+        },
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: SizedBox(
+            height: height,
+            child: Container(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: _PostGridTile(post: post),
+            ),
           ),
         ),
       );
-    }
-
-    const double spacing = 6;
-    const double radius = 8;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = (constraints.maxWidth - spacing) / 2;
-        final cellSize = w;
-        final tallHeight = cellSize * 2 + spacing;
-
-        final rowCount = (list.length / 3).ceil();
-
-        return SingleChildScrollView(
-          physics: const NeverScrollableScrollPhysics(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (int r = 0; r < rowCount; r++) ...[
-                SizedBox(
-                  height: tallHeight,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(right: spacing / 2, bottom: spacing / 2),
-                                child: r * 3 < list.length
-                                    ? _buildGridItem(context, list, r * 3, radius)
-                                    : _buildEmptyGridCell(radius),
-                              ),
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(right: spacing / 2, top: spacing / 2),
-                                child: r * 3 + 1 < list.length
-                                    ? _buildGridItem(context, list, r * 3 + 1, radius)
-                                    : _buildEmptyGridCell(radius),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        width: w,
-                        height: tallHeight,
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: spacing / 2),
-                          child: r * 3 + 2 < list.length
-                              ? _buildGridItem(context, list, r * 3 + 2, radius)
-                              : _buildEmptyGridCell(radius),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (r < rowCount - 1) SizedBox(height: spacing),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildEmptyGridCell(double radius) {
-    final theme = Theme.of(context);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: Container(color: theme.colorScheme.surfaceContainerHighest),
-    );
-  }
-
-  Widget _buildGridItem(BuildContext context, List<Post> list, int index, double radius) {
-    final theme = Theme.of(context);
-    final post = list[index];
-    return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PostDetailScreen(
-              posts: list,
-              initialIndex: index,
-              onRepostUndone: _loadUserPosts,
-            ),
-          ),
-        );
-        if (mounted) _loadUserPosts();
-      },
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: Container(
-          color: theme.colorScheme.surfaceContainerHighest,
-          child: _PostGridTile(post: post),
-        ),
-      ),
-    );
-  }
+    },
+  ),
+);
+}
 
   Widget _buildPostSubTabs() {
     return Padding(

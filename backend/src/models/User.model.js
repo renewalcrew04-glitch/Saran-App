@@ -40,6 +40,21 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    gender: {
+  type: String,
+  enum: ['female', 'trans_woman', 'male'],
+  required: true
+},
+
+dob: {
+  type: Date
+},
+
+selfieImage: {
+  type: String,
+  default: null
+},
+
     avatar: {
       type: String,
       default: null,

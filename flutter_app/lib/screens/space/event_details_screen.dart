@@ -206,16 +206,16 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.grey[200],
-                        backgroundImage: event.hostAvatar != null
-                            ? NetworkImage(event.hostAvatar!)
-                            : null,
-                        radius: 20,
-                        child: event.hostAvatar == null
-                            ? const Icon(Icons.person, color: Colors.grey)
-                            : null,
-                      ),
+                      event.hostAvatar != null
+                          ? safeAvatarNetworkImage(
+                              url: event.hostAvatar,
+                              size: 40,
+                              backgroundColor: Colors.grey[200],
+                            )
+                          : CircleAvatar(
+                              backgroundColor: Colors.grey[200],
+                              child: const Icon(Icons.person, color: Colors.grey),
+                            ),
                       const SizedBox(width: 12),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

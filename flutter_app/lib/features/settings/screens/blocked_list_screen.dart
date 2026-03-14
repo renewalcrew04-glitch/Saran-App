@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../models/user_model.dart';
+import '../../../utils/media_utils.dart';
 import '../../../providers/auth_provider.dart';
 import '../services/settings_api.dart';
 
@@ -112,25 +113,20 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
                         ),
                         child: Row(
                           children: [
-                            CircleAvatar(
-                              radius: 22,
-                              backgroundColor: scheme.surfaceContainerHighest,
-                              backgroundImage:
-                                  (user.avatar != null && user.avatar!.isNotEmpty)
-                                      ? NetworkImage(user.avatar!)
-                                      : null,
-                              child: (user.avatar == null || user.avatar!.isEmpty)
-                                  ? Text(
-                                      user.name.isNotEmpty
-                                          ? user.name[0].toUpperCase()
-                                          : "S",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        color: scheme.onSurface,
-                                      ),
-                                    )
-                                  : null,
-                            ),
+                            (user.avatar != null && user.avatar!.isNotEmpty)
+                                ? safeAvatarNetworkImage(
+                                    url: user.avatar,
+                                    size: 44,
+                                    backgroundColor: scheme.surfaceContainerHighest,
+                                  )
+                                : CircleAvatar(
+                                    radius: 22,
+                                    backgroundColor: scheme.surfaceContainerHighest,
+                                    child: Text(
+                                      user.name.isNotEmpty ? user.name[0].toUpperCase() : "S",
+                                      style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onSurface),
+                                    ),
+                                  ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(

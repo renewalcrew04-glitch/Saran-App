@@ -76,20 +76,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const SizedBox(height: 40),
 
-                  // Logo / App Name with gradient
-                  ShaderMask(
-                    shaderCallback: (bounds) => LinearGradient(
-                    colors: [Colors.black, Colors.black],
-                    ).createShader(bounds),
-                    child: const Text(
-                      'SARAN',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 52,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                        color: Colors.white,
-                      ),
+                  // Logo / App Name
+                  Text(
+                    'SARAN',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 52,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                      color: scheme.onSurface,
                     ),
                   ),
 
@@ -163,11 +158,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   // =========================
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: scheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
+                          color: scheme.shadow.withValues(alpha: 0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -180,14 +175,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         hintText: 'Enter your password',
                         prefixIcon: Icon(
                           Icons.lock_outlined,
-                          color: Colors.black,
+                          color: scheme.onSurface,
                         ),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: Colors.grey[600],
+                            color: scheme.onSurfaceVariant,
                           ),
                           onPressed: () {
                             setState(() {
@@ -240,7 +235,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Text(
                         'Forgot Password?',
                         style: TextStyle(
-                          color: Colors.black,
+                          color: scheme.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

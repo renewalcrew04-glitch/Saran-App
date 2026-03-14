@@ -262,7 +262,7 @@ class _CloseFriendsSearchScreenState extends State<CloseFriendsSearchScreen> {
                       return SettingsUserTile(
                         user: u,
                         buttonText: already ? "Added" : "Add",
-                        buttonColor: already ? scheme.surfaceVariant : scheme.primary,
+                        buttonColor: already ? scheme.surfaceContainerHighest : scheme.primary,
                         buttonForegroundColor: already ? scheme.onSurfaceVariant : null,
                         onPressed: already ? () {} : () => _addCloseFriend(u),
                       );
