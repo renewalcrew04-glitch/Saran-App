@@ -11,7 +11,7 @@ router.post("/chat", protect, async (req, res) => {
   try {
 
     const userId = req.user._id.toString();
-    const { message } = req.body;
+    const { message, language } = req.body;
 
     if (!message) {
       return res.status(400).json({
@@ -32,7 +32,7 @@ router.post("/chat", protect, async (req, res) => {
 
     userCooldown.set(userId, now);
 
-    const reply = await askAI(userId, message);
+    const reply = await askAI(userId, message, language);
 
     res.json({
       success: true,

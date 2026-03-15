@@ -82,11 +82,14 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
   Future setVoice() async {
     if (!Platform.isAndroid) return;
-
-    await tts.setVoice({
-      "name": selectedVoice,
-      "locale": selectedLanguage.replaceAll("_", "-"),
-    });
+    try {
+      await tts.setVoice({
+        "name": selectedVoice,
+        "locale": selectedLanguage.replaceAll("_", "-"),
+      });
+    } catch (_) {
+      // Custom voice names (saran_luna etc.) may not exist on device; use default voice
+    }
   }
 
   /* ---------------- CLEAN TEXT ---------------- */
@@ -129,7 +132,11 @@ class _AIChatScreenState extends State<AIChatScreen> {
       loading = true;
     });
 
-    final response = await AIService.sendMessage(context, text);
+    final languageName = languages.entries
+        .where((e) => e.value == selectedLanguage)
+        .map((e) => e.key)
+        .firstOrNull ?? 'English';
+    final response = await AIService.sendMessage(context, text, language: languageName);
 
     // ERROR FIX: Prevent calling setState if widget was disposed during await
     if (!mounted) return;
@@ -154,20 +161,26 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
   Future speakStreaming(String text) async {
     List<String> sentences = text.split(RegExp(r'[.!?]'));
-
     for (String s in sentences) {
       if (s.trim().isEmpty) continue;
-
       if (mounted) {
         setState(() {
           subtitleText = cleanText(s);
         });
       }
-
-      await tts.speak(cleanText(s));
+      try {
+        await tts.speak(cleanText(s));
+      } catch (_) {
+        // TTS failed (e.g. unsupported voice); skip this sentence
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Voice playback failed. You can still read the reply.')),
+          );
+        }
+        break;
+      }
       await Future.delayed(const Duration(milliseconds: 100));
     }
-
     if (mounted) {
       setState(() {
         subtitleText = "";
@@ -183,14 +196,32 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
   Future startListening() async {
     final status = await Permission.microphone.request();
-    if (!status.isGranted) return;
+    if (!status.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Microphone permission is needed for voice conversation')),
+        );
+      }
+      return;
+    }
 
-    final available = await speech.initialize();
-
-    if (!available) return;
-    
-    // ERROR FIX: Prevent calling setState if widget was disposed during await
+    final available = await speech.initialize(
+      onError: (error) {
+        if (mounted) {
+          setState(() => listening = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Voice error: ${error.errorMsg}')),
+          );
+        }
+      },
+    );
     if (!mounted) return;
+    if (!available) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Speech recognition not available on this device')),
+      );
+      return;
+    }
 
     setState(() {
       listening = true;
@@ -204,11 +235,11 @@ class _AIChatScreenState extends State<AIChatScreen> {
       pauseFor: const Duration(seconds: 5),
       onResult: (result) {
         final text = result.recognizedWords;
-
-        setState(() {
-          _controller.text = text;
-        });
-
+        if (mounted) {
+          setState(() {
+            _controller.text = text;
+          });
+        }
         if (result.finalResult && text.trim().isNotEmpty) {
           sendMessage(text);
         }

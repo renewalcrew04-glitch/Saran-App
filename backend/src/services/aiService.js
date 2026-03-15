@@ -7,7 +7,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-export async function askAI(userId, message) {
+export async function askAI(userId, message, preferredLanguage = null) {
 
   const [user] = await Promise.all([
     User.findById(userId).select("name bio")
@@ -41,17 +41,20 @@ export async function askAI(userId, message) {
     memories = await recallMemories(userId, message);
   }
 
+  const langRule = preferredLanguage && String(preferredLanguage).trim()
+    ? `• The user has chosen to receive replies in ${String(preferredLanguage).trim()}. Always reply in that language only.`
+    : `• Automatically detect the user's language.
+• If the user speaks Tamil, reply in Tamil.
+• If the user speaks Hindi, reply in Hindi.
+• If the user mixes English + Indian language (Tanglish / Hinglish / Manglish), reply the same way.`;
+
   const systemPrompt = `
 You are SARAN AI.
 
 You are a friendly conversational AI companion inside a women-only Indian social platform.
 
 IMPORTANT LANGUAGE RULES:
-
-• Automatically detect the user's language.
-• If the user speaks Tamil, reply in Tamil.
-• If the user speaks Hindi, reply in Hindi.
-• If the user mixes English + Indian language (Tanglish / Hinglish / Manglish), reply the same way.
+${langRule}
 
 CONVERSATION STYLE:
 
