@@ -128,6 +128,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   static String _shortPhotoError(Object e) {
     if (e is DioException) {
+      final data = e.response?.data;
+      final serverMsg = data is Map && data['message'] is String ? (data['message'] as String).trim() : null;
+      if (serverMsg != null && serverMsg.isNotEmpty) return serverMsg;
       final code = e.response?.statusCode;
       if (code == 500) return 'Server error. Try again later.';
       if (code == 400) return 'Invalid request. Try a different photo.';
@@ -136,7 +139,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         return 'No connection. Check network and try again.';
       }
     }
-    return 'Update failed. Try again.';
+    final s = e.toString().replaceFirst('Exception: ', '');
+    return s.isNotEmpty ? s : 'Update failed. Try again.';
   }
 
   Future<void> _save() async {

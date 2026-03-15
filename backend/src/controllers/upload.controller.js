@@ -75,9 +75,10 @@ export const uploadSingle = [
         url: fileUrl,
       });
     } catch (e) {
+      console.error("[Upload] Error:", e?.message ?? e);
       return res.status(500).json({
         success: false,
-        message: "Upload failed",
+        message: process.env.NODE_ENV === "production" ? "Upload failed" : `Upload failed: ${e?.message || String(e)}`,
       });
     }
   },

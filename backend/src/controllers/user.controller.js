@@ -114,6 +114,7 @@ export const updateMe = async (req, res, next) => {
     delete obj.password;
     res.json({ success: true, user: obj });
   } catch (error) {
+    console.error("[Profile update /me] Error:", error?.message ?? error);
     next(error);
   }
 };

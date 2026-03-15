@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:dio/dio.dart';
 import '../../utils/category_gradients.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1146,8 +1147,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       setState(() => _uploadingAvatar = false);
       if (!context.mounted) return;
+      String msg = 'Failed to update avatar.';
+      if (e is DioException) {
+        final data = e.response?.data;
+        final serverMsg = data is Map && data['message'] is String ? (data['message'] as String).trim() : null;
+        if (serverMsg != null && serverMsg.isNotEmpty) {
+          msg = serverMsg;
+        } else {
+          final code = e.response?.statusCode;
+          if (code == 500) msg = 'Server error. Try again later.';
+          else if (code == 400) msg = 'Invalid request. Try a different photo.';
+          else if (e.type == DioExceptionType.connectionError ||
+              e.type == DioExceptionType.connectionTimeout) {
+            msg = 'No connection. Check network and try again.';
+          }
+        }
+      } else {
+        final s = e.toString().replaceFirst('Exception: ', '');
+        if (s.isNotEmpty) msg = s;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to update avatar")),
+        SnackBar(content: Text(msg)),
       );
     }
   }
