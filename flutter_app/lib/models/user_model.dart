@@ -10,6 +10,12 @@ class User {
   final String? coverImage;
   final bool? isPrivate;
   final bool profileCompleted;
+  /// Gender from signup: female, trans_woman, male.
+  final String? gender;
+  /// Date of birth from signup.
+  final DateTime? dob;
+  /// Selfie image URL from signup/verification.
+  final String? selfieImage;
   final bool verified;
   final int followersCount;
   final int followingCount;
@@ -31,6 +37,9 @@ class User {
     this.coverImage,
     this.isPrivate,
     required this.profileCompleted,
+    this.gender,
+    this.dob,
+    this.selfieImage,
     required this.verified,
     this.followersCount = 0,
     this.followingCount = 0,
@@ -39,6 +48,13 @@ class User {
     this.isFollowing,
     this.isFollowPending,
   });
+
+  static DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
+    if (v is DateTime) return v;
+    if (v is String) return DateTime.tryParse(v);
+    return null;
+  }
 
   factory User.fromJson(Map<String, dynamic> json) {
     // ✅ MongoDB support: _id / id / uid
@@ -55,6 +71,9 @@ class User {
       coverImage: json['coverImage']?.toString(),
       isPrivate: json['isPrivate'] as bool?,
       profileCompleted: json['profileCompleted'] ?? false,
+      gender: json['gender']?.toString(),
+      dob: json['dob'] != null ? _parseDate(json['dob']) : null,
+      selfieImage: json['selfieImage']?.toString(),
       verified: json['verified'] ?? false,
       followersCount: (json['followersCount'] ?? 0) as int,
       followingCount: (json['followingCount'] ?? 0) as int,
@@ -77,6 +96,9 @@ class User {
       'coverImage': coverImage,
       'isPrivate': isPrivate,
       'profileCompleted': profileCompleted,
+      'gender': gender,
+      'dob': dob?.toIso8601String(),
+      'selfieImage': selfieImage,
       'verified': verified,
       'followersCount': followersCount,
       'followingCount': followingCount,

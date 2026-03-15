@@ -5,6 +5,8 @@ import '../screens/ai/ai_chat_screen.dart';
 import 'package:saran_app/models/post_model.dart';
 import 'package:saran_app/models/space_event_model.dart'; // ✅ Added for Detail Screen
 import 'package:saran_app/features/settings/settings_routes.dart';
+import 'package:saran_app/features/settings/screens/user_information_screen.dart';
+import 'package:saran_app/features/settings/screens/appearance_screen.dart';
 import 'package:saran_app/screens/auth/auth_loader_screen.dart';
 import 'package:saran_app/screens/auth/login_screen.dart';
 import 'package:saran_app/screens/auth/signup_screen.dart';
@@ -267,8 +269,16 @@ class AppRouter {
       ),
 
       // =========================
-      // SETTINGS
+      // SETTINGS (explicit sub-routes first so /settings/user-information etc. resolve)
       // =========================
+      GoRoute(
+        path: '/settings/user-information',
+        builder: (context, state) => const UserInformationScreen(),
+      ),
+      GoRoute(
+        path: '/settings/appearance',
+        builder: (context, state) => const AppearanceScreen(),
+      ),
       ...settingsRoutes,
     ],
     errorBuilder: (context, state) => _RouterErrorScreen(

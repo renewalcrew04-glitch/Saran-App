@@ -19,7 +19,8 @@ class SettingsScreen extends StatelessWidget {
       ),
       body: ListView(
         children: [
-          _Item(title: "Appearance", subtitle: "Light, Dark, or System", onTap: () => context.push('/settings/appearance')),
+          _Item(title: "User information", onTap: () => context.push('/settings/user-information')),
+          _Item(title: "Appearance", onTap: () => context.push('/settings/appearance')),
           _Item(title: "Notifications", onTap: () => context.push('/settings/notifications')),
           _Item(title: "Account Privacy", onTap: () => context.push('/settings/privacy')),
           _Item(title: "Close Friends", onTap: () => context.push('/settings/close-friends/search')),

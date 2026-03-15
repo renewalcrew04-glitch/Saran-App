@@ -14,12 +14,14 @@ import 'search/close_friends_search_screen.dart';
 import 'search/mute_search_screen.dart';
 import 'screens/notifications_settings_screen.dart';
 import 'screens/blocked_list_screen.dart';
+import 'screens/user_information_screen.dart';
 
 final List<GoRoute> settingsRoutes = [
   GoRoute(
     path: '/settings',
     builder: (c, s) => const SettingsScreen(),
     routes: [
+      GoRoute(path: 'user-information', builder: (c, s) => const UserInformationScreen()),
       GoRoute(path: 'appearance', builder: (c, s) => const AppearanceScreen()),
       GoRoute(path: 'privacy', builder: (c, s) => const PrivacySettingsScreen()),
       GoRoute(path: 'blocked', builder: (c, s) => const BlockedAccountsScreen()),

@@ -92,6 +92,27 @@ res.json({
   }
 };
 
+// @desc    Set current user gender (one-off fix; bypasses doc validation)
+// @route   PATCH /api/users/me/gender
+// @access  Private
+export const setMeGender = async (req, res, next) => {
+  try {
+    const { gender } = req.body;
+    const valid = ['female', 'trans_woman', 'male'].includes(gender);
+    if (!valid) {
+      return res.status(400).json({ success: false, message: 'Invalid gender' });
+    }
+    await User.updateOne(
+      { _id: req.user._id },
+      { $set: { gender } }
+    );
+    const user = await User.findById(req.user._id).select('-password').lean();
+    res.json({ success: true, user });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Update current user profile (PUT /api/users/me)
 // @route   PUT /api/users/me
 // @access  Private
@@ -101,13 +122,23 @@ export const updateMe = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    const { name, bio, locationText, avatar, coverImage, isPrivate } = req.body;
+    const { name, bio, locationText, avatar, coverImage, isPrivate, gender, dob, selfieImage } = req.body;
     if (name !== undefined) user.name = name;
     if (bio !== undefined) user.bio = bio;
     if (locationText !== undefined) user.locationText = locationText;
     if (avatar !== undefined) user.avatar = avatar;
     if (coverImage !== undefined) user.coverImage = coverImage;
     if (isPrivate !== undefined) user.isPrivate = isPrivate;
+    const validGenders = ['female', 'trans_woman', 'male'];
+    if (gender !== undefined) {
+      const g = typeof gender === 'string' ? gender.trim().toLowerCase() : '';
+      user.gender = validGenders.includes(g) ? g : (user.gender ?? null);
+    }
+    if (dob !== undefined) {
+      const d = dob ? new Date(dob) : null;
+      user.dob = d && !Number.isNaN(d.getTime()) ? d : null;
+    }
+    if (selfieImage !== undefined) user.selfieImage = selfieImage || null;
     if (!user.profileCompleted && name && bio) user.profileCompleted = true;
     const updated = await user.save();
     const obj = updated.toObject();
@@ -126,7 +157,7 @@ export const updateUserProfile = async (req, res, next) => {
   try {
     const { uid } = req.params;
     const currentUserId = req.user._id;
-    const { name, bio, locationText, avatar, coverImage, isPrivate } = req.body;
+    const { name, bio, locationText, avatar, coverImage, isPrivate, gender, dob, selfieImage } = req.body;
 
     // Find user
     const user = await User.findOne({ uid });
@@ -153,6 +184,16 @@ export const updateUserProfile = async (req, res, next) => {
     if (avatar !== undefined) user.avatar = avatar;
     if (coverImage !== undefined) user.coverImage = coverImage;
     if (isPrivate !== undefined) user.isPrivate = isPrivate;
+    const validGenders = ['female', 'trans_woman', 'male'];
+    if (gender !== undefined) {
+      const g = typeof gender === 'string' ? gender.trim().toLowerCase() : '';
+      user.gender = validGenders.includes(g) ? g : (user.gender ?? null);
+    }
+    if (dob !== undefined) {
+      const d = dob ? new Date(dob) : null;
+      user.dob = d && !Number.isNaN(d.getTime()) ? d : null;
+    }
+    if (selfieImage !== undefined) user.selfieImage = selfieImage || null;
 
     // Mark profile as completed if not already
     if (!user.profileCompleted && name && bio) {

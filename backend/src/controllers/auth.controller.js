@@ -298,7 +298,10 @@ export const getMe = async (req, res, next) => {
         followersCount,
         followingCount,
         postsCount: user.postsCount ?? 0,
-        wellnessStreak: user.wellnessStreak ?? 0
+        wellnessStreak: user.wellnessStreak ?? 0,
+        gender: user.gender ?? null,
+        dob: user.dob ? user.dob.toISOString?.() ?? user.dob : null,
+        selfieImage: user.selfieImage ?? null,
       }
     });
   } catch (error) {

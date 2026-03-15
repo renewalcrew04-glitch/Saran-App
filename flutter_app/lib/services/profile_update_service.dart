@@ -83,4 +83,42 @@ class ProfileUpdateService {
     );
     return response.data;
   }
+
+  /// One-off: set current user gender (PATCH /api/users/me/gender). Use to fix accounts missing gender.
+  Future<Map<String, dynamic>?> setMeGender(String gender) async {
+    final headers = await _getAuthHeaders();
+    final url = ApiConfig.getUrl('${ApiConfig.users}/me/gender');
+    final response = await _dio.patch<Map<String, dynamic>>(
+      url,
+      data: {'gender': gender},
+      options: Options(headers: headers),
+    );
+    return response.data;
+  }
+
+  /// Update signup-time user info: name, gender, date of birth, selfie. Use [currentUserUid] if backend uses PUT /users/:uid.
+  Future<Map<String, dynamic>?> updateUserInfo({
+    String? name,
+    String? gender,
+    DateTime? dob,
+    String? selfieImage,
+    String? currentUserUid,
+  }) async {
+    final headers = await _getAuthHeaders();
+    final path = currentUserUid != null && currentUserUid.isNotEmpty
+        ? '${ApiConfig.users}/$currentUserUid'
+        : '${ApiConfig.users}/me';
+    final url = ApiConfig.getUrl(path);
+    final data = <String, dynamic>{};
+    if (name != null) data['name'] = name;
+    if (gender != null) data['gender'] = gender.isEmpty ? null : gender;
+    if (dob != null) data['dob'] = dob.toIso8601String();
+    if (selfieImage != null) data['selfieImage'] = selfieImage;
+    final response = await _dio.put<Map<String, dynamic>>(
+      url,
+      data: data,
+      options: Options(headers: headers),
+    );
+    return response.data;
+  }
 }

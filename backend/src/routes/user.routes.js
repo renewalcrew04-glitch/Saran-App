@@ -12,6 +12,7 @@ import {
   getUserPosts,
   getUserProfile,
   searchUsers,
+  setMeGender,
   unfollowUser,
   updateMe,
   updateUserProfile,
@@ -27,6 +28,7 @@ router.get('/suggestions', protect, getSuggestions);
 
 // ✅ ME routes (update profile / avatar / cover)
 router.put('/me', protect, updateMe);
+router.patch('/me/gender', protect, setMeGender);
 router.get('/me/follow-requests', protect, getMyFollowRequests);
 router.get('/me/pending-following', protect, getMyPendingFollowing);
 router.delete('/me/delete', protect, deleteMyAccount);
