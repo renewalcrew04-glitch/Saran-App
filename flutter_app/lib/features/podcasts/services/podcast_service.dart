@@ -56,4 +56,24 @@ class PodcastService {
   Future<void> increaseListen(String episodeId) async {
     await ApiClient.post('episodes/$episodeId/listen', body: {});
   }
+
+  /// Create a new podcast (title, description, category, optional coverUrl).
+  Future<PodcastModel> createPodcast({
+    required String title,
+    required String description,
+    String category = 'general',
+    String coverUrl = '',
+  }) async {
+    final res = await ApiClient.post('podcasts', body: {
+      'title': title,
+      'description': description,
+      'category': category,
+      if (coverUrl.isNotEmpty) 'coverUrl': coverUrl,
+    });
+    final data = res['data'];
+    if (data is Map<String, dynamic>) {
+      return PodcastModel.fromJson(data);
+    }
+    throw Exception('Invalid response when creating podcast');
+  }
 }

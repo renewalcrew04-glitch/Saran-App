@@ -3,6 +3,7 @@ import '../services/podcast_service.dart';
 import '../models/podcast_model.dart';
 import '../widgets/podcast_card.dart';
 import 'podcast_detail_screen.dart';
+import 'create_podcast_screen.dart';
 
 class PodcastHomeScreen extends StatefulWidget {
   const PodcastHomeScreen({super.key});
@@ -54,6 +55,44 @@ class _PodcastHomeScreenState extends State<PodcastHomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Podcasts"),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const CreatePodcastScreen(),
+                  ),
+                );
+                if (mounted) load();
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: scheme.primary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add, color: scheme.onPrimary, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      "Host",
+                      style: TextStyle(
+                        color: scheme.onPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())

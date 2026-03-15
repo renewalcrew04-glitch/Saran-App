@@ -103,11 +103,16 @@ class AuthService {
         queryParameters: {'username': raw},
       );
       final data = response.data;
-      if (data is Map && data['suggestions'] is List) {
-        return List<String>.from(data['suggestions']);
+      if (data is! Map) return [];
+      // Backend can return { suggestions: [...] } or { data: { suggestions: [...] } }
+      List<dynamic>? list = data['suggestions'] is List ? data['suggestions'] as List<dynamic> : null;
+      if (list == null && data['data'] is Map) {
+        final inner = data['data'] as Map;
+        list = inner['suggestions'] is List ? inner['suggestions'] as List<dynamic> : null;
       }
-      return [];
-    } catch (_) {
+      if (list == null) return [];
+      return list.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+    } on DioException catch (_) {
       return [];
     }
   }

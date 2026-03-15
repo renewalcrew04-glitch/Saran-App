@@ -85,12 +85,22 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> _checkUsername(String value) async {
     final result = await _authService.checkUsernameAvailability(value);
     if (!mounted) return;
+    final available = result['available'] == true;
+    final backendMessage = result['message']?.toString() ?? '';
     setState(() {
       _usernameChecking = false;
-      _usernameAvailable = result['available'] == true;
-      _usernameMessage = result['message']?.toString();
+      _usernameAvailable = available;
+      // When taken or invalid, show a clear message; otherwise use backend message
+      if (available) {
+        _usernameMessage = backendMessage.isNotEmpty ? backendMessage : 'Username is available';
+      } else {
+        _usernameMessage = backendMessage == 'Username is taken'
+            ? 'Username not available'
+            : (backendMessage.isNotEmpty ? backendMessage : 'Username not available');
+      }
     });
-    if (_usernameAvailable == false && _usernameMessage == 'Username is taken') {
+    // Load suggestions whenever username is not available (taken or invalid pattern)
+    if (_usernameAvailable == false) {
       _loadSuggestions(value);
     }
   }
