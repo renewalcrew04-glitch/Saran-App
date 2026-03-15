@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -34,6 +32,10 @@ class _AIChatScreenState extends State<AIChatScreen> {
   String selectedLanguage = "en_US";
   String selectedVoice = "saran_luna";
 
+  /// Device voices by gender (iOS provides gender; Android we split by list position)
+  List<Map<String, String>> _deviceVoicesFemale = [];
+  List<Map<String, String>> _deviceVoicesMale = [];
+
   Map<String, String> languages = {
     "English": "en_US",
     "Hindi": "hi_IN",
@@ -58,7 +60,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
       }
     });
 
-    setupVoice().then((_) {
+    setupVoice().then((_) async {
+      await _loadDeviceVoices();
       setVoice();
     });
   }
@@ -80,15 +83,80 @@ class _AIChatScreenState extends State<AIChatScreen> {
     await tts.setVolume(1.0);
   }
 
-  Future setVoice() async {
-    if (!Platform.isAndroid) return;
+  /// Load available system voices and split into female / male lists (iOS has gender; Android we split by order)
+  Future<void> _loadDeviceVoices() async {
     try {
-      await tts.setVoice({
-        "name": selectedVoice,
-        "locale": selectedLanguage.replaceAll("_", "-"),
-      });
+      final list = await tts.getVoices;
+      if (list == null || list.isEmpty) return;
+      final female = <Map<String, String>>[];
+      final male = <Map<String, String>>[];
+      final unknown = <Map<String, String>>[];
+      for (final v in list) {
+        if (v is! Map) continue;
+        final name = v['name']?.toString();
+        final locale = v['locale']?.toString();
+        if (name == null || name.isEmpty || locale == null || locale.isEmpty) continue;
+        final map = {'name': name, 'locale': locale};
+        final gender = v['gender']?.toString().toLowerCase() ?? v['genderId']?.toString() ?? '';
+        if (gender.contains('female') || gender == '1') {
+          female.add(map);
+        } else if (gender.contains('male') || gender == '0') {
+          male.add(map);
+        } else {
+          unknown.add(map);
+        }
+      }
+      // If no gender info (e.g. Android), split unknown list in half: first half = female, second = male
+      if (female.isEmpty && male.isEmpty && unknown.isNotEmpty) {
+        final half = (unknown.length / 2).ceil();
+        female.addAll(unknown.take(half));
+        male.addAll(unknown.skip(half));
+      } else if (unknown.isNotEmpty) {
+        final half = (unknown.length / 2).ceil();
+        female.addAll(unknown.take(half));
+        male.addAll(unknown.skip(half));
+      }
+      if (mounted) {
+        setState(() {
+          _deviceVoicesFemale = female;
+          _deviceVoicesMale = male;
+        });
+      }
     } catch (_) {
-      // Custom voice names (saran_luna etc.) may not exist on device; use default voice
+      // getVoices not supported or failed
+    }
+  }
+
+  /// Get the actual system voice map for the selected profile (luna, maya = female; arjun, dev = male)
+  Map<String, String>? _getVoiceMapForSelectedProfile() {
+    final locale = selectedLanguage.replaceAll("_", "-");
+    final langPrefix = locale.split('-').first;
+    final filterLocale = (List<Map<String, String>> list) => list.where((v) {
+      final loc = v['locale'] ?? '';
+      return loc.startsWith(langPrefix) || loc == locale;
+    }).toList();
+
+    final isFemale = femaleVoice;
+    final pool = isFemale ? filterLocale(_deviceVoicesFemale) : filterLocale(_deviceVoicesMale);
+    if (pool.isEmpty) return null;
+
+    final profiles = isFemale ? VoiceProfiles.female : VoiceProfiles.male;
+    final index = profiles.indexWhere((p) => p.id == selectedVoice);
+    if (index < 0) return null;
+    final voiceIndex = index % pool.length;
+    return pool[voiceIndex];
+  }
+
+  Future setVoice() async {
+    try {
+      final voiceMap = _getVoiceMapForSelectedProfile();
+      if (voiceMap != null) {
+        await tts.setVoice(voiceMap);
+      } else {
+        await tts.setLanguage(selectedLanguage.replaceAll("_", "-"));
+      }
+    } catch (_) {
+      await tts.setLanguage(selectedLanguage.replaceAll("_", "-"));
     }
   }
 
@@ -420,14 +488,12 @@ class _AIChatScreenState extends State<AIChatScreen> {
                         );
 
                         if (selected != null) {
-                          // 1. Update the Bottom Sheet UI immediately
                           setModalState(() {
                             selectedLanguage = selected;
-                            });
-                            // 2. Update the main screen in the background
-                            setState(() {}); 
-                            setVoice();
-                            }
+                          });
+                          setState(() {});
+                          setVoice();
+                        }
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -466,8 +532,10 @@ class _AIChatScreenState extends State<AIChatScreen> {
                           onTap: () {
                             setModalState(() {
                               femaleVoice = true;
+                              selectedVoice = VoiceProfiles.female.first.id;
                             });
                             setState(() {});
+                            setVoice();
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(
@@ -502,8 +570,10 @@ class _AIChatScreenState extends State<AIChatScreen> {
                           onTap: () {
                             setModalState(() {
                               femaleVoice = false;
+                              selectedVoice = VoiceProfiles.male.first.id;
                             });
                             setState(() {});
+                            setVoice();
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(

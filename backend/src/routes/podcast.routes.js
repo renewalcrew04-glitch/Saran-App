@@ -1,11 +1,12 @@
 import express from "express";
+import { protect } from "../middleware/auth.middleware.js";
 import * as controller from "../controllers/podcast.controller.js";
 
 const router = express.Router();
 
 /* Podcasts */
 
-router.post("/podcasts", controller.createPodcast);
+router.post("/podcasts", protect, controller.createPodcast);
 
 router.get("/podcasts", controller.getPodcasts);
 

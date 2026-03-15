@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:dio/dio.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../services/upload_service.dart';
@@ -82,7 +83,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       setState(() => _uploadingAvatar = false);
 
       messenger.showSnackBar(
-        SnackBar(content: Text("Avatar update failed: $e")),
+        SnackBar(content: Text(_shortPhotoError(e))),
       );
     }
   }
@@ -120,9 +121,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       setState(() => _uploadingCover = false);
 
       messenger.showSnackBar(
-        SnackBar(content: Text("Cover update failed: $e")),
+        SnackBar(content: Text(_shortPhotoError(e))),
       );
     }
+  }
+
+  static String _shortPhotoError(Object e) {
+    if (e is DioException) {
+      final code = e.response?.statusCode;
+      if (code == 500) return 'Server error. Try again later.';
+      if (code == 400) return 'Invalid request. Try a different photo.';
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout) {
+        return 'No connection. Check network and try again.';
+      }
+    }
+    return 'Update failed. Try again.';
   }
 
   Future<void> _save() async {
@@ -402,6 +416,36 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ),
           ),
+          if (_uploadingAvatar || _uploadingCover)
+            Positioned.fill(
+              child: Container(
+                color: scheme.surface.withValues(alpha: 0.7),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: scheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Uploading photo…',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: scheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

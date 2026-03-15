@@ -5,6 +5,7 @@ import '../models/episode_model.dart';
 import '../services/podcast_service.dart';
 import '../widgets/episode_tile.dart';
 import 'episode_player_screen.dart';
+import 'add_episode_screen.dart';
 
 class PodcastDetailScreen extends StatefulWidget {
   final PodcastModel podcast;
@@ -62,6 +63,21 @@ class _PodcastDetailScreenState extends State<PodcastDetailScreen> {
           widget.podcast.title,
           overflow: TextOverflow.ellipsis,
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: 'Add episode',
+            onPressed: () async {
+              final added = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AddEpisodeScreen(podcast: widget.podcast),
+                ),
+              );
+              if (added == true && mounted) loadEpisodes();
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [

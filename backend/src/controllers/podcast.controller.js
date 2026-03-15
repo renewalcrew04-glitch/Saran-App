@@ -2,7 +2,9 @@ import * as service from "../services/podcast.service.js";
 
 export async function createPodcast(req, res, next) {
   try {
-    const podcast = await service.createPodcast(req.body);
+    const body = { ...req.body };
+    if (req.user?._id) body.creatorId = req.user._id;
+    const podcast = await service.createPodcast(body);
     res.json({ success: true, data: podcast });
   } catch (err) {
     next(err);

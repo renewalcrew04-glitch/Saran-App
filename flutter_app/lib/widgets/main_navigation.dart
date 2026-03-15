@@ -6,7 +6,7 @@ import '../screens/explore/explore_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/sos/sos_screen.dart';
-import '../screens/space/space_screen.dart';
+import '../screens/space/spaces_hub_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -43,7 +43,7 @@ class _MainNavigationState extends State<MainNavigation> {
       HomeScreen(onScrollDirection: _handleScroll),
       const ExploreScreen(),
       const SosScreen(),
-      const SpaceScreen(),
+      const SpacesHubScreen(),
       ProfileScreen(tabIndexNotifier: _tabIndexNotifier),
     ];
   }

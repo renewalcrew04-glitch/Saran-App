@@ -76,4 +76,28 @@ class PodcastService {
     }
     throw Exception('Invalid response when creating podcast');
   }
+
+  /// Create an episode (podcastId, title, audioUrl required).
+  Future<EpisodeModel> createEpisode({
+    required String podcastId,
+    required String title,
+    String description = '',
+    required String audioUrl,
+    String coverUrl = '',
+    int duration = 0,
+  }) async {
+    final res = await ApiClient.post('podcasts/$podcastId/episodes', body: {
+      'podcastId': podcastId,
+      'title': title,
+      'description': description,
+      'audioUrl': audioUrl,
+      if (coverUrl.isNotEmpty) 'coverUrl': coverUrl,
+      if (duration > 0) 'duration': duration,
+    });
+    final data = res['data'];
+    if (data is Map<String, dynamic>) {
+      return EpisodeModel.fromJson(data);
+    }
+    throw Exception('Invalid response when creating episode');
+  }
 }

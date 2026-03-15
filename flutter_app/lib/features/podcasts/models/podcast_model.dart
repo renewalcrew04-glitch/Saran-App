@@ -5,6 +5,7 @@ class PodcastModel {
   final String coverUrl;
   final String category;
   final int totalEpisodes;
+  final String? creatorId;
 
   PodcastModel({
     required this.id,
@@ -13,6 +14,7 @@ class PodcastModel {
     required this.coverUrl,
     required this.category,
     required this.totalEpisodes,
+    this.creatorId,
   });
 
   factory PodcastModel.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class PodcastModel {
       coverUrl: json['coverUrl'] ?? '',
       category: json['category'] ?? '',
       totalEpisodes: json['totalEpisodes'] ?? 0,
+      creatorId: json['creatorId']?.toString(),
     );
   }
 }

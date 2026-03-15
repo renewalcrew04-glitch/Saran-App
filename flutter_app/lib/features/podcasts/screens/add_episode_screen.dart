@@ -1,37 +1,28 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import '../models/podcast_model.dart';
 import '../services/podcast_service.dart';
 import '../../../services/upload_service.dart';
 
-class CreatePodcastScreen extends StatefulWidget {
-  const CreatePodcastScreen({super.key});
+class AddEpisodeScreen extends StatefulWidget {
+  final PodcastModel podcast;
+
+  const AddEpisodeScreen({super.key, required this.podcast});
 
   @override
-  State<CreatePodcastScreen> createState() => _CreatePodcastScreenState();
+  State<AddEpisodeScreen> createState() => _AddEpisodeScreenState();
 }
 
-class _CreatePodcastScreenState extends State<CreatePodcastScreen> {
+class _AddEpisodeScreenState extends State<AddEpisodeScreen> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   final PodcastService _service = PodcastService();
   final UploadService _uploadService = UploadService();
-  final ImagePicker _picker = ImagePicker();
 
-  File? _coverFile;
-  String _category = 'general';
+  File? _audioFile;
   bool _loading = false;
   String? _error;
-
-  static const List<String> _categories = [
-    'general',
-    'tech',
-    'business',
-    'health',
-    'entertainment',
-    'education',
-    'other',
-  ];
 
   @override
   void dispose() {
@@ -40,10 +31,13 @@ class _CreatePodcastScreenState extends State<CreatePodcastScreen> {
     super.dispose();
   }
 
-  Future<void> _pickCover() async {
-    final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);
-    if (picked != null && mounted) {
-      setState(() => _coverFile = File(picked.path));
+  Future<void> _pickAudio() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.audio,
+      allowMultiple: false,
+    );
+    if (result != null && result.files.single.path != null && mounted) {
+      setState(() => _audioFile = File(result.files.single.path!));
     }
   }
 
@@ -52,7 +46,11 @@ class _CreatePodcastScreenState extends State<CreatePodcastScreen> {
     final description = _descController.text.trim();
 
     if (title.isEmpty) {
-      setState(() => _error = 'Enter a title');
+      setState(() => _error = 'Enter episode title');
+      return;
+    }
+    if (_audioFile == null) {
+      setState(() => _error = 'Pick an audio file');
       return;
     }
 
@@ -62,24 +60,21 @@ class _CreatePodcastScreenState extends State<CreatePodcastScreen> {
     });
 
     try {
-      String coverUrl = '';
-      if (_coverFile != null) {
-        coverUrl = await _uploadService.uploadMedia(_coverFile!.path);
-        if (!mounted) return;
-      }
+      final audioUrl = await _uploadService.uploadMedia(_audioFile!.path);
+      if (!mounted) return;
 
-      await _service.createPodcast(
+      await _service.createEpisode(
+        podcastId: widget.podcast.id,
         title: title,
         description: description,
-        category: _category,
-        coverUrl: coverUrl,
+        audioUrl: audioUrl,
       );
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = e is Exception ? e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '') : 'Could not create podcast';
+          _error = e is Exception ? e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '') : 'Could not add episode';
         });
       }
     }
@@ -91,7 +86,7 @@ class _CreatePodcastScreenState extends State<CreatePodcastScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Podcast'),
+        title: const Text('Add Episode'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -101,8 +96,8 @@ class _CreatePodcastScreenState extends State<CreatePodcastScreen> {
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(
-                labelText: 'Title',
-                hintText: 'My Podcast',
+                labelText: 'Episode title',
+                hintText: 'Episode 1',
                 border: OutlineInputBorder(),
               ),
               textCapitalization: TextCapitalization.words,
@@ -112,51 +107,51 @@ class _CreatePodcastScreenState extends State<CreatePodcastScreen> {
             TextField(
               controller: _descController,
               decoration: const InputDecoration(
-                labelText: 'Description',
-                hintText: 'What your podcast is about',
+                labelText: 'Description (optional)',
+                hintText: 'What this episode is about',
                 border: OutlineInputBorder(),
                 alignLabelWithHint: true,
               ),
-              maxLines: 3,
-              onChanged: (_) => setState(() => _error = null),
+              maxLines: 2,
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _category,
-              decoration: const InputDecoration(
-                labelText: 'Category',
-                border: OutlineInputBorder(),
-              ),
-              items: _categories.map((c) {
-                return DropdownMenuItem(value: c, child: Text(c));
-              }).toList(),
-              onChanged: (v) => setState(() => _category = v ?? 'general'),
-            ),
-            const SizedBox(height: 16),
-            const Text('Cover photo', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+            const Text('Audio file', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
             const SizedBox(height: 8),
             GestureDetector(
-              onTap: _loading ? null : _pickCover,
+              onTap: _loading ? null : _pickAudio,
               child: Container(
-                height: 140,
+                height: 80,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: scheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: scheme.outline.withValues(alpha: 0.5)),
                 ),
-                child: _coverFile != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(_coverFile!, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                child: _audioFile != null
+                    ? Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            Icon(Icons.audiotrack, size: 32, color: scheme.primary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _audioFile!.path.split(RegExp(r'[/\\]')).last,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 13, color: scheme.onSurface),
+                              ),
+                            ),
+                          ],
+                        ),
                       )
                     : Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.add_photo_alternate_outlined, size: 40, color: scheme.onSurfaceVariant),
-                          const SizedBox(height: 8),
+                          Icon(Icons.upload_file, size: 32, color: scheme.onSurfaceVariant),
+                          const SizedBox(height: 6),
                           Text(
-                            'Tap to upload cover',
+                            'Tap to pick audio (mp3, m4a, etc.)',
                             style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
                           ),
                         ],
@@ -165,10 +160,7 @@ class _CreatePodcastScreenState extends State<CreatePodcastScreen> {
             ),
             if (_error != null) ...[
               const SizedBox(height: 16),
-              Text(
-                _error!,
-                style: TextStyle(color: scheme.error, fontSize: 14),
-              ),
+              Text(_error!, style: TextStyle(color: scheme.error, fontSize: 14)),
             ],
             const SizedBox(height: 24),
             FilledButton(
@@ -179,7 +171,7 @@ class _CreatePodcastScreenState extends State<CreatePodcastScreen> {
                       width: 24,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Create Podcast'),
+                  : const Text('Add Episode'),
             ),
           ],
         ),
