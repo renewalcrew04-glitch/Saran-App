@@ -21,11 +21,11 @@ class EpisodeModel {
 
   factory EpisodeModel.fromJson(Map<String, dynamic> json) {
     return EpisodeModel(
-      id: json['_id'],
-      podcastId: json['podcastId'],
+      id: json['_id']?.toString() ?? '',
+      podcastId: json['podcastId']?.toString() ?? '',
       title: json['title'] ?? '',
       description: json['description'] ?? '',
-      audioUrl: json['audioUrl'],
+      audioUrl: (json['audioUrl'] ?? '').toString(),
       coverUrl: json['coverUrl'] ?? '',
       duration: json['duration'] ?? 0,
       listens: json['listens'] ?? 0,

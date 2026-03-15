@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../utils/media_utils.dart';
 import '../models/podcast_model.dart';
 
 class PodcastCard extends StatelessWidget {
-
   final PodcastModel podcast;
   final VoidCallback onTap;
 
@@ -14,22 +14,40 @@ class PodcastCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
+    final scheme = Theme.of(context).colorScheme;
     return ListTile(
       onTap: onTap,
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: podcast.coverUrl.isNotEmpty
-            ? Image.network(
-                podcast.coverUrl,
+            ? SizedBox(
                 width: 60,
                 height: 60,
-                fit: BoxFit.cover,
+                child: safeNetworkImage(
+                  url: podcast.coverUrl,
+                  width: 60,
+                  height: 60,
+                  placeholderIcon: Icons.podcasts,
+                ),
               )
-            : const Icon(Icons.podcasts),
+            : Container(
+                width: 60,
+                height: 60,
+                color: scheme.surfaceContainerHighest,
+                child: const Icon(Icons.podcasts),
+              ),
       ),
-      title: Text(podcast.title),
-      subtitle: Text("${podcast.totalEpisodes} episodes"),
+      title: Text(
+        podcast.title,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: scheme.onSurface,
+        ),
+      ),
+      subtitle: Text(
+        "${podcast.totalEpisodes} episodes",
+        style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+      ),
     );
   }
 }

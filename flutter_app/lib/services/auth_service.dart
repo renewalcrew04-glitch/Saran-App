@@ -62,6 +62,56 @@ class AuthService {
     return Map<String, dynamic>.from(response.data);
   }
 
+  /// Check if username is available
+  Future<Map<String, dynamic>> checkUsernameAvailability(String username) async {
+    final raw = username.trim().toLowerCase();
+    if (raw.isEmpty) {
+      return {'available': false, 'valid': false, 'message': 'Username is required'};
+    }
+    try {
+      final response = await _dio.get(
+        '${ApiConfig.auth}/username/check',
+        queryParameters: {'username': raw},
+      );
+      return Map<String, dynamic>.from(response.data);
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      final data = e.response?.data;
+      final msg = data is Map ? data['message'] : null;
+      String fallback = 'Could not check username.';
+      if (status == 404) {
+        fallback = 'Server doesn’t support username check. Restart the backend or try again.';
+      } else if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout) {
+        fallback = 'No connection. Check network and try again.';
+      }
+      return {
+        'available': false,
+        'valid': false,
+        'message': msg?.toString() ?? fallback,
+      };
+    }
+  }
+
+  /// Get suggested usernames when base is taken
+  Future<List<String>> getUsernameSuggestions(String username) async {
+    final raw = username.trim().toLowerCase();
+    if (raw.isEmpty) return [];
+    try {
+      final response = await _dio.get(
+        '${ApiConfig.auth}/username/suggestions',
+        queryParameters: {'username': raw},
+      );
+      final data = response.data;
+      if (data is Map && data['suggestions'] is List) {
+        return List<String>.from(data['suggestions']);
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
   /// 🔹 REGISTER
   Future<Map<String, dynamic>> register(
     String username,

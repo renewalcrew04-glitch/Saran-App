@@ -132,9 +132,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
+            child: Text(
               "Delete",
-              style: TextStyle(color: Colors.black),
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
         ],

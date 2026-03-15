@@ -22,6 +22,61 @@ async function countDistinctFollowing(userId) {
   return result[0]?.count ?? 0;
 }
 
+// Username validation: alphanumeric + underscore, 3–30 chars
+const USERNAME_REGEX = /^[a-z0-9_]{3,30}$/;
+
+/** Check username availability (public) */
+export const checkUsernameAvailability = async (req, res) => {
+  try {
+    const raw = (req.body?.username ?? req.query?.username ?? '').toString().trim().toLowerCase();
+    if (!raw) {
+      return res.status(400).json({ available: false, valid: false, message: 'Username is required' });
+    }
+    if (!USERNAME_REGEX.test(raw)) {
+      return res.status(200).json({
+        available: false,
+        valid: false,
+        message: 'Use 3–30 characters: letters, numbers, and underscores only',
+      });
+    }
+    const existing = await User.findOne({ username: raw });
+    return res.status(200).json({
+      available: !existing,
+      valid: true,
+      message: existing ? 'Username is taken' : 'Username is available',
+    });
+  } catch (e) {
+    return res.status(500).json({ available: false, valid: false, message: 'Could not check username' });
+  }
+};
+
+/** Get suggested usernames when base is taken (public) */
+export const getUsernameSuggestions = async (req, res) => {
+  try {
+    const raw = (req.body?.username ?? req.query?.username ?? '').toString().trim().toLowerCase();
+    const base = raw.replace(/[^a-z0-9_]/g, '').slice(0, 20) || 'user';
+    const suggestions = [];
+    const rnd = () => Math.floor(Math.random() * 900) + 100;
+    const candidates = [
+      `${base}${rnd()}`,
+      `${base}_${rnd().toString().slice(-2)}`,
+      `${base}${new Date().getFullYear().toString().slice(-2)}`,
+      `the_${base}`,
+      `${base}_${Math.random().toString(36).slice(2, 6)}`,
+    ];
+    for (const s of candidates) {
+      if (suggestions.length >= 4) break;
+      const norm = s.toLowerCase().replace(/[^a-z0-9_]/g, '');
+      if (norm.length < 3 || norm.length > 30) continue;
+      const exists = await User.findOne({ username: norm });
+      if (!exists && !suggestions.includes(norm)) suggestions.push(norm);
+    }
+    return res.status(200).json({ suggestions });
+  } catch (e) {
+    return res.status(500).json({ suggestions: [] });
+  }
+};
+
 // Generate JWT Token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'your-secret-key', {

@@ -16,28 +16,30 @@ class ExploreSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
-          const Icon(Icons.search, color: Colors.black),
+          Icon(Icons.search, color: scheme.onSurface),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: controller,
               onChanged: onChanged,
               onSubmitted: (_) => onSubmitted(),
-              style: const TextStyle(
-                color: Colors.black,
+              style: TextStyle(
+                color: scheme.onSurface,
                 fontWeight: FontWeight.w600,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: "Search People, posts, topics...",
+                hintStyle: TextStyle(color: scheme.onSurfaceVariant),
                 border: InputBorder.none,
               ),
             ),
@@ -49,10 +51,10 @@ class ExploreSearchBar extends StatelessWidget {
                 height: 28,
                 width: 28,
                 decoration: BoxDecoration(
-                  color: Colors.black,
+                  color: scheme.primary,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.close, color: Colors.white, size: 18),
+                child: Icon(Icons.close, color: scheme.onPrimary, size: 18),
               ),
             ),
         ],

@@ -132,15 +132,13 @@ class _HydrationScreenState extends State<HydrationScreen>
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final done = count >= goal;
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text("Hydration Tap"),
-        backgroundColor: Colors.white,
         elevation: 0,
-        foregroundColor: Colors.black,
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -153,10 +151,10 @@ class _HydrationScreenState extends State<HydrationScreen>
                   // Header count
                   Text(
                     "$count / $goal",
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 44,
                       fontWeight: FontWeight.w300,
-                      color: Colors.black,
+                      color: scheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -164,7 +162,7 @@ class _HydrationScreenState extends State<HydrationScreen>
                     done ? "Goal reached 🎉" : "Tap the bottle to drink water",
                     style: TextStyle(
                       fontSize: 13,
-                      color: done ? Colors.black : Colors.black54,
+                      color: done ? scheme.onSurface : scheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -217,7 +215,7 @@ class _HydrationScreenState extends State<HydrationScreen>
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: const Color(0xFFEDEDED)),
+                      border: Border.all(color: scheme.outline),
                     ),
                     child: Row(
                       children: [
@@ -255,8 +253,8 @@ class _HydrationScreenState extends State<HydrationScreen>
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 10,
-                      backgroundColor: const Color(0xFFEDEDED),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.black),
+                      backgroundColor: scheme.surfaceContainerHighest,
+                      valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
                     ),
                   ),
 
@@ -279,13 +277,14 @@ class _MiniButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       height: 54,
       child: OutlinedButton(
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.black,
-          side: const BorderSide(color: Color(0xFFEDEDED)),
+          foregroundColor: scheme.onSurface,
+          side: BorderSide(color: scheme.outline),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -313,6 +312,7 @@ class _IconSmallButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: 38,
       height: 38,
@@ -320,8 +320,8 @@ class _IconSmallButton extends StatelessWidget {
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
           padding: EdgeInsets.zero,
-          foregroundColor: Colors.black,
-          side: const BorderSide(color: Color(0xFFEDEDED)),
+          foregroundColor: scheme.onSurface,
+          side: BorderSide(color: scheme.outline),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),

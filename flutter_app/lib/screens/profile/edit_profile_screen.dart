@@ -165,22 +165,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final auth = Provider.of<AuthProvider>(context);
     final user = auth.user;
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: scheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           "Edit Profile",
           style: TextStyle(
-            color: Colors.black,
+            color: scheme.onSurface,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -198,7 +198,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 Container(
                   height: 140,
                   width: double.infinity,
-                  color: Colors.grey.shade200,
+                  color: scheme.surfaceContainerHighest,
                   child: Stack(
                     children: [
                       Positioned.fill(
@@ -215,22 +215,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         child: InkWell(
                           onTap: _uploadingCover ? null : _pickCover,
                           borderRadius: BorderRadius.circular(20),
-                          child: Container(
+                            child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.black,
+                              color: scheme.primary,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: _uploadingCover
-                                ? const SizedBox(
+                                ? SizedBox(
                                     width: 16,
                                     height: 16,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: Colors.white,
+                                      color: scheme.onPrimary,
                                     ),
                                   )
-                                : const Icon(Icons.camera_alt, size: 18, color: Colors.white),
+                                : Icon(Icons.camera_alt, size: 18, color: scheme.onPrimary),
                           ),
                         ),
                       ),
@@ -250,7 +250,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
+              border: Border.all(color: scheme.surface, width: 3),
             ),
             child: ClipOval(
               child: SizedBox(
@@ -262,15 +262,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ? safeAvatarNetworkImage(url: user.avatar, size: 88)
                         : CircleAvatar(
                             radius: 44,
-                            backgroundColor: Colors.grey.shade300,
+                            backgroundColor: scheme.surfaceContainerHighest,
                             child: Text(
                               user?.name.isNotEmpty == true
                                   ? user!.name[0].toUpperCase()
                                   : "U",
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black,
+                                color: scheme.onSurface,
                               ),
                             ),
                           ),
@@ -286,20 +286,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               child: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.black,
+                  color: scheme.primary,
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: _uploadingAvatar
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 14,
                         height: 14,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: scheme.onPrimary,
                         ),
                       )
-                    : const Icon(Icons.camera_alt,
-                        size: 14, color: Colors.white),
+                    : Icon(Icons.camera_alt,
+                        size: 14, color: scheme.onPrimary),
               ),
             ),
           ),
@@ -320,14 +320,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         label: "Name",
                         child: TextField(
                           controller: _nameCtrl,
-                          decoration: _inputDecoration("Your name"),
+                          decoration: _inputDecoration("Your name", scheme),
                         ),
                       ),
                       _Field(
                         label: "Website",
                         child: TextField(
                           controller: _websiteCtrl,
-                          decoration: _inputDecoration("https://yourwebsite.com"),
+                          decoration: _inputDecoration("https://yourwebsite.com", scheme),
                         ),
                       ),
                       _Field(
@@ -339,7 +339,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   maxLines: 4,
   maxLength: 100,
   onChanged: (_) => setState(() {}),
-  decoration: _inputDecoration("Write something about you").copyWith(
+                          decoration: _inputDecoration("Write something about you", scheme).copyWith(
     counterText: "",
   ),
 ),
@@ -347,7 +347,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               alignment: Alignment.centerRight,
                               child: Text(
                                 "${_bioCtrl.text.length}/100",
-                                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
                               ),
                             ),
                           ],
@@ -357,7 +357,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         label: "Location",
                         child: TextField(
                           controller: _locationCtrl,
-                          decoration: _inputDecoration("City"),
+                          decoration: _inputDecoration("City", scheme),
                         ),
                       ),
                     ],
@@ -377,24 +377,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               child: ElevatedButton(
                 onPressed: _saving ? null : _save,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
+                  backgroundColor: scheme.primary,
+                  foregroundColor: scheme.onPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(28),
                   ),
                 ),
                 child: _saving
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: scheme.onPrimary,
                         ),
                       )
-                    : const Text(
+                    : Text(
                         "Save changes",
                         style: TextStyle(
-                          color: Colors.white,
+                          color: scheme.onPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -406,22 +407,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  InputDecoration _inputDecoration(String hint) {
+  InputDecoration _inputDecoration(String hint, ColorScheme scheme) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Colors.grey),
+      hintStyle: TextStyle(color: scheme.onSurfaceVariant),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(color: scheme.outline),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(color: scheme.outline),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Colors.black),
+        borderSide: BorderSide(color: scheme.primary),
       ),
     );
   }
@@ -435,12 +436,13 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          Text(label, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
           const SizedBox(height: 6),
           child,
         ],

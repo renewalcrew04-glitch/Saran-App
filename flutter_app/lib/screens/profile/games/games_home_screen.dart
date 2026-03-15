@@ -68,12 +68,9 @@ class _GamesHomeScreenState extends State<GamesHomeScreen> {
     ];
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text("S-Games"),
-        backgroundColor: Colors.white,
         elevation: 0,
-        foregroundColor: Colors.black,
       ),
       body: Padding(
         padding: const EdgeInsets.all(18),
@@ -85,9 +82,13 @@ class _GamesHomeScreenState extends State<GamesHomeScreen> {
             Expanded(
               child: ListView(
                 children: [
-                  const Text(
+                  Text(
                     "Play",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
                   const SizedBox(height: 10),
 
@@ -109,11 +110,12 @@ class _GamesHomeScreenState extends State<GamesHomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         "History",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       TextButton(
@@ -121,9 +123,9 @@ class _GamesHomeScreenState extends State<GamesHomeScreen> {
                           await GamesStreakService.clearHistory();
                           await _load();
                         },
-                        child: const Text(
+                        child: Text(
                           "Clear",
-                          style: TextStyle(color: Colors.black),
+                          style: TextStyle(color: Theme.of(context).colorScheme.primary),
                         ),
                       )
                     ],
@@ -131,16 +133,21 @@ class _GamesHomeScreenState extends State<GamesHomeScreen> {
                   const SizedBox(height: 10),
 
                   if (_history.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: const Color(0xFFEDEDED)),
-                      ),
-                      child: const Text(
-                        "No history yet. Open a game to start your streak ✨",
-                        style: TextStyle(color: Colors.black54),
-                      ),
+                    Builder(
+                      builder: (context) {
+                        final scheme = Theme.of(context).colorScheme;
+                        return Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: scheme.outline),
+                          ),
+                          child: Text(
+                            "No history yet. Open a game to start your streak ✨",
+                            style: TextStyle(color: scheme.onSurfaceVariant),
+                          ),
+                        );
+                      },
                     )
                   else
                     ..._history.take(8).map((raw) {
@@ -153,7 +160,7 @@ class _GamesHomeScreenState extends State<GamesHomeScreen> {
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0xFFEDEDED)),
+                          border: Border.all(color: Theme.of(context).colorScheme.outline),
                         ),
                         child: Row(
                           children: [
@@ -169,9 +176,9 @@ class _GamesHomeScreenState extends State<GamesHomeScreen> {
                             ),
                             Text(
                               _shortTime(time),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.black54,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -262,6 +269,7 @@ class _GameCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -271,8 +279,8 @@ class _GameCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFEDEDED)),
-            color: Colors.white,
+            border: Border.all(color: scheme.outline),
+            color: scheme.surface,
           ),
           child: Row(
             children: [
@@ -280,10 +288,10 @@ class _GameCard extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF6F6F6),
+                  color: scheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: Icon(icon, color: Colors.black),
+                child: Icon(icon, color: scheme.onSurface),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -292,23 +300,24 @@ class _GameCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 15,
+                        color: scheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       desc,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12.5,
-                        color: Colors.black54,
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Colors.black),
+              Icon(Icons.chevron_right, color: scheme.onSurface),
             ],
           ),
         ),

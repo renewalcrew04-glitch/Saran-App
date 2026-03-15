@@ -17,7 +17,7 @@ class PodcastModel {
 
   factory PodcastModel.fromJson(Map<String, dynamic> json) {
     return PodcastModel(
-      id: json['_id'],
+      id: json['_id']?.toString() ?? '',
       title: json['title'] ?? '',
       description: json['description'] ?? '',
       coverUrl: json['coverUrl'] ?? '',

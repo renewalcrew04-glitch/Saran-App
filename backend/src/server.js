@@ -5,6 +5,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { connectDB } from './config/database.js';
+import { checkUsernameAvailability, getUsernameSuggestions } from './controllers/auth.controller.js';
 import { createPost } from './controllers/post.controller.js';
 import { uploadSingle } from './controllers/upload.controller.js';
 import "./jobs/spaceReminder.job.js";
@@ -76,6 +77,9 @@ app.get('/health', (_, res) => {
 });
 
 // API routes
+// Explicit auth helpers so they work even if auth router mount is wrong
+app.get('/api/auth/username/check', checkUsernameAvailability);
+app.get('/api/auth/username/suggestions', getUsernameSuggestions);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 // Create post registered here so it works even if post.routes.js is old on server

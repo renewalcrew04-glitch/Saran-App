@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/auth_service.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -28,7 +30,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _confirmPasswordController = TextEditingController();
 
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
+  final bool _obscureConfirmPassword = true;
 
   bool _agreeToTerms = false;
 
@@ -40,6 +42,13 @@ class _SignupScreenState extends State<SignupScreen> {
   int _page = 0;
 
   final picker = ImagePicker();
+  final AuthService _authService = AuthService();
+
+  bool _usernameChecking = false;
+  bool? _usernameAvailable;
+  String? _usernameMessage;
+  List<String> _usernameSuggestions = [];
+  Timer? _usernameDebounce;
 
   @override
   void dispose() {
@@ -50,7 +59,51 @@ class _SignupScreenState extends State<SignupScreen> {
     _mobileController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _usernameDebounce?.cancel();
     super.dispose();
+  }
+
+  void _onUsernameChanged(String value) {
+    _usernameDebounce?.cancel();
+    if (value.trim().isEmpty) {
+      setState(() {
+        _usernameAvailable = null;
+        _usernameMessage = null;
+        _usernameSuggestions = [];
+      });
+      return;
+    }
+    setState(() {
+      _usernameChecking = true;
+      _usernameAvailable = null;
+      _usernameMessage = null;
+      _usernameSuggestions = [];
+    });
+    _usernameDebounce = Timer(const Duration(milliseconds: 500), () => _checkUsername(value));
+  }
+
+  Future<void> _checkUsername(String value) async {
+    final result = await _authService.checkUsernameAvailability(value);
+    if (!mounted) return;
+    setState(() {
+      _usernameChecking = false;
+      _usernameAvailable = result['available'] == true;
+      _usernameMessage = result['message']?.toString();
+    });
+    if (_usernameAvailable == false && _usernameMessage == 'Username is taken') {
+      _loadSuggestions(value);
+    }
+  }
+
+  Future<void> _loadSuggestions(String value) async {
+    final suggestions = await _authService.getUsernameSuggestions(value);
+    if (!mounted) return;
+    setState(() => _usernameSuggestions = suggestions);
+  }
+
+  void _useSuggestion(String suggestion) {
+    _usernameController.text = suggestion;
+    _onUsernameChanged(suggestion);
   }
 
   void _nextPage() {
@@ -67,8 +120,13 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   bool _validatePage1() {
-    if (_usernameController.text.trim().isEmpty) {
+    final uname = _usernameController.text.trim();
+    if (uname.isEmpty) {
       _showError("Please enter a username");
+      return false;
+    }
+    if (_usernameAvailable != true) {
+      _showError(_usernameMessage ?? "Please choose an available username");
       return false;
     }
 
@@ -256,15 +314,104 @@ class _SignupScreenState extends State<SignupScreen> {
             glossyField(
               child: TextFormField(
                 controller: _usernameController,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.person_outline),
+                textCapitalization: TextCapitalization.none,
+                autocorrect: false,
+                onChanged: _onUsernameChanged,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.person_outline),
                   hintText: "Username",
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.all(18),
+                  contentPadding: const EdgeInsets.all(18),
+                  suffixIcon: _usernameChecking
+                      ? const Padding(
+                          padding: EdgeInsets.only(right: 12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : _usernameAvailable == true
+                          ? Icon(Icons.check_circle, color: scheme.primary, size: 22)
+                          : _usernameAvailable == false
+                              ? Icon(Icons.cancel, color: scheme.error, size: 22)
+                              : null,
                 ),
               ),
             ),
-
+            if (_usernameMessage != null) ...[
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      _usernameAvailable == true ? Icons.check_circle_outline : Icons.info_outline,
+                      size: 16,
+                      color: _usernameAvailable == true
+                          ? scheme.primary
+                          : _usernameAvailable == false
+                              ? scheme.error
+                              : scheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _usernameMessage!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: _usernameAvailable == true
+                              ? scheme.primary
+                              : _usernameAvailable == false
+                                  ? scheme.error
+                                  : scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (_usernameSuggestions.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    Text(
+                      "Try:",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    ..._usernameSuggestions.map(
+                      (s) => InkWell(
+                        onTap: () => _useSuggestion(s),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: scheme.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            '@$s',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: scheme.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
 
             glossyField(
@@ -448,7 +595,7 @@ class _SignupScreenState extends State<SignupScreen> {
             const SizedBox(height: 30),
 
             DropdownButtonFormField<String>(
-              value: _gender,
+              initialValue: _gender,
               decoration: InputDecoration(
                 labelText: "Gender",
                 border: OutlineInputBorder(

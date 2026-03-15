@@ -99,13 +99,13 @@ class _WellnessCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: const Color(0xFFEEEEEE),
+            color: Theme.of(context).colorScheme.outline,
             width: 1,
           ),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 22, color: Colors.black),
+            Icon(icon, size: 22, color: Theme.of(context).colorScheme.onSurface),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -113,17 +113,18 @@ class _WellnessCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     desc,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF666666),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
