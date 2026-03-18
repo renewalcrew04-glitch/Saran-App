@@ -1,0 +1,83 @@
+import mongoose from 'mongoose';
+
+const sosSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+
+    message: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+
+    sendToCloseFriends: {
+      type: Boolean,
+      default: false,
+    },
+
+    sendToNearby: {
+      type: Boolean,
+      default: false,
+    },
+
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        // no default: only set when we have coordinates
+      },
+      coordinates: {
+        type: [Number], // [lng, lat]
+        index: '2dsphere',
+      },
+    },
+
+    radiusKm: {
+      type: Number,
+      default: 2,
+    },
+
+    status: {
+      type: String,
+      enum: ['active', 'cancelled', 'resolved'],
+      default: 'active',
+      index: true,
+    },
+
+    resolvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
+    resolvedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// Never persist invalid location (avoids "Can't extract geo keys")
+sosSchema.pre('save', function (next) {
+  if (this.location && this.location.type === 'Point') {
+    const coords = this.location.coordinates;
+    if (!Array.isArray(coords) || coords.length !== 2) {
+      this.location = undefined;
+    }
+  }
+  next();
+});
+
+// 🔥 Required for geo queries
+sosSchema.index({ location: '2dsphere' });
+
+const SOS = mongoose.model('SOS', sosSchema);
+export default SOS;
