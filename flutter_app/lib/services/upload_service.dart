@@ -36,7 +36,7 @@ class UploadService {
     return url;
   }
 
-  /// ✅ Compatibility method (used by Profile screens)
+  /// ✅ Compatibility method (used by Profile screens, etc.)
   /// Existing code calls: uploadMedia(picked.path)
   Future<String> uploadMedia(String path) async {
     final token = await _authService.getToken();
@@ -48,5 +48,14 @@ class UploadService {
       token: token,
       file: File(path),
     );
+  }
+
+  /// Upload from a File (e.g. when path from file_picker was null and you wrote bytes to a temp file).
+  Future<String> uploadFile(File file) async {
+    final token = await _authService.getToken();
+    if (token == null || token.isEmpty) {
+      throw Exception("Token missing. Please login again.");
+    }
+    return uploadSingle(token: token, file: file);
   }
 }

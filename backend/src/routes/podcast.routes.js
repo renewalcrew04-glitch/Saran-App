@@ -12,6 +12,10 @@ router.get("/podcasts", controller.getPodcasts);
 
 router.get("/podcasts/:id", controller.getPodcast);
 
+router.put("/podcasts/:id", protect, controller.updatePodcast);
+
+router.delete("/podcasts/:id", protect, controller.deletePodcast);
+
 router.post("/podcasts/:id/follow", controller.followPodcast);
 
 /* Episodes */

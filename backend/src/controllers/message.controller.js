@@ -2,9 +2,26 @@ import mongoose from "mongoose";
 import Conversation from "../models/Conversation.model.js";
 import Message from "../models/Message.model.js";
 import User from "../models/User.model.js";
+import { io } from "../server.js";
+import { emitToUser, isUserOnline } from "../socket/socket.js";
+import { sendNotificationPush } from "../services/push.service.js";
 
 // Helpers
 const mapKey = (id) => id.toString();
+
+const serializeMessage = (m) => ({
+  _id: m._id.toString(),
+  senderUid: m.senderUid.toString(),
+  receiverUid: m.receiverUid.toString(),
+  conversationId: m.conversationId.toString(),
+  text: m.text,
+  imageUrl: m.imageUrl,
+  voiceUrl: m.voiceUrl,
+  type: m.type,
+  read: m.read === true,
+  reactions: m.reactions instanceof Map ? Object.fromEntries(m.reactions) : (m.reactions || {}),
+  createdAt: m.createdAt,
+});
 
 // ============================
 // GET /api/messages
@@ -128,28 +145,13 @@ export const getConversation = async (req, res, next) => {
       .sort({ createdAt: 1 })
       .lean();
 
-    // typing map
-    const typing = convo.typing || {};
-
     return res.json({
       success: true,
       conversation: {
         _id: convo._id.toString(),
-        typing,
+        typing: convo.typing || {},
       },
-      messages: messages.map((m) => ({
-        _id: m._id.toString(),
-        senderUid: m.senderUid.toString(),
-        receiverUid: m.receiverUid.toString(),
-        conversationId: m.conversationId.toString(),
-        text: m.text,
-        imageUrl: m.imageUrl,
-        voiceUrl: m.voiceUrl,
-        type: m.type,
-        read: m.read === true,
-        reactions: m.reactions || {},
-        createdAt: m.createdAt,
-      })),
+      messages: messages.map(serializeMessage),
     });
   } catch (error) {
     next(error);
@@ -167,67 +169,38 @@ export const sendMessage = async (req, res, next) => {
     const { receiverUid, type, text, imageUrl, voiceUrl } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid conversationId",
-      });
+      return res.status(400).json({ success: false, message: "Invalid conversationId" });
     }
 
     if (!receiverUid || !mongoose.Types.ObjectId.isValid(receiverUid)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid receiverUid",
-      });
+      return res.status(400).json({ success: false, message: "Invalid receiverUid" });
     }
 
     const convo = await Conversation.findById(conversationId);
     if (!convo) {
-      return res.status(404).json({
-        success: false,
-        message: "Conversation not found",
-      });
+      return res.status(404).json({ success: false, message: "Conversation not found" });
     }
 
     const isParticipant = (convo.participants || []).some(
       (p) => p.toString() === myId.toString()
     );
-
     if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: "Not allowed",
-      });
+      return res.status(403).json({ success: false, message: "Not allowed" });
     }
 
     const msgType = type || "text";
 
-    // validate message content
     if (msgType === "text" && (!text || text.trim().length === 0)) {
-      return res.status(400).json({
-        success: false,
-        message: "Text is required",
-      });
+      return res.status(400).json({ success: false, message: "Text is required" });
     }
-
     if (msgType === "image" && (!imageUrl || imageUrl.trim().length === 0)) {
-      return res.status(400).json({
-        success: false,
-        message: "imageUrl is required",
-      });
+      return res.status(400).json({ success: false, message: "imageUrl is required" });
     }
-
     if (msgType === "voice" && (!voiceUrl || voiceUrl.trim().length === 0)) {
-      return res.status(400).json({
-        success: false,
-        message: "voiceUrl is required",
-      });
+      return res.status(400).json({ success: false, message: "voiceUrl is required" });
     }
-
     if (msgType === "profile" && (!text || text.trim().length === 0)) {
-      return res.status(400).json({
-        success: false,
-        message: "Profile data (text/JSON) is required",
-      });
+      return res.status(400).json({ success: false, message: "Profile data (text/JSON) is required" });
     }
 
     const message = await Message.create({
@@ -242,48 +215,69 @@ export const sendMessage = async (req, res, next) => {
       reactions: new Map(),
     });
 
-    // update conversation last message
+    // Update conversation metadata
     convo.lastMessage =
-      msgType === "text"
-        ? text
-        : msgType === "image"
-        ? "📷 Photo"
-        : msgType === "voice"
-        ? "🎤 Voice"
-        : msgType === "profile"
-        ? "👤 Profile"
-        : "Message";
+      msgType === "text" ? text
+      : msgType === "image" ? "📷 Photo"
+      : msgType === "voice" ? "🎤 Voice"
+      : msgType === "profile" ? "👤 Profile"
+      : "Message";
     convo.lastMessageAt = new Date();
 
-    // unread increment for receiver (Mongoose may give plain object instead of Map)
     const unreadMap =
       convo.unread instanceof Map
         ? convo.unread
         : new Map(Object.entries(convo.unread || {}));
     convo.unread = unreadMap;
-    unreadMap.set(
-      mapKey(receiverUid),
-      (unreadMap.get(mapKey(receiverUid)) || 0) + 1
-    );
+    unreadMap.set(mapKey(receiverUid), (unreadMap.get(mapKey(receiverUid)) || 0) + 1);
 
     await convo.save();
 
-    return res.json({
-      success: true,
-      message: {
-        _id: message._id.toString(),
-        senderUid: message.senderUid.toString(),
-        receiverUid: message.receiverUid.toString(),
-        conversationId: message.conversationId.toString(),
-        text: message.text,
-        imageUrl: message.imageUrl,
-        voiceUrl: message.voiceUrl,
-        type: message.type,
-        read: message.read,
-        reactions: message.reactions || {},
-        createdAt: message.createdAt,
-      },
+    const serialized = serializeMessage(message);
+
+    // ── Real-time: emit to conversation room ──────────────────
+    io.to(`conv:${conversationId}`).emit('new_message', serialized);
+
+    // Also emit directly to receiver (in case they haven't joined the room yet)
+    emitToUser(io, receiverUid, 'new_message', serialized);
+
+    // ── Emit conversation list update to receiver ─────────────
+    emitToUser(io, receiverUid, 'conversation_updated', {
+      conversationId,
+      lastMessage: convo.lastMessage,
+      lastMessageAt: convo.lastMessageAt,
+      unreadCount: unreadMap.get(mapKey(receiverUid)) || 0,
     });
+
+    // ── Push notification if receiver is offline ─────────────
+    if (!isUserOnline(receiverUid)) {
+      const sender = req.user;
+      const pushBody =
+        msgType === "text" ? text
+        : msgType === "image" ? "📷 Sent a photo"
+        : msgType === "voice" ? "🎤 Sent a voice message"
+        : msgType === "profile" ? "👤 Shared a profile"
+        : "New message";
+
+      // Check receiver's mute preference for this conversation
+      const mutedMap = convo.muted instanceof Map ? convo.muted : new Map(Object.entries(convo.muted || {}));
+      const isMuted = mutedMap.get(mapKey(receiverUid)) === true;
+
+      if (!isMuted) {
+        await sendNotificationPush({
+          userId: receiverUid,
+          title: sender.name || sender.username || "New message",
+          body: pushBody,
+          data: {
+            type: "dm",
+            conversationId,
+            senderUid: myId.toString(),
+          },
+        });
+      }
+    }
+
+    return res.json({ success: true, message: serialized });
   } catch (error) {
     console.error("sendMessage error:", error?.message ?? error);
     next(error);
@@ -300,31 +294,29 @@ export const markAsRead = async (req, res, next) => {
     const { conversationId } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid conversationId",
-      });
+      return res.status(400).json({ success: false, message: "Invalid conversationId" });
     }
 
     const convo = await Conversation.findById(conversationId);
     if (!convo) {
-      return res.status(404).json({
-        success: false,
-        message: "Conversation not found",
-      });
+      return res.status(404).json({ success: false, message: "Conversation not found" });
     }
 
     convo.unread.set(mapKey(myId), 0);
     await convo.save();
 
     await Message.updateMany(
-      {
-        conversationId,
-        receiverUid: myId,
-        read: false,
-      },
+      { conversationId, receiverUid: myId, read: false },
       { $set: { read: true } }
     );
+
+    // Notify the other participant that messages were read
+    const otherId = (convo.participants || []).find(
+      (p) => p.toString() !== myId.toString()
+    );
+    if (otherId) {
+      emitToUser(io, otherId, 'messages_read', { conversationId, readBy: myId.toString() });
+    }
 
     return res.json({ success: true });
   } catch (error) {
@@ -342,29 +334,19 @@ export const deleteConversation = async (req, res, next) => {
     const { conversationId } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid conversationId",
-      });
+      return res.status(400).json({ success: false, message: "Invalid conversationId" });
     }
 
     const convo = await Conversation.findById(conversationId);
     if (!convo) {
-      return res.status(404).json({
-        success: false,
-        message: "Conversation not found",
-      });
+      return res.status(404).json({ success: false, message: "Conversation not found" });
     }
 
     const isParticipant = (convo.participants || []).some(
       (p) => p.toString() === myId.toString()
     );
-
     if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: "Not allowed",
-      });
+      return res.status(403).json({ success: false, message: "Not allowed" });
     }
 
     await Message.deleteMany({ conversationId });
@@ -387,29 +369,17 @@ export const updateConversationFlags = async (req, res, next) => {
     const { pinned, muted, archived } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid conversationId",
-      });
+      return res.status(400).json({ success: false, message: "Invalid conversationId" });
     }
 
     const convo = await Conversation.findById(conversationId);
     if (!convo) {
-      return res.status(404).json({
-        success: false,
-        message: "Conversation not found",
-      });
+      return res.status(404).json({ success: false, message: "Conversation not found" });
     }
 
-    if (typeof pinned === "boolean") {
-      convo.pinned.set(mapKey(myId), pinned);
-    }
-    if (typeof muted === "boolean") {
-      convo.muted.set(mapKey(myId), muted);
-    }
-    if (typeof archived === "boolean") {
-      convo.archived.set(mapKey(myId), archived);
-    }
+    if (typeof pinned === "boolean") convo.pinned.set(mapKey(myId), pinned);
+    if (typeof muted === "boolean") convo.muted.set(mapKey(myId), muted);
+    if (typeof archived === "boolean") convo.archived.set(mapKey(myId), archived);
 
     await convo.save();
 
@@ -430,24 +400,15 @@ export const setTyping = async (req, res, next) => {
     const { value } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid conversationId",
-      });
+      return res.status(400).json({ success: false, message: "Invalid conversationId" });
     }
 
-    const convo = await Conversation.findById(conversationId);
-    if (!convo) {
-      return res.status(404).json({
-        success: false,
-        message: "Conversation not found",
-      });
-    }
-
-    if (!convo.typing) convo.typing = {};
-    convo.typing[mapKey(myId)] = value === true;
-
-    await convo.save();
+    // Emit typing via socket (no DB write needed — ephemeral)
+    io.to(`conv:${conversationId}`).emit('typing', {
+      conversationId,
+      userId: myId.toString(),
+      isTyping: value === true,
+    });
 
     return res.json({ success: true });
   } catch (error) {
@@ -468,17 +429,13 @@ export const reactToMessage = async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(conversationId)) {
       return res.status(400).json({ success: false, message: "Invalid conversationId" });
     }
-
     if (!mongoose.Types.ObjectId.isValid(messageId)) {
       return res.status(400).json({ success: false, message: "Invalid messageId" });
     }
 
     const allowed = ["❤️", "😂", "👍", "😮"];
     if (!allowed.includes(reaction)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid reaction",
-      });
+      return res.status(400).json({ success: false, message: "Invalid reaction" });
     }
 
     const msg = await Message.findOne({ _id: messageId, conversationId });
@@ -488,6 +445,14 @@ export const reactToMessage = async (req, res, next) => {
 
     msg.reactions.set(mapKey(myId), reaction);
     await msg.save();
+
+    // Emit reaction update to conversation room
+    io.to(`conv:${conversationId}`).emit('message_reaction', {
+      conversationId,
+      messageId,
+      userId: myId.toString(),
+      reaction,
+    });
 
     return res.json({ success: true });
   } catch (error) {
@@ -505,25 +470,16 @@ export const getOrCreateConversation = async (req, res, next) => {
     const { otherUid } = req.body;
 
     if (!otherUid || !mongoose.Types.ObjectId.isValid(otherUid)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid otherUid",
-      });
+      return res.status(400).json({ success: false, message: "Invalid otherUid" });
     }
 
     if (myId.toString() === otherUid.toString()) {
-      return res.status(400).json({
-        success: false,
-        message: "Cannot DM yourself",
-      });
+      return res.status(400).json({ success: false, message: "Cannot DM yourself" });
     }
 
     const otherUser = await User.findById(otherUid).lean();
     if (!otherUser) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
     let convo = await Conversation.findOne({

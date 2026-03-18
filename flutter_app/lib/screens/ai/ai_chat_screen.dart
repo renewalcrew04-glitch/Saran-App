@@ -5,7 +5,19 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../services/voice_profiles.dart';
 import '../../services/ai_service.dart';
-import '../../widgets/ai_wave_ring.dart';
+import '../../widgets/ai_avatar.dart';
+import '../../widgets/ai_streaming_subtitle.dart';
+
+extension _Cap on String {
+  String get capitalized =>
+      isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}';
+}
+
+// ── Theme tokens ───────────────────────────────────────────────────────────────
+const _kPurple      = Color(0xFF7C3AED);
+const _kPurple2     = Color(0xFF4F46E5);
+const _kPurpleDark  = Color(0xFF3D1A6B);
+const _kPurpleLight = Color(0xFFEDE8FF);
 
 class AIChatScreen extends StatefulWidget {
   const AIChatScreen({super.key});
@@ -19,6 +31,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
   final SpeechToText speech = SpeechToText();
   final FlutterTts tts = FlutterTts();
   final FocusNode _inputFocus = FocusNode();
+  final ScrollController _scrollCtrl = ScrollController();
 
   bool listening = false;
   bool loading = false;
@@ -32,20 +45,19 @@ class _AIChatScreenState extends State<AIChatScreen> {
   String selectedLanguage = "en_US";
   String selectedVoice = "saran_luna";
 
-  /// Device voices by gender (iOS provides gender; Android we split by list position)
   List<Map<String, String>> _deviceVoicesFemale = [];
   List<Map<String, String>> _deviceVoicesMale = [];
 
-  Map<String, String> languages = {
+  static const Map<String, String> _languages = {
     "English": "en_US",
     "Hindi": "hi_IN",
     "Tamil": "ta_IN",
     "Telugu": "te_IN",
     "Kannada": "kn_IN",
-    "Malayalam": "ml_IN"
+    "Malayalam": "ml_IN",
   };
 
-  /* ---------------- INIT ---------------- */
+  // ── Init ──────────────────────────────────────────────────────────────────
 
   @override
   void initState() {
@@ -55,7 +67,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
       if (_inputFocus.hasFocus) {
         setState(() {
           typingMode = true;
-          conversationMode = false; // ensure voice mode stops
+          conversationMode = false;
         });
       }
     });
@@ -70,10 +82,11 @@ class _AIChatScreenState extends State<AIChatScreen> {
   void dispose() {
     _inputFocus.dispose();
     _controller.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
-  /* ---------------- VOICE SETUP ---------------- */
+  // ── Voice setup ───────────────────────────────────────────────────────────
 
   Future setupVoice() async {
     await tts.awaitSpeakCompletion(true);
@@ -83,7 +96,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
     await tts.setVolume(1.0);
   }
 
-  /// Load available system voices and split into female / male lists (iOS has gender; Android we split by order)
   Future<void> _loadDeviceVoices() async {
     try {
       final list = await tts.getVoices;
@@ -95,9 +107,12 @@ class _AIChatScreenState extends State<AIChatScreen> {
         if (v is! Map) continue;
         final name = v['name']?.toString();
         final locale = v['locale']?.toString();
-        if (name == null || name.isEmpty || locale == null || locale.isEmpty) continue;
+        if (name == null || name.isEmpty || locale == null || locale.isEmpty) {
+          continue;
+        }
         final map = {'name': name, 'locale': locale};
-        final gender = v['gender']?.toString().toLowerCase() ?? v['genderId']?.toString() ?? '';
+        final gender =
+            v['gender']?.toString().toLowerCase() ?? v['genderId']?.toString() ?? '';
         if (gender.contains('female') || gender == '1') {
           female.add(map);
         } else if (gender.contains('male') || gender == '0') {
@@ -106,7 +121,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
           unknown.add(map);
         }
       }
-      // If no gender info (e.g. Android), split unknown list in half: first half = female, second = male
       if (female.isEmpty && male.isEmpty && unknown.isNotEmpty) {
         final half = (unknown.length / 2).ceil();
         female.addAll(unknown.take(half));
@@ -122,29 +136,27 @@ class _AIChatScreenState extends State<AIChatScreen> {
           _deviceVoicesMale = male;
         });
       }
-    } catch (_) {
-      // getVoices not supported or failed
-    }
+    } catch (_) {}
   }
 
-  /// Get the actual system voice map for the selected profile (luna, maya = female; arjun, dev = male)
   Map<String, String>? _getVoiceMapForSelectedProfile() {
     final locale = selectedLanguage.replaceAll("_", "-");
     final langPrefix = locale.split('-').first;
-    final filterLocale = (List<Map<String, String>> list) => list.where((v) {
-      final loc = v['locale'] ?? '';
-      return loc.startsWith(langPrefix) || loc == locale;
-    }).toList();
+    final filterLocale = (List<Map<String, String>> list) => list
+        .where((v) {
+          final loc = v['locale'] ?? '';
+          return loc.startsWith(langPrefix) || loc == locale;
+        })
+        .toList();
 
-    final isFemale = femaleVoice;
-    final pool = isFemale ? filterLocale(_deviceVoicesFemale) : filterLocale(_deviceVoicesMale);
+    final pool =
+        femaleVoice ? filterLocale(_deviceVoicesFemale) : filterLocale(_deviceVoicesMale);
     if (pool.isEmpty) return null;
 
-    final profiles = isFemale ? VoiceProfiles.female : VoiceProfiles.male;
+    final profiles = femaleVoice ? VoiceProfiles.female : VoiceProfiles.male;
     final index = profiles.indexWhere((p) => p.id == selectedVoice);
     if (index < 0) return null;
-    final voiceIndex = index % pool.length;
-    return pool[voiceIndex];
+    return pool[index % pool.length];
   }
 
   Future setVoice() async {
@@ -160,61 +172,74 @@ class _AIChatScreenState extends State<AIChatScreen> {
     }
   }
 
-  /* ---------------- CLEAN TEXT ---------------- */
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   String cleanText(String text) {
     text = text.replaceAll(RegExp(r'[*#@_]'), '');
     text = text.replaceAll(RegExp(r'\s+'), ' ');
-    return text;
+    return text.trim();
   }
 
-  /* ---------------- CONVERSATION ---------------- */
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  // ── Conversation ──────────────────────────────────────────────────────────
 
   Future startConversation() async {
     setState(() {
       conversationMode = true;
       typingMode = false;
     });
-
     startListening();
   }
 
   Future stopConversation() async {
     await speech.stop();
-
     setState(() {
       listening = false;
       conversationMode = false;
     });
   }
 
-  /* ---------------- SEND MESSAGE ---------------- */
+  // ── Send message ──────────────────────────────────────────────────────────
 
   Future sendMessage(String text) async {
     if (text.trim().isEmpty) return;
-
     await speech.stop();
 
     setState(() {
       messages.add({"role": "user", "text": text});
       loading = true;
     });
+    _scrollToBottom();
 
-    final languageName = languages.entries
-        .where((e) => e.value == selectedLanguage)
-        .map((e) => e.key)
-        .firstOrNull ?? 'English';
-    final response = await AIService.sendMessage(context, text, language: languageName);
+    final languageName = _languages.entries
+            .where((e) => e.value == selectedLanguage)
+            .map((e) => e.key)
+            .firstOrNull ??
+        'English';
 
-    // ERROR FIX: Prevent calling setState if widget was disposed during await
+    final response =
+        await AIService.sendMessage(context, text, language: languageName);
+
     if (!mounted) return;
 
-    String reply = response ?? "AI error";
+    final reply = response ?? "AI error";
 
     setState(() {
       messages.add({"role": "ai", "text": reply});
       loading = false;
     });
+    _scrollToBottom();
 
     if (reply.isNotEmpty) {
       await speakStreaming(reply);
@@ -225,49 +250,38 @@ class _AIChatScreenState extends State<AIChatScreen> {
     }
   }
 
-  /* ---------------- SPEAK STREAMING ---------------- */
+  // ── Speak streaming ───────────────────────────────────────────────────────
 
   Future speakStreaming(String text) async {
-    List<String> sentences = text.split(RegExp(r'[.!?]'));
-    for (String s in sentences) {
+    final sentences = text.split(RegExp(r'[.!?]'));
+    for (final s in sentences) {
       if (s.trim().isEmpty) continue;
-      if (mounted) {
-        setState(() {
-          subtitleText = cleanText(s);
-        });
-      }
+      if (mounted) setState(() => subtitleText = cleanText(s));
       try {
         await tts.speak(cleanText(s));
       } catch (_) {
-        // TTS failed (e.g. unsupported voice); skip this sentence
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Voice playback failed. You can still read the reply.')),
+            const SnackBar(content: Text('Voice playback failed. Reading the reply instead.')),
           );
         }
         break;
       }
       await Future.delayed(const Duration(milliseconds: 100));
     }
-    if (mounted) {
-      setState(() {
-        subtitleText = "";
-      });
-    }
+    if (mounted) setState(() => subtitleText = "");
   }
 
-  /* ---------------- LISTENING ---------------- */
+  // ── Listening ─────────────────────────────────────────────────────────────
 
-  String get _speechLocale {
-    return selectedLanguage.replaceAll('_', '-');
-  }
+  String get _speechLocale => selectedLanguage.replaceAll('_', '-');
 
   Future startListening() async {
     final status = await Permission.microphone.request();
     if (!status.isGranted) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Microphone permission is needed for voice conversation')),
+          const SnackBar(content: Text('Microphone permission needed for voice conversation')),
         );
       }
       return;
@@ -291,9 +305,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
       return;
     }
 
-    setState(() {
-      listening = true;
-    });
+    setState(() => listening = true);
 
     speech.listen(
       localeId: _speechLocale,
@@ -303,11 +315,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
       pauseFor: const Duration(seconds: 5),
       onResult: (result) {
         final text = result.recognizedWords;
-        if (mounted) {
-          setState(() {
-            _controller.text = text;
-          });
-        }
+        if (mounted) setState(() => _controller.text = text);
         if (result.finalResult && text.trim().isNotEmpty) {
           sendMessage(text);
         }
@@ -315,361 +323,515 @@ class _AIChatScreenState extends State<AIChatScreen> {
     );
   }
 
-  /* ---------------- AVATAR ---------------- */
+  // ── Settings modal ────────────────────────────────────────────────────────
 
-  Widget avatar() {
-    String avatarImg = femaleVoice
-        ? "assets/companions/female.png"
-        : "assets/companions/male.png";
+  void openSettings() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF120030).withOpacity(0.98),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'AI Settings',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                ),
+                Divider(color: Colors.white.withOpacity(0.1), height: 28),
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            AIWaveRing(
-              active: listening || loading || subtitleText.isNotEmpty,
-              size: 250,
+                // Language picker
+                GestureDetector(
+                  onTap: () async {
+                    final selected = await showModalBottomSheet<String>(
+                      context: context,
+                      backgroundColor: const Color(0xFF0D0022),
+                      builder: (ctx) => Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: _languages.entries
+                              .map((e) => ListTile(
+                                    title: Text(
+                                      e.key,
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                    trailing: selectedLanguage == e.value
+                                        ? const Icon(Icons.check, color: Color(0xFF9B4DFF))
+                                        : null,
+                                    onTap: () => Navigator.pop(ctx, e.value),
+                                  ))
+                              .toList(),
+                        ),
+                      ),
+                    );
+                    if (selected != null) {
+                      setModalState(() => selectedLanguage = selected);
+                      setState(() {});
+                      setVoice();
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: Colors.white.withOpacity(0.06),
+                      border: Border.all(color: Colors.white.withOpacity(0.18)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.language, color: Colors.white54, size: 18),
+                        const SizedBox(width: 10),
+                        Text(
+                          _languages.keys
+                              .firstWhere((k) => _languages[k] == selectedLanguage),
+                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.keyboard_arrow_down, color: Colors.white54),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 22),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _genderButton('Female', true, setModalState),
+                    const SizedBox(width: 14),
+                    _genderButton('Male', false, setModalState),
+                  ],
+                ),
+
+                const SizedBox(height: 22),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: (femaleVoice ? VoiceProfiles.female : VoiceProfiles.male)
+                      .take(3)
+                      .map((v) => _voiceChip(v, setModalState))
+                      .toList(),
+                ),
+                const SizedBox(height: 12),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: (femaleVoice ? VoiceProfiles.female : VoiceProfiles.male)
+                      .skip(3)
+                      .take(2)
+                      .map((v) => _voiceChip(v, setModalState))
+                      .toList(),
+                ),
+              ],
             ),
-            CircleAvatar(
-              radius: 110,
-              backgroundImage: AssetImage(avatarImg),
-              backgroundColor: Colors.transparent,
-            )
-          ],
+          ),
         ),
-        const SizedBox(height: 25),
-        if (subtitleText.isNotEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            margin: const EdgeInsets.symmetric(horizontal: 28),
-            decoration: BoxDecoration(
-              color: Colors.black87,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Text(
-              subtitleText,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.white,
-              ),
-            ),
-          )
-      ],
+      ),
     );
   }
 
-  /* ---------------- VOICE CHIP WIDGET ---------------- */
-  
-  Widget voiceChip(dynamic v, Function setModalState) {
+  Widget _genderButton(String label, bool isFemale, Function setModalState) {
+    final selected = femaleVoice == isFemale;
     return GestureDetector(
       onTap: () {
         setModalState(() {
-          selectedVoice = v.id;
+          femaleVoice = isFemale;
+          selectedVoice =
+              (isFemale ? VoiceProfiles.female : VoiceProfiles.male).first.id;
         });
+        setState(() {});
+        setVoice();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: selected
+              ? const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)])
+              : null,
+          color: selected ? null : Colors.white.withOpacity(0.07),
+          border: selected ? null : Border.all(color: Colors.white.withOpacity(0.18)),
+        ),
+        child: Text(
+          '$label Voices',
+          style: TextStyle(
+            color: selected ? Colors.white : Colors.white54,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
 
+  Widget _voiceChip(dynamic v, Function setModalState) {
+    final isSelected = selectedVoice == v.id;
+    return GestureDetector(
+      onTap: () {
+        setModalState(() => selectedVoice = v.id);
         setState(() {});
         setVoice();
       },
       child: Container(
         width: 90,
         alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(
-          vertical: 12,
-        ),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          gradient: selectedVoice == v.id
-              ? const LinearGradient(
-                  colors: [
-                    Color(0xFF8E5CFF),
-                    Color(0xFF6E3CFF),
-                  ],
-                )
+          gradient: isSelected
+              ? const LinearGradient(colors: [Color(0xFF8E5CFF), Color(0xFF6E3CFF)])
               : null,
-          color: selectedVoice == v.id ? null : Colors.white,
-          border: selectedVoice == v.id
-              ? null
-              : Border.all(
-                  width: 2,
-                  color: const Color(0xFF3F6DFF),
-                ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.12),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
-            )
-          ],
+          color: isSelected ? null : Colors.white.withOpacity(0.07),
+          border: isSelected ? null : Border.all(color: Colors.white.withOpacity(0.18)),
         ),
         child: Text(
           v.id.replaceAll("saran_", ""),
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: selectedVoice == v.id ? Colors.white : Colors.black87,
+            color: isSelected ? Colors.white : Colors.white54,
           ),
         ),
       ),
     );
   }
 
-  /* ---------------- SETTINGS ---------------- */
+  // ── Build ─────────────────────────────────────────────────────────────────
 
-  void openSettings() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.75),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(30),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 20,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: isDark
+                ? const [Color(0xFF0D0022), Color(0xFF180042), Color(0xFF0A0018)]
+                : const [Color(0xFFFFFFFF), Color(0xFFF2ECFF), Color(0xFFE8DFFF)],
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(isDark),
+              Expanded(
+                child: typingMode
+                    ? _buildChatView(isDark)
+                    : _buildCompanionView(isDark),
               ),
-              padding: const EdgeInsets.all(24),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      "AI Settings",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Divider(
-                      thickness: 1,
-                      color: Colors.grey.shade300,
-                    ),
-                    const SizedBox(height: 20),
-
-                    // LANGUAGE DROPDOWN
-                    GestureDetector(
-                      onTap: () async {
-                        final selected = await showModalBottomSheet(
-                          context: context,
-                          builder: (context) {
-                            return Container(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: languages.entries.map((e) {
-                                  return ListTile(
-                                    title: Text(
-                                      e.key,
-                                      style: const TextStyle(fontSize: 16),
-                                    ),
-                                    trailing: selectedLanguage == e.value
-                                        ? const Icon(Icons.check, color: Colors.blue)
-                                        : null,
-                                    onTap: () {
-                                      Navigator.pop(context, e.value);
-                                    },
-                                  );
-                                }).toList(),
-                              ),
-                            );
-                          },
-                        );
-
-                        if (selected != null) {
-                          setModalState(() {
-                            selectedLanguage = selected;
-                          });
-                          setState(() {});
-                          setVoice();
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: Colors.grey.shade400,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              languages.keys.firstWhere(
-                                (k) => languages[k] == selectedLanguage,
-                              ),
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.keyboard_arrow_down),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // GENDER BUTTONS
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            setModalState(() {
-                              femaleVoice = true;
-                              selectedVoice = VoiceProfiles.female.first.id;
-                            });
-                            setState(() {});
-                            setVoice();
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 26, vertical: 14),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFF5E8BFF),
-                                  Color(0xFF3F6DFF),
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.blue.withOpacity(0.35),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                )
-                              ],
-                            ),
-                            child: const Text(
-                              "Female Voices",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 20),
-                        GestureDetector(
-                          onTap: () {
-                            setModalState(() {
-                              femaleVoice = false;
-                              selectedVoice = VoiceProfiles.male.first.id;
-                            });
-                            setState(() {});
-                            setVoice();
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 26, vertical: 14),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFF5E8BFF),
-                                  Color(0xFF3F6DFF),
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.blue.withOpacity(0.35),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                )
-                              ],
-                            ),
-                            child: const Text(
-                              "Male Voices",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // VOICE LIST
-                    Column(
-                      children: [
-                        /// ROW 1 (3 voices)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: (femaleVoice
-                                  ? VoiceProfiles.female
-                                  : VoiceProfiles.male)
-                              .take(3)
-                              .map((v) => voiceChip(v, setModalState))
-                              .toList(),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        /// ROW 2 (2 voices)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: (femaleVoice
-                                  ? VoiceProfiles.female
-                                  : VoiceProfiles.male)
-                              .skip(3)
-                              .take(2)
-                              .map((v) => voiceChip(v, setModalState))
-                              .toList(),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+              _buildInputBar(isDark),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  /* ---------------- CHAT UI ---------------- */
+  // ── Header ────────────────────────────────────────────────────────────────
 
-  Widget chatList() {
+  Widget _buildHeader(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Row(
+        children: [
+          _circleBtn(Icons.arrow_back_ios_new, 16, () => Navigator.pop(context), isDark),
+          const Spacer(),
+          // ── Logo only — no text ───────────────────────────────────────────
+          ClipOval(
+            child: Image.asset(
+              'assets/ai_logo.png',
+              width: 40,
+              height: 40,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFCDA8FF), Color(0xFF8B5CF6)],
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+          const Spacer(),
+          _circleBtn(Icons.tune, 18, openSettings, isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _circleBtn(IconData icon, double size, VoidCallback onTap, bool isDark) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isDark
+                ? Colors.white.withOpacity(0.07)
+                : Colors.black.withOpacity(0.05),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withOpacity(0.14)
+                  : _kPurple.withOpacity(0.2),
+            ),
+          ),
+          child: Icon(
+            icon,
+            color: isDark ? Colors.white70 : _kPurpleDark,
+            size: size,
+          ),
+        ),
+      );
+
+  // ── Companion view ────────────────────────────────────────────────────────
+
+  Widget _buildCompanionView(bool isDark) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Spacer(),
+        AICompanionAvatar(
+          isListening: listening,
+          isLoading: loading,
+          isSpeaking: subtitleText.isNotEmpty,
+          isFemale: femaleVoice,
+        ),
+        const SizedBox(height: 14),
+        Text(
+          selectedVoice.replaceAll('saran_', '').capitalized,
+          style: TextStyle(
+            color: isDark ? Colors.white38 : _kPurpleDark.withOpacity(0.45),
+            fontSize: 13,
+            letterSpacing: 4,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildStatusBadge(isDark),
+        const SizedBox(height: 16),
+        if (subtitleText.isNotEmpty) _buildSubtitle(isDark),
+        const Spacer(),
+      ],
+    );
+  }
+
+  Widget _buildStatusBadge(bool isDark) {
+    String label;
+    Color color;
+
+    if (listening) {
+      label = 'Listening...';
+      color = const Color(0xFF4FFFB0);
+    } else if (loading) {
+      label = 'Thinking...';
+      color = const Color(0xFFFFB347);
+    } else if (subtitleText.isNotEmpty) {
+      label = 'Speaking...';
+      color = const Color(0xFF87CEEB);
+    } else if (conversationMode) {
+      label = 'Ready';
+      color = const Color(0xFF9B4DFF);
+    } else {
+      label = 'Tap to talk';
+      color = isDark ? Colors.white24 : _kPurple.withOpacity(0.35);
+    }
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: Container(
+        key: ValueKey(label),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: color.withOpacity(0.1),
+          border: Border.all(color: color.withOpacity(0.35)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(color: color, fontSize: 13, letterSpacing: 1),
+        ),
+      ),
+    );
+  }
+
+  // ── Running caption (word-by-word streaming) ──────────────────────────────
+
+  Widget _buildSubtitle(bool isDark) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 32),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: isDark
+            ? Colors.white.withOpacity(0.06)
+            : _kPurple.withOpacity(0.06),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withOpacity(0.1)
+              : _kPurple.withOpacity(0.18),
+        ),
+      ),
+      child: AIStreamingSubtitle(
+        key: ValueKey(subtitleText),
+        text: subtitleText,
+        isDark: isDark,
+      ),
+    );
+  }
+
+  // ── Chat view ─────────────────────────────────────────────────────────────
+
+  Widget _buildChatView(bool isDark) {
+    if (messages.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.chat_bubble_outline,
+              color: isDark
+                  ? Colors.white.withOpacity(0.15)
+                  : _kPurple.withOpacity(0.2),
+              size: 44,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Start chatting with SARAN AI',
+              style: TextStyle(
+                color: isDark
+                    ? Colors.white.withOpacity(0.25)
+                    : _kPurpleDark.withOpacity(0.35),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: messages.length,
-      itemBuilder: (context, index) {
-        final msg = messages[index];
-        final isUser = msg["role"] == "user";
+      controller: _scrollCtrl,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      itemCount: messages.length + (loading ? 1 : 0),
+      itemBuilder: (context, i) {
+        // Loading dots bubble
+        if (loading && i == messages.length) {
+          return Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(18),
+                  topRight: Radius.circular(18),
+                  bottomRight: Radius.circular(18),
+                  bottomLeft: Radius.circular(4),
+                ),
+                color: isDark
+                    ? Colors.white.withOpacity(0.07)
+                    : _kPurple.withOpacity(0.07),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withOpacity(0.1)
+                      : _kPurple.withOpacity(0.15),
+                ),
+              ),
+              child: const _ThinkingDots(),
+            ),
+          );
+        }
+
+        final msg = messages[i];
+        final isUser = msg['role'] == 'user';
 
         return Align(
           alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            padding: const EdgeInsets.all(12),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.74,
+            ),
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isUser ? Colors.blue : Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(18),
+                topRight: const Radius.circular(18),
+                bottomLeft: Radius.circular(isUser ? 18 : 4),
+                bottomRight: Radius.circular(isUser ? 4 : 18),
+              ),
+              gradient: isUser
+                  ? const LinearGradient(
+                      colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)],
+                    )
+                  : null,
+              color: isUser
+                  ? null
+                  : isDark
+                      ? Colors.white.withOpacity(0.08)
+                      : _kPurple.withOpacity(0.06),
+              border: isUser
+                  ? null
+                  : Border.all(
+                      color: isDark
+                          ? Colors.white.withOpacity(0.1)
+                          : _kPurple.withOpacity(0.15),
+                    ),
+              boxShadow: isUser
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF7C3AED).withOpacity(0.28),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      )
+                    ]
+                  : null,
             ),
             child: Text(
-              msg["text"] ?? "",
+              msg['text'] ?? '',
               style: TextStyle(
-                color: isUser ? Colors.white : Colors.black,
+                color: isUser
+                    ? Colors.white
+                    : isDark
+                        ? Colors.white.withOpacity(0.88)
+                        : _kPurpleDark,
+                fontSize: 14,
+                height: 1.4,
               ),
             ),
           ),
@@ -678,122 +840,227 @@ class _AIChatScreenState extends State<AIChatScreen> {
     );
   }
 
-  /* ---------------- UI ---------------- */
+  // ── Input bar ─────────────────────────────────────────────────────────────
+
+  Widget _buildInputBar(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withOpacity(0.04)
+            : Colors.white.withOpacity(0.7),
+        border: Border(
+          top: BorderSide(
+            color: isDark
+                ? Colors.white.withOpacity(0.08)
+                : _kPurple.withOpacity(0.12),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          if (typingMode) ...[
+            GestureDetector(
+              onTap: () {
+                startConversation();
+                setState(() => typingMode = false);
+              },
+              child: _gradientCircle(
+                icon: Icons.graphic_eq,
+                colors: const [_kPurple, _kPurple2],
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+
+          Expanded(
+            flex: typingMode ? 5 : 1,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                color: isDark
+                    ? Colors.white.withOpacity(0.08)
+                    : Colors.white,
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withOpacity(0.13)
+                      : _kPurple.withOpacity(0.22),
+                ),
+              ),
+              child: TextField(
+                focusNode: _inputFocus,
+                controller: _controller,
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                onTap: () => setState(() => typingMode = true),
+                onSubmitted: (text) {
+                  sendMessage(text);
+                  _controller.clear();
+                },
+                decoration: InputDecoration(
+                  hintText: 'Ask SARAN AI...',
+                  hintStyle: TextStyle(
+                    color: isDark
+                        ? Colors.white.withOpacity(0.32)
+                        : Colors.black.withOpacity(0.32),
+                  ),
+                  border: InputBorder.none,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          if (!typingMode) ...[
+            Expanded(
+              flex: 2,
+              child: GestureDetector(
+                onTap: conversationMode ? stopConversation : startConversation,
+                child: Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: LinearGradient(
+                      colors: conversationMode
+                          ? const [Color(0xFFFF4A6E), Color(0xFFFF1F4D)]
+                          : const [_kPurple, _kPurple2],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (conversationMode
+                                ? Colors.redAccent
+                                : _kPurple)
+                            .withOpacity(0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        conversationMode ? Icons.stop_rounded : Icons.mic_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        conversationMode ? 'End' : 'Talk',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+
+          GestureDetector(
+            onTap: () {
+              sendMessage(_controller.text);
+              _controller.clear();
+            },
+            child: _gradientCircle(
+              icon: Icons.send_rounded,
+              colors: const [_kPurple, _kPurple2],
+              glow: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _gradientCircle({
+    required IconData icon,
+    required List<Color> colors,
+    bool glow = false,
+  }) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(colors: colors),
+        boxShadow: glow
+            ? [
+                BoxShadow(
+                  color: colors.first.withOpacity(0.38),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
+      ),
+      child: Icon(icon, color: Colors.white, size: 18),
+    );
+  }
+}
+
+// ── Thinking dots ─────────────────────────────────────────────────────────────
+
+class _ThinkingDots extends StatefulWidget {
+  const _ThinkingDots();
+
+  @override
+  State<_ThinkingDots> createState() => _ThinkingDotsState();
+}
+
+class _ThinkingDotsState extends State<_ThinkingDots>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("SARAN AI"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: openSettings,
-          )
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: typingMode ? chatList() : Center(child: avatar()),
-          ),
-          const Divider(height: 1),
-
-          /* ---------------- INPUT BAR ---------------- */
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Row(
-              children: [
-                // START / END CONVO BUTTON (DEFAULT SCREEN)
-                if (!typingMode) ...[
-                  Expanded(
-                    flex: 1,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.mic, size: 18),
-                      label: Text(
-                        conversationMode ? "End Convo" : "Start Convo",
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            conversationMode ? Colors.red : Colors.blue,
-                        minimumSize: const Size.fromHeight(52),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: conversationMode
-                          ? stopConversation
-                          : startConversation,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                ],
-
-                // WAVE BUTTON (ONLY IN CHAT MODE)
-                if (typingMode) ...[
-                  GestureDetector(
-                    onTap: () {
-                      startConversation();
-                      setState(() {
-                        typingMode = false;
-                      });
-                    },
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [
-                            Color(0xFF4A8CFF),
-                            Color(0xFF2A6FFF),
-                          ],
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.graphic_eq,
-                        size: 20,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-
-                // TEXT INPUT
-                Expanded(
-                  flex: typingMode ? 5 : 1,
-                  child: TextField(
-                    focusNode: _inputFocus,
-                    controller: _controller,
-                    onTap: () {
-                      setState(() {
-                        typingMode = true;
-                      });
-                    },
-                    decoration: const InputDecoration(
-                      hintText: "Ask SARAN AI...",
-                      border: OutlineInputBorder(),
-                    ),
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            final phase = (_ctrl.value + i / 3) % 1.0;
+            final yOffset = phase < 0.5 ? -phase * 10 : -(1.0 - phase) * 10;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: Transform.translate(
+                offset: Offset(0, yOffset),
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF9B4DFF),
                   ),
                 ),
-
-                const SizedBox(width: 6),
-
-                // SEND BUTTON
-                IconButton(
-                  icon: const Icon(Icons.rocket_launch),
-                  onPressed: () {
-                    sendMessage(_controller.text);
-                    _controller.clear();
-                  },
-                ),
-              ],
-            ),
-          )
-        ],
-      ),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }

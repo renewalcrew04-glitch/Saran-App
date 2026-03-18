@@ -19,19 +19,44 @@ class QuotePostEmbed extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final borderColor = scheme.outlineVariant.withValues(alpha: 0.5);
-    final containerColor = scheme.surfaceContainerHighest;
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Light: lavender/indigo glass card — vivid and distinct from white bg.
+    // Dark: keep the existing dark-elevated surface that already looks great.
+    final decoration = isDark
+        ? BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: scheme.surfaceContainerHighest,
+            border: Border.all(
+              color: const Color(0xFF6060A0).withValues(alpha: 0.45),
+            ),
+          )
+        : BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFECECFF), Color(0xFFE4DEFF)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(
+              color: const Color(0xFFB8B0E8).withValues(alpha: 0.80),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF8080C0).withValues(alpha: 0.10),
+                blurRadius: 12,
+                spreadRadius: -2,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          );
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(top: 10),
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: containerColor,
-          border: Border.all(color: borderColor),
-        ),
+        decoration: decoration,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -68,7 +93,7 @@ class QuotePostEmbed extends StatelessWidget {
                   children: buildTextSpansWithHashtags(
                     combinedPostText(text: originalPost.text, hashtags: originalPost.hashtags),
                     textColor: scheme.onSurface,
-                    hashtagColor: scheme.primary,
+                    hashtagColor: const Color(0xFFFF7A10),
                     fontSize: 13,
                   ),
                 ),

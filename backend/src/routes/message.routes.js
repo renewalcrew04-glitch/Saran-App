@@ -15,24 +15,18 @@ import { protect } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-// ✅ Create or get DM conversation
+// ✅ Static routes FIRST (before /:conversationId to avoid wrong matching)
 router.post("/dm", protect, getOrCreateConversation);
+router.get("/search-users", protect, searchUsersForDm);
 
 // Conversations
 router.get("/", protect, getConversations);
 router.get("/:conversationId", protect, getConversation);
 router.post("/:conversationId/messages", protect, sendMessage);
 router.put("/:conversationId/read", protect, markAsRead);
-router.delete("/:conversationId", protect, deleteConversation);
-router.get("/search-users", protect, searchUsersForDm);
-
-// Flags (pin/mute/archive)
-router.put("/:conversationId", protect, updateConversationFlags);
-
-// Typing
 router.put("/:conversationId/typing", protect, setTyping);
-
-// Reactions
 router.put("/:conversationId/messages/:messageId/reaction", protect, reactToMessage);
+router.put("/:conversationId", protect, updateConversationFlags);
+router.delete("/:conversationId", protect, deleteConversation);
 
 export default router;

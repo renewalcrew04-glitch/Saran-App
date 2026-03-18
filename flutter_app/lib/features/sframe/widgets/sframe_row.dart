@@ -15,16 +15,12 @@ class SFrameRow extends StatelessWidget {
 
   const SFrameRow({super.key, this.darkTheme = false, this.onStoryCreated});
 
-  static const double _frameSize = 80; // square with curvy edges
+  static const double _frameSize = 64; // circle diameter
 
  Widget _buildCreateFrame(BuildContext context, {String? userAvatarUrl}) {
-  final fg = darkTheme ? Colors.white : Colors.black;
-  final mutedFg = fg.withOpacity(0.35);
-
-  final addBg = darkTheme
-      ? Colors.white.withOpacity(0.9)
-      : Colors.black.withOpacity(0.9);
-  final addFg = darkTheme ? Colors.black : Colors.white;
+  final mutedFg = darkTheme
+      ? Colors.white.withOpacity(0.40)
+      : Colors.black.withOpacity(0.40);
 
   final avatarUrl = userAvatarUrl != null && userAvatarUrl.isNotEmpty
       ? (ApiConfig.networkImageUrl(userAvatarUrl) ?? userAvatarUrl)
@@ -42,59 +38,33 @@ class SFrameRow extends StatelessWidget {
           width: _frameSize,
           height: _frameSize,
           margin: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-          ),
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Profile photo background
+              // Dashed circle border background
+              CustomPaint(
+                size: const Size(_frameSize, _frameSize),
+                painter: _DashedCirclePainter(color: mutedFg),
+              ),
+              // Profile photo if available
               if (avatarUrl != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
+                ClipOval(
                   child: Image.network(
                     avatarUrl,
                     fit: BoxFit.cover,
                     loadingBuilder: (_, child, progress) {
                       if (progress == null) return child;
-                      return CustomPaint(
-                        size: const Size(_frameSize, _frameSize),
-                        painter: _DashedRectPainter(color: mutedFg, radius: 14),
-                      );
+                      return const SizedBox.shrink();
                     },
-                    errorBuilder: (_, __, ___) => CustomPaint(
-                      size: const Size(_frameSize, _frameSize),
-                      painter: _DashedRectPainter(color: mutedFg, radius: 14),
-                    ),
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                   ),
-                )
-              else
-                CustomPaint(
-                  size: const Size(_frameSize, _frameSize),
-                  painter: _DashedRectPainter(color: mutedFg, radius: 14),
                 ),
-              Positioned(
-                right: 4,
-                bottom: 4,
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: addBg,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.add,
-                    color: addFg,
-                    size: 18,
-                  ),
+              // "+" icon in center
+              Center(
+                child: Icon(
+                  Icons.add,
+                  color: darkTheme ? Colors.white70 : Colors.black54,
+                  size: 22,
                 ),
               ),
             ],
@@ -107,7 +77,7 @@ class SFrameRow extends StatelessWidget {
           child: SizedBox(
             width: _frameSize + 16,
             child: Text(
-              "Your S-frame",
+              "Your S-Frame",
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -151,12 +121,17 @@ class SFrameRow extends StatelessWidget {
     final viewIds = f.views.map((v) => v.toString()).toList();
     final seen = currentUid != null && viewIds.contains(currentUid);
 
-    final borderColor = darkTheme
-        ? (seen ? Colors.grey.shade600 : Colors.white)
-        : (seen ? Colors.grey : Colors.black);
-
     final iconColor = darkTheme ? Colors.white70 : Colors.black54;
     final displayName = f.ownerName ?? f.ownerUsername ?? 'Unknown';
+
+    // Ring gradient colors: unseen = vibrant gradient, seen = grey
+    final ringColors = seen
+        ? [Colors.grey.shade600, Colors.grey.shade700]
+        : [
+            const Color(0xFFFFD700),
+            const Color(0xFFFF8C00),
+            const Color(0xFFFF4500),
+          ];
 
     return GestureDetector(
       onTap: () async {
@@ -173,32 +148,44 @@ class SFrameRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: _frameSize,
-            height: _frameSize,
-            margin: const EdgeInsets.all(6),
+            width: _frameSize + 6,
+            height: _frameSize + 6,
+            margin: const EdgeInsets.all(3),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: borderColor, width: 2),
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: ringColors,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: avatarToShow != null
-                  ? Image.network(
-                      ApiConfig.networkImageUrl(avatarToShow) ?? avatarToShow,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (_, child, progress) {
-                        if (progress == null) return child;
-                        return Center(
-                          child: ImageLoadingPlaceholder(
-                            circular: true,
-                            size: 52,
-                          ),
-                        );
-                      },
-                      errorBuilder: (_, __, ___) =>
-                          Icon(Icons.person, color: iconColor, size: 36),
-                    )
-                  : Icon(Icons.person, color: iconColor, size: 36),
+            padding: const EdgeInsets.all(2.5),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: darkTheme ? const Color(0xFF0D1120) : Colors.white,
+              ),
+              padding: const EdgeInsets.all(2),
+              child: ClipOval(
+                child: avatarToShow != null
+                    ? Image.network(
+                        ApiConfig.networkImageUrl(avatarToShow) ?? avatarToShow,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (_, child, progress) {
+                          if (progress == null) return child;
+                          return const Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        },
+                        errorBuilder: (_, __, ___) =>
+                            Icon(Icons.person, color: iconColor, size: 30),
+                      )
+                    : _buildInitialBubble(displayName, darkTheme),
+              ),
             ),
           ),
           Padding(
@@ -222,6 +209,43 @@ class SFrameRow extends StatelessWidget {
       ),
     );
   }
+
+  /// Builds a colorful circle with the user's initial when no avatar is available.
+  Widget _buildInitialBubble(String displayName, bool darkTheme) {
+    final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
+    // Deterministic color based on initial
+    final colors = _initialColors[initial.codeUnitAt(0) % _initialColors.length];
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: colors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: 22,
+          height: 1,
+        ),
+      ),
+    );
+  }
+
+  static const List<List<Color>> _initialColors = [
+    [Color(0xFF8B5CF6), Color(0xFFEC4899)], // purple-pink
+    [Color(0xFF06B6D4), Color(0xFF3B82F6)], // cyan-blue
+    [Color(0xFF10B981), Color(0xFF059669)], // green
+    [Color(0xFFF59E0B), Color(0xFFEF4444)], // amber-red
+    [Color(0xFF6366F1), Color(0xFF8B5CF6)], // indigo-purple
+    [Color(0xFF14B8A6), Color(0xFF0EA5E9)], // teal-sky
+    [Color(0xFFF97316), Color(0xFFEF4444)], // orange-red
+    [Color(0xFFEC4899), Color(0xFF8B5CF6)], // pink-purple
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -263,7 +287,7 @@ class SFrameRow extends StatelessWidget {
         final isLoading = snapshot.connectionState == ConnectionState.waiting;
 
         return SizedBox(
-          height: 120,
+          height: 110,
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -314,45 +338,40 @@ class SFrameRow extends StatelessWidget {
   }
 }
 
-class _DashedRectPainter extends CustomPainter {
+class _DashedCirclePainter extends CustomPainter {
   final Color color;
-  final double radius;
 
-  _DashedRectPainter({required this.color, this.radius = 14});
+  _DashedCirclePainter({required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
-    const dashWidth = 5.0;
-    const dashSpace = 5.0;
-    const strokeWidth = 1.4;
+    const dashCount = 16;
+    const strokeWidth = 1.5;
+    const gapFraction = 0.35; // fraction of each dash that is gap
 
     final paint = Paint()
       ..color = color
       ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
-    final rrect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        strokeWidth / 2,
-        strokeWidth / 2,
-        size.width - strokeWidth,
-        size.height - strokeWidth,
-      ),
-      Radius.circular(radius - 2),
-    );
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width / 2) - strokeWidth;
 
-    final path = Path()..addRRect(rrect);
+    const totalAngle = 2 * 3.141592653589793;
+    final dashAngle = (totalAngle / dashCount) * (1 - gapFraction);
+    final gapAngle = (totalAngle / dashCount) * gapFraction;
 
-    for (final metric in path.computeMetrics()) {
-      double distance = 0;
-      while (distance < metric.length) {
-        final len = dashWidth;
-        canvas.drawPath(
-          metric.extractPath(distance, distance + len),
-          paint,
-        );
-        distance += dashWidth + dashSpace;
-      }
+    double startAngle = -3.141592653589793 / 2;
+    for (int i = 0; i < dashCount; i++) {
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        dashAngle,
+        false,
+        paint,
+      );
+      startAngle += dashAngle + gapAngle;
     }
   }
 

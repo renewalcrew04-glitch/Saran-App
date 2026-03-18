@@ -1,8 +1,11 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+let openai = null;
+function getOpenAI() {
+  if (!process.env.OPENAI_API_KEY) return null;
+  if (!openai) openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return openai;
+}
 
 export async function analyzeMessage(message, recentMessages = []) {
 
@@ -12,7 +15,10 @@ export async function analyzeMessage(message, recentMessages = []) {
       .map(m => m?.content || "")
       .join("\n");
 
-    const result = await openai.chat.completions.create({
+    const client = getOpenAI();
+    if (!client) return {};
+
+    const result = await client.chat.completions.create({
       model: "gpt-4.1-mini",
       temperature: 0,
       max_tokens: 120,

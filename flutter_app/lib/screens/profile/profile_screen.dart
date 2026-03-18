@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:dio/dio.dart';
 import '../../utils/category_gradients.dart';
+import '../../widgets/glass_box.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -45,27 +47,6 @@ Widget buildSafeImage(String path) {
   );
 }
 
-/// Creates rounded top corners and a curved cut-out at the bottom center for the profile image overlap.
-class _BannerCurvedClip extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    const radius = 16.0;
-    const curveDepth = 24.0; // how far the center dips up
-    final path = Path()
-      ..moveTo(0, radius)
-      ..quadraticBezierTo(0, 0, radius, 0)
-      ..lineTo(size.width - radius, 0)
-      ..quadraticBezierTo(size.width, 0, size.width, radius)
-      ..lineTo(size.width, size.height)
-      ..quadraticBezierTo(size.width * 0.5, size.height - curveDepth, 0, size.height)
-      ..lineTo(0, radius)
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
 
 class ProfileScreen extends StatefulWidget {
   /// When the main nav switches to Profile tab, this is set to [kProfileTabIndex].
@@ -157,87 +138,72 @@ class _PostGridTile extends StatelessWidget {
   }
 }
 
+/// Individual icon chip inside the post filter pill bar.
 class _PostSubTab extends StatelessWidget {
   final IconData icon;
   final String value;
   final VoidCallback onTap;
+  final String tooltip;
 
   const _PostSubTab({
     required this.icon,
     required this.value,
     required this.onTap,
+    required this.tooltip,
   });
 
   @override
   Widget build(BuildContext context) {
     final state = context.findAncestorStateOfType<_ProfileScreenState>()!;
     final bool isActive = state._activePostTab == value;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Icon(icon, size: 20, color: isActive ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface),
-      ),
-    );
-  }
-}
-
-class _ProfileLabelTab extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _ProfileLabelTab({
-    required this.label,
-    required this.icon,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-        child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: isActive ? Theme.of(context).colorScheme.primary : Colors.transparent,
-              width: 2,
-            ),
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          width: 46,
+          height: 36,
+          decoration: BoxDecoration(
+            gradient: isActive
+                ? const LinearGradient(
+                    colors: [Color(0xFFFF9D5C), Color(0xFFFF6A00)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isActive
+                ? [
+                    const BoxShadow(
+                      color: Color(0x55FF7A20),
+                      blurRadius: 10,
+                      spreadRadius: -1,
+                      offset: Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            icon,
+            size: 20,
+            color: isActive
+                ? Colors.white
+                : (isDark
+                    ? Colors.white.withValues(alpha: 0.55)
+                    : const Color(0xFF48485A).withValues(alpha: 0.70)),
           ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 22,
-              color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
 }
+
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final FeedService _feedService = FeedService();
@@ -266,21 +232,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   /// Posts shown in the Post tab (originals only, except when Reposts sub-tab is selected).
   List<Post> get _filteredPosts {
-    if (_activePostTab == 'repost') return _repostedPosts;
-    final onlyOriginals = _posts.where((p) => !_isRepostOrQuote(p)).toList();
-    if (_activePostTab == 'all') return onlyOriginals;
-    return onlyOriginals.where((p) {
-      switch (_activePostTab) {
-        case 'text':
-          return p.type == 'text';
-        case 'photo':
-          return p.type == 'photo';
-        case 'video':
-          return p.type == 'video';
-        default:
-          return true;
-      }
-    }).toList();
+  if (_activePostTab == 'repost') return _repostedPosts;
+
+  final onlyOriginals = _posts.where((p) => !_isRepostOrQuote(p)).toList();
+
+  switch (_activePostTab) {
+    case 'all':
+      return onlyOriginals.where((p) => p.type != 'text').toList(); // hide text
+    case 'text':
+      return onlyOriginals.where((p) => p.type == 'text').toList();
+    case 'photo':
+      return onlyOriginals.where((p) => p.type == 'photo').toList();
+    case 'video':
+      return onlyOriginals.where((p) => p.type == 'video').toList();
+    default:
+      return onlyOriginals;
+  }
   }
 
   /// Reposts and quote posts together in the Reposted tab.
@@ -305,7 +272,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   backgroundColor: theme.colorScheme.surface,
   elevation: 0,
   scrolledUnderElevation: 0,
-  centerTitle: true,
+  centerTitle: false,
   title: Text(
     '@${user.username}',
     style: TextStyle(
@@ -317,7 +284,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   actions: [
           IconButton(
             icon: Icon(Icons.menu, color: Theme.of(context).colorScheme.onSurface, size: 24),
-            onPressed: () => MenuSheet.open(context),
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -339,18 +306,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
               _buildHeader(user),
-              Transform.translate(
-                offset: const Offset(0, -44),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildMainTabs(),
-                    if (_activeMainTab == 'post') _buildPostSubTabs(),
-                    _buildBodyContent(user),
-                  ],
-                ),
-              ),
+              _buildMainTabs(),
+              if (_activeMainTab == 'post') _buildPostSubTabs(),
+              _buildBodyContent(user),
               SizedBox(height: MediaQuery.of(context).padding.bottom + 100),
             ],
             ),
@@ -475,272 +433,315 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildHeader(dynamic user) {
+  // Interest chip accent palette — vivid, used as glass tint + text colour
+  static const _chipColors = [
+    Color(0xFFFF6B35), // orange
+    Color(0xFF22C55E), // green
+    Color(0xFF8B5CF6), // violet
+    Color(0xFF06B6D4), // cyan
+    Color(0xFFEC4899), // pink
+    Color(0xFFF59E0B), // amber
+    Color(0xFF3B82F6), // blue
+    Color(0xFFA855F7), // purple
+  ];
+
+  Widget _buildHeader(User user) {
     final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
+    final scheme = theme.colorScheme;
     final coverUrl = user.coverImage != null && user.coverImage!.isNotEmpty
         ? (ApiConfig.networkImageUrl(user.coverImage!) ?? user.coverImage)
         : null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Banner with rounded top corners
-        GestureDetector(
-          onTap: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-            );
-            if (!mounted) return;
-            final auth = Provider.of<AuthProvider>(context, listen: false);
-            await auth.loadUser();
-            await _loadUserPosts();
-          },
-          child: ClipPath(
-            clipper: _BannerCurvedClip(),
+
+    // Avatar widget (left-aligned, with gradient border)
+    Widget avatarWidget = GestureDetector(
+      onTap: _pickAvatarImage,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 88,
+            height: 88,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFD060), Color(0xFFFF8A3A), Color(0xFFE8501A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            padding: const EdgeInsets.all(3),
             child: Container(
-              height: 140,
-              width: double.infinity,
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: coverUrl != null
-                  ? safeNetworkImage(
-                      url: coverUrl,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: 140,
-                      placeholderIcon: Icons.photo_camera_outlined,
-                    )
-                  : Center(
-                      child: Icon(Icons.add_photo_alternate_outlined, size: 48, color: theme.colorScheme.onSurfaceVariant),
-                    ),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: scheme.surface,
+              ),
+              child: ClipOval(
+                child: _localAvatarPreview != null
+                    ? Image.file(_localAvatarPreview!, fit: BoxFit.cover)
+                    : (user.avatar != null && user.avatar!.isNotEmpty)
+                        ? safeAvatarNetworkImage(
+                            url: ApiConfig.networkImageUrl(user.avatar!) ?? user.avatar!,
+                            size: 82,
+                            backgroundColor: scheme.surfaceContainerHighest,
+                          )
+                        : Container(
+                            color: scheme.surfaceContainerHighest,
+                            alignment: Alignment.center,
+                            child: Text(
+                              user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                              style: TextStyle(
+                                fontSize: 30,
+                                color: scheme.onSurfaceVariant,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+              ),
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Avatar overlapping banner – centered, blue border
-              Transform.translate(
-                offset: const Offset(0, -52),
-                child: Center(
-                  child: GestureDetector(
-                    onTap: _pickAvatarImage,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: primaryColor, width: 3),
-                            boxShadow: [
-                              BoxShadow(
-                                color: theme.colorScheme.shadow.withValues(alpha: 0.1),
-                                blurRadius: 12,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: _localAvatarPreview != null
-                              ? CircleAvatar(
-                                  radius: 48,
-                                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                                  backgroundImage: FileImage(_localAvatarPreview!),
-                                )
-                              : (user.avatar != null && user.avatar!.isNotEmpty)
-                                  ? safeAvatarNetworkImage(
-                                      url: ApiConfig.networkImageUrl(user.avatar!) ?? user.avatar!,
-                                      size: 96,
-                                      backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                                    )
-                                  : CircleAvatar(
-                                      radius: 48,
-                                      backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                                      child: Text(
-                                        user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-                                        style: TextStyle(
-                                          fontSize: 32,
-                                          color: theme.colorScheme.onSurfaceVariant,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                        ),
-                        if (_uploadingAvatar)
-                          Positioned.fill(
-                            child: Container(
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.scrim,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: SizedBox(
-                                  width: 28,
-                                  height: 28,
-                                  child: CircularProgressIndicator(color: theme.colorScheme.onSurface, strokeWidth: 2),
-                                ),
-                              ),
-                            ),
-                          ),
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: theme.colorScheme.outlineVariant),
-                            ),
-                            child: Icon(Icons.add, color: theme.colorScheme.onSurface, size: 18),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+          if (_uploadingAvatar)
+            Positioned.fill(
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Color(0x88000000),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                 ),
               ),
-              Transform.translate(
-                offset: const Offset(0, -50),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Name – centered
-                    Text(
-                      user.name,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 4),
-                    // Location / Joined – centered
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.location_on_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
-                        const SizedBox(width: 4),
-                        Text(
-                          (user.location != null && user.location!.isNotEmpty)
-                              ? user.location!
-                              : 'Add location',
-                          style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
+            ),
+        ],
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Banner + overlapping avatar ──────────────────────────────────
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Cover image / default gradient banner
+            GestureDetector(
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                );
+                if (!mounted) return;
+                final auth = Provider.of<AuthProvider>(context, listen: false);
+                await auth.loadUser();
+                await _loadUserPosts();
+              },
+              child: Container(
+                height: 175,
+                width: double.infinity,
+                decoration: coverUrl == null
+                    ? const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF7B2D8B), Color(0xFFB83280), Color(0xFFE8501A)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      ],
-                    ),
-                    if (user.bio != null && user.bio!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        user.bio!,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: theme.colorScheme.onSurfaceVariant,
-                          height: 1.3,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                    const SizedBox(height: 6),
-                    // Stats row – centered (Followers, Following, Posts)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _StatButton(
-                          count: _posts.length,
-                          label: 'Posts',
-                          onTap: () => setState(() => _activeMainTab = 'post'),
-                        ),
-                        const SizedBox(width: 60),
-                        _StatButton(
-                          count: user.followersCount,
-                          label: 'Followers',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => FollowersListScreen(
-                                  userId: user.uid,
-                                  username: user.username,
-                                ),
-                              ),
-                            ).then((_) {
-                              if (mounted) _refreshUserCounts();
-                            });
-                          },
-                        ),
-                        const SizedBox(width: 60),
-                        _StatButton(
-                          count: user.followingCount,
-                          label: 'Following',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => FollowingListScreen(
-                                  userId: user.uid,
-                                  username: user.username,
-                                ),
-                              ),
-                            ).then((_) {
-                              if (mounted) _refreshUserCounts();
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    // Edit | Share – blue pill buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          height: 40,
-                          child: FilledButton(
-                            onPressed: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                              );
-                              if (!mounted) return;
-                              final auth = Provider.of<AuthProvider>(context, listen: false);
-                              await auth.loadUser();
-                              await _loadUserPosts();
-                            },
-                            style: FilledButton.styleFrom(
-                              backgroundColor: primaryColor,
-                              foregroundColor: theme.colorScheme.onPrimary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
-                            ),
-                            child: const Text('Edit profile', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                          ),
-                        ),
-                        const SizedBox(width: 45),
-                        SizedBox(
-                          height: 40,
-                          child: FilledButton(
-                            onPressed: () => _showShareProfileSheet(context, user),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: primaryColor,
-                              foregroundColor: theme.colorScheme.onPrimary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
-                            ),
-                            child: const Text('Share profile', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 0),
-                  ],
-                ),
+                      )
+                    : null,
+                child: coverUrl != null
+                    ? safeNetworkImage(
+                        url: coverUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: 175,
+                        placeholderIcon: Icons.photo_camera_outlined,
+                      )
+                    : null,
+              ),
+            ),
+            // Avatar overlapping banner – left-aligned
+            Positioned(
+              left: 16,
+              bottom: -36,
+              child: avatarWidget,
+            ),
+          ],
+        ),
+
+        // ── Row: spacer (avatar width) + Edit/Share buttons ─────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Row(
+            children: [
+              const SizedBox(width: 96), // reserve space for avatar
+              const Spacer(),
+              _ProfileActionButton(
+                label: 'Edit Profile',
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                  );
+                  if (!mounted) return;
+                  final auth = Provider.of<AuthProvider>(context, listen: false);
+                  await auth.loadUser();
+                  await _loadUserPosts();
+                },
+              ),
+              const SizedBox(width: 10),
+              _ProfileActionButton(
+                label: 'Share',
+                filled: true,
+                onTap: () => _showShareProfileSheet(context, user),
               ),
             ],
+          ),
+        ),
+
+        // ── Name, location, bio, website, interests ──────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Name
+              Text(
+                user.name,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: scheme.onSurface,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Location
+              if (user.location != null && user.location!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      Icon(Icons.location_on_outlined, size: 14, color: scheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Text(
+                        user.location!,
+                        style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+              // Bio
+              if (user.bio != null && user.bio!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    user.bio!,
+                    style: TextStyle(fontSize: 13, color: scheme.onSurface, height: 1.4),
+                  ),
+                ),
+              // Website
+              if (user.website != null && user.website!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      Icon(Icons.link, size: 14, color: scheme.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        user.website!,
+                        style: TextStyle(fontSize: 13, color: scheme.primary),
+                      ),
+                    ],
+                  ),
+                ),
+              // Interest chips — Liquid Glass with color identity
+              if (user.interests.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: user.interests.asMap().entries.map((e) {
+                    final color = _chipColors[e.key % _chipColors.length];
+                    return LiquidGlassChip(
+                      label: e.value,
+                      isActive: false,
+                      fixedColor: color,
+                      textColor: color, // vivid accent text, works on both themes
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    );
+                  }).toList(),
+                ),
+              ],
+            ],
+          ),
+        ),
+
+        // ── Stats card ───────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Container(
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.5),
+                width: 0.8,
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _StatButton(
+                    count: user.postsCount,
+                    label: 'Posts',
+                    onTap: () => setState(() => _activeMainTab = 'post'),
+                  ),
+                ),
+                Container(width: 0.8, height: 40, color: scheme.outlineVariant.withValues(alpha: 0.5)),
+                Expanded(
+                  child: _StatButton(
+                    count: user.followersCount,
+                    label: 'Followers',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => FollowersListScreen(
+                            userId: user.uid,
+                            username: user.username,
+                          ),
+                        ),
+                      ).then((_) {
+                        if (mounted) _refreshUserCounts();
+                      });
+                    },
+                  ),
+                ),
+                Container(width: 0.8, height: 40, color: scheme.outlineVariant.withValues(alpha: 0.5)),
+                Expanded(
+                  child: _StatButton(
+                    count: user.followingCount,
+                    label: 'Following',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => FollowingListScreen(
+                            userId: user.uid,
+                            username: user.username,
+                          ),
+                        ),
+                      ).then((_) {
+                        if (mounted) _refreshUserCounts();
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -749,144 +750,258 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildMainTabs() {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    Widget tab(String label, String value, VoidCallback onTap) {
+      final isActive = _activeMainTab == value;
+      return Expanded(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 13),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: isActive ? scheme.primary : Colors.transparent,
+                  width: 2.5,
+                ),
+              ),
+            ),
+            alignment: Alignment.center,
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 180),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                color: isActive
+                    ? scheme.primary
+                    : (isDark
+                        ? Colors.white.withValues(alpha: 0.50)
+                        : scheme.onSurfaceVariant),
+                letterSpacing: isActive ? 0.1 : 0,
+              ),
+              child: Text(label),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+        border: Border(
+          bottom: BorderSide(color: scheme.outlineVariant, width: 1),
+        ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: _ProfileLabelTab(
-                label: 'Post',
-                icon: Icons.grid_on,
-                isActive: _activeMainTab == 'post',
-                onTap: () => setState(() => _activeMainTab = 'post'),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: _ProfileLabelTab(
-                label: 'Wellness',
-                icon: Icons.favorite_border,
-                isActive: _activeMainTab == 'wellness',
-                onTap: () => setState(() => _activeMainTab = 'wellness'),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: _ProfileLabelTab(
-                label: 'Games',
-                icon: Icons.sports_esports_outlined,
-                isActive: _activeMainTab == 'games',
-                onTap: () => setState(() => _activeMainTab = 'games'),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: _ProfileLabelTab(
-                label: 'Saved',
-                icon: Icons.bookmark_border,
-                isActive: _activeMainTab == 'saved',
-                onTap: () {
-                  setState(() => _activeMainTab = 'saved');
-                  _loadSavedPosts();
-                },
-              ),
-            ),
-          ),
+          tab('Posts', 'post', () => setState(() => _activeMainTab = 'post')),
+          tab('Wellness', 'wellness', () => context.push('/wellness')),
+          tab('Games', 'games', () => context.push('/games')),
+          tab('Saved', 'saved', () {
+            setState(() => _activeMainTab = 'saved');
+            _loadSavedPosts();
+          }),
         ],
       ),
     );
   }
 
   Widget _buildPostsSection() {
-  final theme = Theme.of(context);
-  final posts = _filteredPosts;
+    final theme = Theme.of(context); // Add this line right here
+    final posts = _filteredPosts;
 
-  if (posts.isEmpty) {
-    return const SizedBox(height: 200);
-  }
+    if (posts.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.grid_off_outlined, size: 56, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              const SizedBox(height: 16),
+              Text(
+                'No posts yet',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Your posts will appear here.',
+                style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
-  return Padding(
-  padding: const EdgeInsets.all(4),
-  child: MasonryGridView.count(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    crossAxisCount: 2,
-    mainAxisSpacing: 4,
-    crossAxisSpacing: 4,
-    itemCount: posts.length,
-    itemBuilder: (context, index) {
-      final post = posts[index];
+    // TEXT TAB → show full PostCard like Explore
+    if (_activePostTab == 'text') {
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: posts.length,
+        itemBuilder: (context, index) {
+          final post = posts[index];
 
-      double height;
+          return PostCard(
+            post: post,
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PostDetailScreen(post: post),
+                ),
+              );
+              if (mounted) _loadUserPosts();
+            },
+          );
+        },
+      );
+    }
 
-      if (post.type == 'text') {
-        height = 180;
-      } else if (post.type == 'photo') {
-        height = index.isEven ? 200 : 240;
-      } else if (post.type == 'video') {
-        if (index % 3 == 0) {
-          height = 320;
-        } else {
-          height = 220;
-        }
-      } else {
-        height = 200;
-      }
+    return Padding(
+      padding: const EdgeInsets.all(4),
+      child: MasonryGridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 4,
+        itemCount: posts.length,
+        itemBuilder: (context, index) {
+          final post = posts[index];
 
-      return GestureDetector(
-        onTap: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PostDetailScreen(
-                posts: posts,
-                initialIndex: index,
-                onRepostUndone: _loadUserPosts,
+          double height;
+
+          if (post.type == 'text') {
+            height = 180;
+          } else if (post.type == 'photo') {
+            height = index.isEven ? 200 : 240;
+          } else if (post.type == 'video') {
+            if (index % 3 == 0) {
+              height = 320;
+            } else {
+              height = 220;
+            }
+          } else {
+            height = 200;
+          }
+
+          return GestureDetector(
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PostDetailScreen(
+                    posts: posts,
+                    initialIndex: index,
+                    onRepostUndone: _loadUserPosts,
+                  ),
+                ),
+              );
+              if (mounted) _loadUserPosts();
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                height: height,
+                child: Container(
+                  // Now 'theme' is defined and this line will work perfectly!
+                  color: theme.colorScheme.surfaceContainerHighest, 
+                  child: _PostGridTile(post: post),
+                ),
               ),
             ),
           );
-          if (mounted) _loadUserPosts();
         },
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: SizedBox(
-            height: height,
-            child: Container(
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: _PostGridTile(post: post),
+      ),
+    );
+  }
+
+  Widget _buildPostSubTabs() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Light: wrap in a gradient-border shell (white top → gray bottom),
+    // then blur+cool-tinted fill = real glass gloss.
+    // Dark: plain blur container as before.
+    Widget pill = ClipRRect(
+      borderRadius: BorderRadius.circular(isDark ? 18 : 17),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDark
+                  ? [
+                      Colors.white.withValues(alpha: 0.10),
+                      Colors.white.withValues(alpha: 0.04),
+                    ]
+                  : [
+                      Colors.white.withValues(alpha: 1.0),
+                      const Color(0xFFF0F0FC).withValues(alpha: 0.92),
+                      const Color(0xFFE4E4F4).withValues(alpha: 0.96),
+                    ],
+              stops: isDark ? null : const [0.0, 0.22, 1.0],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(isDark ? 18 : 17),
+            border: isDark
+                ? Border.all(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    width: 0.8,
+                  )
+                : null,
+          ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _PostSubTab(icon: Icons.grid_view_rounded,           value: 'all',    tooltip: 'All',     onTap: () => setState(() => _activePostTab = 'all')),
+                _PostSubTab(icon: Icons.article_outlined,            value: 'text',   tooltip: 'Text',    onTap: () => setState(() => _activePostTab = 'text')),
+                _PostSubTab(icon: Icons.photo_outlined,              value: 'photo',  tooltip: 'Photos',  onTap: () => setState(() => _activePostTab = 'photo')),
+                _PostSubTab(icon: Icons.play_circle_outline_rounded, value: 'video',  tooltip: 'Videos',  onTap: () => setState(() => _activePostTab = 'video')),
+                _PostSubTab(icon: Icons.repeat_rounded,              value: 'repost', tooltip: 'Reposts', onTap: () => setState(() => _activePostTab = 'repost')),
+              ],
             ),
           ),
         ),
       );
-    },
-  ),
-);
-}
 
-  Widget _buildPostSubTabs() {
+    // Light: wrap the pill in a gradient-border shell (bright white → gray)
+    // to create the two-tone gloss edge.
+    if (!isDark) {
+      pill = Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: const LinearGradient(
+            colors: [Colors.white, Color(0xFFAAAEC0)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF7070A0).withValues(alpha: 0.13),
+              blurRadius: 20,
+              spreadRadius: -2,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(1),
+        child: pill,
+      );
+    }
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _PostSubTab(icon: Icons.apps, value: 'all', onTap: () => setState(() => _activePostTab = 'all')),
-          _PostSubTab(icon: Icons.text_fields, value: 'text', onTap: () => setState(() => _activePostTab = 'text')),
-          _PostSubTab(icon: Icons.image_outlined, value: 'photo', onTap: () => setState(() => _activePostTab = 'photo')),
-          _PostSubTab(icon: Icons.videocam_outlined, value: 'video', onTap: () => setState(() => _activePostTab = 'video')),
-          _PostSubTab(icon: Icons.repeat, value: 'repost', onTap: () => setState(() => _activePostTab = 'repost')),
-        ],
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+      child: pill,
     );
   }
 
@@ -1363,31 +1478,179 @@ class _StatButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               count >= 1000 ? '${(count / 1000).toStringAsFixed(1)}k' : '$count',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: Theme.of(context).colorScheme.onSurface,
+                color: scheme.onSurface,
+                letterSpacing: -0.5,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Text(
               label,
               style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 12,
+                color: scheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500,
+                letterSpacing: 0.2,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Profile action button — Share: solid orange gradient, Edit Profile: liquid glass.
+class _ProfileActionButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final bool filled;
+
+  const _ProfileActionButton({
+    required this.label,
+    required this.onTap,
+    this.filled = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const orange = Color(0xFFE8813A);
+    const orangeLight = Color(0xFFFF9D5C);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+
+    if (filled) {
+      // Share button — solid orange gradient
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [orangeLight, orange],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+            boxShadow: [
+              BoxShadow(
+                color: orange.withValues(alpha: 0.35),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: const Text(
+            'Share',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Edit Profile — liquid glass
+    final borderTop = isDark
+        ? Colors.white.withValues(alpha: 0.28)
+        : Colors.white.withValues(alpha: 0.95);
+    final borderBot = isDark
+        ? Colors.white.withValues(alpha: 0.05)
+        : const Color(0xFFCCCCDD).withValues(alpha: 0.90);
+    final highlightTop = isDark
+        ? Colors.white.withValues(alpha: 0.14)
+        : Colors.white.withValues(alpha: 0.88);
+    final baseTint = isDark
+        ? Colors.white.withValues(alpha: 0.05)
+        : const Color(0xFFF0F0F8).withValues(alpha: 0.82);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          gradient: LinearGradient(
+            colors: [borderTop, borderBot],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: isDark
+              ? []
+              : [
+                  BoxShadow(
+                    color: const Color(0xFF8888AA).withValues(alpha: 0.18),
+                    blurRadius: 10,
+                    spreadRadius: -1,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+        ),
+        padding: const EdgeInsets.all(1),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(9),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [highlightTop, baseTint],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    top: -7,
+                    left: 10,
+                    right: 10,
+                    child: Container(
+                      height: 1.0,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.transparent,
+                            Colors.white.withValues(alpha: isDark ? 0.45 : 0.90),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.5, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurface,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

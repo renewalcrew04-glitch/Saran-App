@@ -1,12 +1,14 @@
 /// One quote per day, selected randomly by date (same quote all day).
-String getDailyQuote() {
-  final today = DateTime.now().toIso8601String().substring(0, 10); // YYYY-MM-DD
+String getDailyQuote() => getQuoteForDate(DateTime.now());
+
+/// Returns the deterministic daily quote for any given [date].
+String getQuoteForDate(DateTime date) {
+  final key = date.toIso8601String().substring(0, 10); // YYYY-MM-DD
   int hash = 0;
-  for (int i = 0; i < today.length; i++) {
-    hash = today.codeUnitAt(i) + ((hash << 5) - hash);
+  for (int i = 0; i < key.length; i++) {
+    hash = key.codeUnitAt(i) + ((hash << 5) - hash);
   }
-  final index = hash.abs() % _quotes.length;
-  return _quotes[index];
+  return _quotes[hash.abs() % _quotes.length];
 }
 
 const List<String> _quotes = [

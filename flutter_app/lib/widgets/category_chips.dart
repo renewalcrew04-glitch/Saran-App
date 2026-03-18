@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'glass_box.dart';
 
+/// Horizontal scrollable filter-tab row that delegates to [LiquidGlassChip].
 class CategoryChips extends StatelessWidget {
   final List<String> items;
   final String selected;
@@ -23,29 +25,13 @@ class CategoryChips extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final label = items[index];
-          final bool isSelected = label == selected;
-
-          return GestureDetector(
+          return LiquidGlassChip(
+            label: label,
+            isActive: label == selected,
             onTap: () => onChanged(label),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: isSelected ? Theme.of(context).colorScheme.primary : Colors.white,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.black12),
-              ),
-              child: Center(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-              ),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
           );
         },
       ),

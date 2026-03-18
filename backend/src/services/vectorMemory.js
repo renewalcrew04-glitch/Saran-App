@@ -1,9 +1,12 @@
 import OpenAI from "openai";
 import AIMemory from "../models/AIMemory.model.js";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+let openai = null;
+function getOpenAI() {
+  if (!process.env.OPENAI_API_KEY) return null;
+  if (!openai) openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return openai;
+}
 
 export async function storeMemory(userId, text) {
 
@@ -11,7 +14,10 @@ export async function storeMemory(userId, text) {
 
     if (!text || text.length < 80) return;
 
-    const embed = await openai.embeddings.create({
+    const client = getOpenAI();
+    if (!client) return;
+
+    const embed = await client.embeddings.create({
       model: "text-embedding-3-small",
       input: text
     });
@@ -36,12 +42,16 @@ export async function recallMemories(userId, message) {
 
   try {
 
-    const embed = await openai.embeddings.create({
+    const client = getOpenAI();
+    if (!client) return [];
+
+    const embed = await client.embeddings.create({
       model: "text-embedding-3-small",
       input: message
     });
 
     const queryVector = embed.data[0].embedding;
+
 
     const memories = await AIMemory
       .find({ userId })

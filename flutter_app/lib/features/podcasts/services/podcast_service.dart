@@ -77,6 +77,24 @@ class PodcastService {
     throw Exception('Invalid response when creating podcast');
   }
 
+  /// Update podcast (title, description, etc.). Only creator. Requires auth.
+  Future<PodcastModel> updatePodcast(String podcastId, {String? title, String? description, String? category, String? coverUrl}) async {
+    final body = <String, dynamic>{};
+    if (title != null) body['title'] = title;
+    if (description != null) body['description'] = description;
+    if (category != null) body['category'] = category;
+    if (coverUrl != null) body['coverUrl'] = coverUrl;
+    final res = await ApiClient.put('podcasts/$podcastId', body: body);
+    final data = res['data'];
+    if (data is Map<String, dynamic>) return PodcastModel.fromJson(data);
+    throw Exception('Invalid response when updating podcast');
+  }
+
+  /// Delete a podcast (only if current user is the creator). Requires auth.
+  Future<void> deletePodcast(String podcastId) async {
+    await ApiClient.delete('podcasts/$podcastId');
+  }
+
   /// Create an episode (podcastId, title, audioUrl required).
   Future<EpisodeModel> createEpisode({
     required String podcastId,

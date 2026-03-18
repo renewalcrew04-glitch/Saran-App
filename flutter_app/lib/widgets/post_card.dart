@@ -17,6 +17,7 @@ import '../screens/comments/comments_screen.dart';
 import '../features/settings/services/settings_api.dart';
 import '../screens/post/post_detail_screen.dart';
 import '../utils/hashtag_utils.dart';
+import '../utils/screen_scale.dart';
 import '../widgets/quote_post_embed.dart';
 
 class PostCard extends StatefulWidget {
@@ -32,6 +33,8 @@ class PostCard extends StatefulWidget {
   final bool? initialIsSaved;
   /// Called when user toggles save/unsave (e.g. to refresh saved list).
   final VoidCallback? onSavedChanged;
+  /// Prevents the card from navigating to PostDetailScreen on tap (e.g. when already on detail).
+  final bool disableDefaultNavigation;
 
   const PostCard({
     super.key,
@@ -42,6 +45,7 @@ class PostCard extends StatefulWidget {
     this.onUndoRepostSuccess,
     this.initialIsSaved,
     this.onSavedChanged,
+    this.disableDefaultNavigation = false,
   });
 
   @override
@@ -75,7 +79,7 @@ Widget _buildExpandableText(String text) {
           children: buildTextSpansWithHashtags(
             displayText,
             textColor: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87,
-            hashtagColor: Colors.blue,
+            hashtagColor: const Color(0xFFFF8132),
           ),
         ),
       ),
@@ -91,7 +95,7 @@ Widget _buildExpandableText(String text) {
             child: Text(
               _expanded ? "Show less" : "See more",
               style: const TextStyle(
-                color: Colors.blue,
+                color: Color(0xFFFF8132),
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
@@ -231,29 +235,32 @@ Widget _buildFullWidthMedia(Post post) {
 
   final screenWidth = MediaQuery.of(context).size.width;
 
-  return ClipRRect(
-    borderRadius: const BorderRadius.only(
-      bottomLeft: Radius.circular(12),
-      bottomRight: Radius.circular(12),
+  return ConstrainedBox(
+    constraints: const BoxConstraints(maxHeight: 420),
+    child: ClipRRect(
+      borderRadius: const BorderRadius.only(
+        bottomLeft: Radius.circular(12),
+        bottomRight: Radius.circular(12),
+      ),
+      child: Image.network(
+        url,
+        width: screenWidth,
+        fit: BoxFit.cover,
+        loadingBuilder: (_, child, progress) {
+          if (progress == null) return child;
+          return const SizedBox(
+            height: 250,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        },
+        errorBuilder: (_, __, ___) {
+          return const SizedBox(
+            height: 250,
+            child: Center(child: Icon(Icons.broken_image)),
+          );
+        },
+      ),
     ),
-    child: Image.network(
-    url,
-    width: screenWidth,
-    fit: BoxFit.contain,
-    loadingBuilder: (_, child, progress) {
-      if (progress == null) return child;
-      return const SizedBox(
-        height: 250,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    },
-    errorBuilder: (_, __, ___) {
-      return const SizedBox(
-        height: 250,
-        child: Center(child: Icon(Icons.broken_image)),
-      );
-    },
-  ),
   );
 }
 
@@ -285,22 +292,39 @@ Widget _buildPostMediaCarousel(List<String> mediaUrls) {
     final bool isOwnRepost = isRepost &&
         (context.read<AuthProvider>().user?.uid == post.repostedByUid);
 
-    const horizontalPadding = 12.0;
-
-   const cardRadius = 16.0;
+    final hPad = context.sc(12.0);
+    final cardRadius = context.sc(16.0);
 
    return GestureDetector(
-  onTap: widget.onTap,
+  onTap: widget.onTap ?? (widget.disableDefaultNavigation ? null : () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PostDetailScreen(
+          post: widget.post,
+          onPostDeleted: widget.onPostDeleted,
+          onRepostUndone: widget.onUndoRepostSuccess,
+        ),
+      ),
+    );
+  }),
   child: Container(
-    margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+    margin: EdgeInsets.symmetric(horizontal: context.sc(8), vertical: context.sc(5)),
     decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.surface,
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(cardRadius),
+      border: Border.all(
+        color: Theme.of(context)
+            .colorScheme
+            .outlineVariant
+            .withValues(alpha: 0.35),
+        width: 0.5,
+      ),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.06),
-          blurRadius: 12,
-          offset: const Offset(0, 2),
+          color: Colors.black.withValues(alpha: 0.10),
+          blurRadius: 18,
+          offset: const Offset(0, 3),
         ),
       ],
     ),
@@ -309,17 +333,17 @@ Widget _buildPostMediaCarousel(List<String> mediaUrls) {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(horizontalPadding, 10, horizontalPadding, 0),
+          padding: EdgeInsets.fromLTRB(hPad, context.sc(10), hPad, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _Header(
-                post: post,
-                onPostDeleted: widget.onPostDeleted,
-                onBlockedUser: widget.onBlockedUser,
-                displayPost: isRepost ? embeddedOriginal : null,
-                isOwnRepost: isRepost ? isOwnRepost : null,
-              ),
+  post: post,
+  onPostDeleted: widget.onPostDeleted,
+  onBlockedUser: widget.onBlockedUser,
+  displayPost: isRepost ? embeddedOriginal : null,
+  isOwnRepost: isRepost ? isOwnRepost : null,
+),
 
               /// REPOST TEXT
               if (isRepost) ...[
@@ -340,16 +364,11 @@ Widget _buildPostMediaCarousel(List<String> mediaUrls) {
                 /// NORMAL POST TEXT
                 if (post.text.isNotEmpty || post.hashtags.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  Padding(
-                    padding: post.media.isEmpty
-                        ? const EdgeInsets.only(left: 30)
-                        : EdgeInsets.zero,
-                    child: _buildExpandableText(
-                      combinedPostText(
+                  _buildExpandableText(
+                    combinedPostText(
   text: post.text,
   hashtags: post.hashtags.where((h) => h != post.category).toList(),
 ),
-                    ),
                   ),
                 ],
 
@@ -384,8 +403,12 @@ Widget _buildPostMediaCarousel(List<String> mediaUrls) {
     child: _buildPostMediaCarousel(post.media),
   ),
 ],
-            Padding(
-  padding: const EdgeInsets.fromLTRB(horizontalPadding, 8, horizontalPadding, 10),
+            Divider(
+  height: 1,
+  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+),
+Padding(
+  padding: EdgeInsets.fromLTRB(hPad, context.sc(8), hPad, context.sc(10)),
   child: _Actions(
     post: post,
     likeController: _likeController,
@@ -424,10 +447,9 @@ class _Header extends StatelessWidget {
   final Post post;
   final VoidCallback? onPostDeleted;
   final VoidCallback? onBlockedUser;
-  /// When set (e.g. for reposts), show this post's author/avatar/time instead of [post].
   final Post? displayPost;
-  /// When true, show "You reposted" instead of "X reposted".
   final bool? isOwnRepost;
+
   const _Header({
     required this.post,
     this.onPostDeleted,
@@ -464,24 +486,32 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    // Reposter name: explicit repostedByName, or post's author (uid) when this is a repost
-    final reposterName = post.repostedByName ?? (displayPost != null ? post.userName ?? post.username : null);
-    final showRepostLabel = reposterName != null || isOwnRepost == true;
+    final author = displayPost ?? post;
+    
+    final reposterName = post.repostedByName ??
+        (displayPost != null ? post.userName ?? post.username : null);
+    final showRepostLabel = (post.type == 'repost') && (reposterName != null || isOwnRepost == true);
+    
     final repostLabel = isOwnRepost == true
         ? 'You reposted'
         : (reposterName != null ? '$reposterName reposted' : null);
-    final author = displayPost ?? post;
 
-    // For reposts, show reposter's avatar; for own repost use current user's avatar
     String? avatarToShow = author.userAvatar;
     if (displayPost != null && showRepostLabel) {
       if (isOwnRepost == true) {
-        final currentUser = context.read<AuthProvider>().user;
-        avatarToShow = currentUser?.avatar;
+        avatarToShow = context.read<AuthProvider>().user?.avatar;
       } else {
         avatarToShow = post.repostedByAvatar ?? author.userAvatar;
       }
     }
+
+    // Logic for categories/hashtags list
+    final List<String> categoriesList = [
+      if (post.category != null) post.category!,
+      ...post.hashtags
+          .map((e) => e.replaceAll("#", ""))
+          .where((h) => h.toLowerCase() != (post.category ?? "").toLowerCase()),
+    ].toSet().take(4).toList();
 
     return Row(
       children: [
@@ -499,10 +529,11 @@ class _Header extends StatelessWidget {
                     children: [
                       if (showRepostLabel && repostLabel != null)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.only(bottom: 4),
                           child: Row(
                             children: [
-                              Icon(Icons.repeat_rounded, size: 14, color: scheme.onSurfaceVariant),
+                              Icon(Icons.repeat_rounded,
+                                  size: 14, color: scheme.onSurfaceVariant),
                               const SizedBox(width: 4),
                               Text(
                                 repostLabel,
@@ -515,13 +546,23 @@ class _Header extends StatelessWidget {
                             ],
                           ),
                         ),
+                      Text(
+                        author.userName ?? author.username,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: scheme.onSurface,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
                       Row(
                         children: [
                           Text(
-                            author.userName ?? author.username,
+                            '@${author.username}',
                             style: TextStyle(
-                              color: scheme.onSurface,
-                              fontWeight: FontWeight.w800,
+                              color: scheme.onSurfaceVariant,
+                              fontSize: 12,
                             ),
                           ),
                           const SizedBox(width: 6),
@@ -534,13 +575,6 @@ class _Header extends StatelessWidget {
                           ),
                         ],
                       ),
-                      Text(
-                        '@${author.username}',
-                        style: TextStyle(
-                          color: scheme.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -548,40 +582,40 @@ class _Header extends StatelessWidget {
             ),
           ),
         ),
-
+        // Category chip — centred between author info and the dots button
+        if (categoriesList.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: _CategoryStack(categories: categoriesList),
+          ),
         if (post.edited)
-  Padding(
-    padding: const EdgeInsets.only(left: 6),
-    child: Text(
-      "Edited",
-      style: TextStyle(
-        color: scheme.onSurfaceVariant,
-        fontSize: 11,
-      ),
-    ),
-  ),
-
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              "Edited",
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11),
+            ),
+          ),
         if (post.isPinned)
-  const Padding(
-    padding: EdgeInsets.only(right: 6),
-    child: Icon(Icons.push_pin, color: Colors.amber, size: 18),
-  ),
-
-IconButton(
-  icon: Icon(Icons.more_horiz, color: scheme.onSurface),
-  onPressed: () {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _PostOptions(
-        post: post,
-        displayPost: displayPost,
-        onDeleted: onPostDeleted,
-        onBlockedUser: onBlockedUser,
-      ),
-    );
-  },
-),
+          const Padding(
+            padding: EdgeInsets.only(right: 4),
+            child: Icon(Icons.push_pin, color: Colors.amber, size: 18),
+          ),
+        IconButton(
+          icon: Icon(Icons.more_horiz, color: scheme.onSurface),
+          onPressed: () {
+            showModalBottomSheet(
+              context: context,
+              backgroundColor: Colors.transparent,
+              builder: (_) => _PostOptions(
+                post: post,
+                displayPost: displayPost,
+                onDeleted: onPostDeleted,
+                onBlockedUser: onBlockedUser,
+              ),
+            );
+          },
+        ),
       ],
     );
   }
@@ -635,83 +669,82 @@ class _Actions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isRepostedByMe = _isRepostedByMe(context);
+    final scheme = Theme.of(context).colorScheme;
+    final dimColor = scheme.onSurface.withValues(alpha: 0.55);
 
     return Row(
       children: [
-        Row(
-          children: [
-            _IconAction(
-              icon: _isLiked
-                  ? Icons.favorite_rounded
-                  : Icons.favorite_border_rounded,
-                  iconSize: 22,
-              label: post.hideLikeCount ? "" : _likesCount.toString(),
-              color: _isLiked
-                  ? Colors.red
-                  : Theme.of(context).colorScheme.onSurface,
-              onTap: onLikeTap ?? () => likeController.forward(from: 0.9),
-              scale: likeController,
-            ),
+        // ── Like ────────────────────────────────────────────────────
+        _IconAction(
+          icon: _isLiked
+              ? FontAwesomeIcons.solidHeart
+              : FontAwesomeIcons.heart,
+          iconSize: 19,
+          label: post.hideLikeCount ? '' : _likesCount.toString(),
+          color: _isLiked ? const Color(0xFFFF4757) : dimColor,
+          onTap: onLikeTap ?? () => likeController.forward(from: 0.9),
+          scale: likeController,
+        ),
 
-            const SizedBox(width: 18),
+        const SizedBox(width: 20),
 
-            _IconAction(
-  icon: FontAwesomeIcons.comment,
-  iconSize: 16,
-  label: (commentsCountOverride ?? post.commentsCount).toString(),
-  color: Theme.of(context).colorScheme.onSurface,
-  onTap: onCommentsTap ?? () {},
-),
+        // ── Comment ─────────────────────────────────────────────────
+        _IconAction(
+          icon: FontAwesomeIcons.message,
+          iconSize: 17,
+          label: (commentsCountOverride ?? post.commentsCount).toString(),
+          color: dimColor,
+          onTap: onCommentsTap ?? () {},
+        ),
 
-            const SizedBox(width: 18),
+        const SizedBox(width: 20),
 
-            _IconAction(
-              icon: FontAwesomeIcons.retweet,
-              iconSize: 15,
-              label: (repostsCountOverride ?? post.repostsCount).toString(),
-              color: isRepostedByMe
-                  ? Colors.green
-                  : Theme.of(context).colorScheme.onSurface,
-              onTap: () {
-                RepostBottomSheet.show(
-                  context: context,
-                  alreadyReposted: isRepostedByMe,
-                  onRepost: onRepost ?? () async {},
-                  onUndo: onUndoRepost ?? () async {},
-                  onQuote: () {
-                    context.push('/post-create', extra: post);
-                  },
-                );
+        // ── Repost ───────────────────────────────────────────────────
+        _IconAction(
+          icon: FontAwesomeIcons.retweet,
+          iconSize: 16,
+          label: (repostsCountOverride ?? post.repostsCount).toString(),
+          color: isRepostedByMe ? const Color(0xFF2ED573) : dimColor,
+          onTap: () {
+            RepostBottomSheet.show(
+              context: context,
+              alreadyReposted: isRepostedByMe,
+              onRepost: onRepost ?? () async {},
+              onUndo: onUndoRepost ?? () async {},
+              onQuote: () {
+                context.push('/post-create', extra: post);
               },
-            ),
+            );
+          },
+        ),
 
-            const SizedBox(width: 18),
+        const SizedBox(width: 20),
 
-            _IconAction(
-              icon: FontAwesomeIcons.arrowUpFromBracket,
-              iconSize: 15,
-              label: '',
-              color: Theme.of(context).colorScheme.onSurface,
-              onTap: () {
-                Share.share('https://saran.app/post/${post.id}');
-              },
-            ),
-          ],
+        // ── Share ────────────────────────────────────────────────────
+        _IconAction(
+          icon: FontAwesomeIcons.paperPlane,
+          iconSize: 15,
+          label: '',
+          color: dimColor,
+          onTap: () {
+            SharePlus.instance.share(ShareParams(text: 'https://saran.app/post/${post.id}'));
+          },
         ),
 
         const Spacer(),
-        
+
+        // ── Save (far right) ─────────────────────────────────────────
         _IconAction(
-  icon: (isSavedOverride ?? false)
-      ? FontAwesomeIcons.solidBookmark
-      : FontAwesomeIcons.bookmark,
-  iconSize: 15,
-  label: '',
-  color: (isSavedOverride ?? false)
-      ? Colors.black87
-      : Theme.of(context).colorScheme.onSurface,
-  onTap: onSaveTap ?? () {},
-),
+          icon: (isSavedOverride ?? false)
+              ? FontAwesomeIcons.solidBookmark
+              : FontAwesomeIcons.bookmark,
+          iconSize: 16,
+          label: '',
+          color: (isSavedOverride ?? false)
+              ? const Color(0xFFFF8132)
+              : dimColor,
+          onTap: onSaveTap ?? () {},
+        ),
       ],
     );
   }
@@ -1062,13 +1095,91 @@ class _PostMediaCarouselState extends State<_PostMediaCarousel> {
                 height: 6,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: i == page ? Colors.black54 : Colors.grey.shade400,
+                  color: i == page
+                      ? const Color(0xFFFF8132)
+                      : Theme.of(context).colorScheme.outlineVariant,
                 ),
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+// Flat dark chip colours matching HTML design (.cat-chip styles)
+class _CategoryChipColors {
+  static const Map<String, _ChipColors> _map = {
+    'Wellness':     _ChipColors(bg: Color(0xFF0C2A3A), text: Color(0xFF38BDF8)),
+    'Career':       _ChipColors(bg: Color(0xFF1C1400), text: Color(0xFFF59E0B)),
+    'Lifestyle':    _ChipColors(bg: Color(0xFF150D26), text: Color(0xFFA78BFA)),
+    'Motherhood':   _ChipColors(bg: Color(0xFF2A0A14), text: Color(0xFFF472B6)),
+    'Relationships':_ChipColors(bg: Color(0xFF2A0A14), text: Color(0xFFFB7185)),
+    'Creativity':   _ChipColors(bg: Color(0xFF120A26), text: Color(0xFFC084FC)),
+    'Travel':       _ChipColors(bg: Color(0xFF062014), text: Color(0xFF34D399)),
+    'Inspiration':  _ChipColors(bg: Color(0xFF230A10), text: Color(0xFFF87171)),
+    'Beauty':       _ChipColors(bg: Color(0xFF2A0A20), text: Color(0xFFF472B6)),
+    'Fitness':      _ChipColors(bg: Color(0xFF062014), text: Color(0xFF4ADE80)),
+    'Food':         _ChipColors(bg: Color(0xFF1C0E00), text: Color(0xFFFB923C)),
+    'Fashion':      _ChipColors(bg: Color(0xFF230A10), text: Color(0xFFE879F9)),
+    'Education':    _ChipColors(bg: Color(0xFF0A1220), text: Color(0xFF60A5FA)),
+  };
+  static const _ChipColors _fallback =
+      _ChipColors(bg: Color(0xFF111827), text: Color(0xFF94A3B8));
+
+  static _ChipColors of(String cat) => _map[cat] ?? _fallback;
+}
+
+class _ChipColors {
+  final Color bg;
+  final Color text;
+  const _ChipColors({required this.bg, required this.text});
+}
+
+class _CategoryStack extends StatelessWidget {
+  final List<String> categories;
+
+  const _CategoryStack({required this.categories});
+
+  @override
+  Widget build(BuildContext context) {
+    if (categories.isEmpty) return const SizedBox.shrink();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mainCategory = categories.first;
+    final chip = _CategoryChipColors.of(mainCategory);
+
+    // Dark mode: original dark bg + vivid text (design system)
+    // Light mode: vivid text color as a thin tint bg — looks great on white
+    final bgColor = isDark
+        ? chip.bg
+        : chip.text.withValues(alpha: 0.12);
+    final textColor = isDark
+        ? chip.text
+        : chip.text.withValues(alpha: 1.0);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: isDark
+            ? null
+            : Border.all(
+                color: chip.text.withValues(alpha: 0.28),
+                width: 0.5,
+              ),
+      ),
+      child: Text(
+        mainCategory,
+        style: TextStyle(
+          color: textColor,
+          fontWeight: FontWeight.w700,
+          fontSize: 11,
+          letterSpacing: 0.3,
+        ),
+      ),
     );
   }
 }
@@ -1102,12 +1213,13 @@ final labelColor =
     return GestureDetector(
       onTap: onTap,
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           scale != null
               ? ScaleTransition(scale: scale!, child: iconWidget)
               : iconWidget,
           if (label.isNotEmpty) ...[
-            const SizedBox(width: 6),
+            const SizedBox(width: 5),
             Text(
               label,
               style: TextStyle(color: labelColor, fontSize: 12),

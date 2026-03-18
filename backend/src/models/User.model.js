@@ -55,6 +55,16 @@ selfieImage: {
   default: null
 },
 
+mobile: {
+  type: String,
+  default: null,
+},
+
+termsAccepted: {
+  type: Boolean,
+  default: false,
+},
+
     avatar: {
       type: String,
       default: null,

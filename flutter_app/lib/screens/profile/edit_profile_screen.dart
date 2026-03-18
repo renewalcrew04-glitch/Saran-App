@@ -1,13 +1,25 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 
+import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/upload_service.dart';
 import '../../services/profile_update_service.dart';
 import '../../utils/media_utils.dart';
+
+// Brand orange (used for primary actions and accents)
+const _kOrange = Color(0xFFFF6B35);
+const _kPurple = Color(0xFF7B2D8B);
+
+const _kInterests = [
+  'Wellness', 'Fitness', 'Career', 'Travel', 'Books',
+  'Music',    'Art',     'Food',   'Tech',   'Fashion',
+  'Mental Health', 'Yoga',
+];
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -17,92 +29,87 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  final ImagePicker _picker = ImagePicker();
-  final UploadService _uploadService = UploadService();
-  final ProfileUpdateService _profileUpdateService = ProfileUpdateService();
+  final _picker          = ImagePicker();
+  final _uploadService   = UploadService();
+  final _profileService  = ProfileUpdateService();
 
-  final TextEditingController _nameCtrl = TextEditingController();
-  final TextEditingController _bioCtrl = TextEditingController();
-  final TextEditingController _websiteCtrl = TextEditingController();
-  final TextEditingController _locationCtrl = TextEditingController();
+  final _nameCtrl     = TextEditingController();
+  final _usernameCtrl = TextEditingController();
+  final _bioCtrl      = TextEditingController();
+  final _locationCtrl = TextEditingController();
+  final _websiteCtrl  = TextEditingController();
+  final _phoneCtrl    = TextEditingController();
 
   File? _localAvatar;
   File? _localCover;
 
-  bool _saving = false;
   bool _uploadingAvatar = false;
-  bool _uploadingCover = false;
+  bool _uploadingCover  = false;
+  bool _saving          = false;
+  bool _isPrivate       = false;
+
+  final Set<String> _selectedInterests = {};
 
   @override
   void initState() {
     super.initState();
-
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final user = auth.user;
-
-    _nameCtrl.text = user?.name ?? '';
-    _bioCtrl.text = user?.bio ?? '';
-    _websiteCtrl.text = ''; // add in model later if needed
+    final user = context.read<AuthProvider>().user;
+    _nameCtrl.text     = user?.name ?? '';
+    _usernameCtrl.text = user?.username ?? '';
+    _bioCtrl.text      = user?.bio ?? '';
     _locationCtrl.text = user?.location ?? '';
+    _websiteCtrl.text  = user?.website ?? '';
+    _phoneCtrl.text    = user?.phone ?? '';
+    _isPrivate         = user?.isPrivate ?? false;
+    _selectedInterests.addAll(user?.interests ?? []);
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _usernameCtrl.dispose();
     _bioCtrl.dispose();
-    _websiteCtrl.dispose();
     _locationCtrl.dispose();
+    _websiteCtrl.dispose();
+    _phoneCtrl.dispose();
     super.dispose();
   }
 
+  // ── Image pickers ─────────────────────────────────────────────────────────
+
   Future<void> _pickAvatar() async {
-    final messenger = ScaffoldMessenger.of(context);
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+    setState(() {
+      _localAvatar     = File(picked.path);
+      _uploadingAvatar = true;
+    });
     try {
-      final auth = Provider.of<AuthProvider>(context, listen: false);
-      final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);
-      if (picked == null) return;
-
-      setState(() {
-        _localAvatar = File(picked.path);
-        _uploadingAvatar = true;
-      });
-
-      final url = await _uploadService.uploadMedia(picked.path);
+      final auth = context.read<AuthProvider>();
+      final url  = await _uploadService.uploadMedia(picked.path);
       if (!mounted) return;
-      await _profileUpdateService.updateAvatar(url, currentUserUid: auth.user?.uid);
+      await _profileService.updateAvatar(url, currentUserUid: auth.user?.uid);
       if (!mounted) return;
       await auth.loadUser();
-
-      setState(() => _uploadingAvatar = false);
-
-      messenger.showSnackBar(
-        const SnackBar(content: Text("Avatar updated")),
-      );
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _uploadingAvatar = false);
-
-      messenger.showSnackBar(
-        SnackBar(content: Text(_shortPhotoError(e))),
-      );
+      if (mounted) _showErr(e);
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
     }
   }
 
   Future<void> _pickCover() async {
-    final messenger = ScaffoldMessenger.of(context);
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+    setState(() {
+      _localCover     = File(picked.path);
+      _uploadingCover = true;
+    });
     try {
-      final auth = Provider.of<AuthProvider>(context, listen: false);
-      final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);
-      if (picked == null) return;
-
-      setState(() {
-        _localCover = File(picked.path);
-        _uploadingCover = true;
-      });
-
-      final url = await _uploadService.uploadMedia(picked.path);
+      final auth = context.read<AuthProvider>();
+      final url  = await _uploadService.uploadMedia(picked.path);
       if (!mounted) return;
-      final res = await _profileUpdateService.updateCover(url, currentUserUid: auth.user?.uid);
+      final res     = await _profileService.updateCover(url, currentUserUid: auth.user?.uid);
       if (!mounted) return;
       final userMap = res?['user'];
       if (userMap is Map<String, dynamic>) {
@@ -110,389 +117,621 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       } else {
         await auth.loadUser();
       }
-
-      setState(() => _uploadingCover = false);
-
-      messenger.showSnackBar(
-        const SnackBar(content: Text("Cover updated")),
-      );
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _uploadingCover = false);
-
-      messenger.showSnackBar(
-        SnackBar(content: Text(_shortPhotoError(e))),
-      );
+      if (mounted) _showErr(e);
+    } finally {
+      if (mounted) setState(() => _uploadingCover = false);
     }
   }
 
-  static String _shortPhotoError(Object e) {
-    if (e is DioException) {
-      final data = e.response?.data;
-      final serverMsg = data is Map && data['message'] is String ? (data['message'] as String).trim() : null;
-      if (serverMsg != null && serverMsg.isNotEmpty) return serverMsg;
-      final code = e.response?.statusCode;
-      if (code == 500) return 'Server error. Try again later.';
-      if (code == 400) return 'Invalid request. Try a different photo.';
-      if (e.type == DioExceptionType.connectionError ||
-          e.type == DioExceptionType.connectionTimeout) {
-        return 'No connection. Check network and try again.';
-      }
-    }
-    final s = e.toString().replaceFirst('Exception: ', '');
-    return s.isNotEmpty ? s : 'Update failed. Try again.';
-  }
+  // ── Save ──────────────────────────────────────────────────────────────────
 
   Future<void> _save() async {
     if (_saving) return;
-
     setState(() => _saving = true);
-
     try {
-      final auth = Provider.of<AuthProvider>(context, listen: false);
-      final res = await _profileUpdateService.updateProfile(
-        name: _nameCtrl.text.trim(),
-        bio: _bioCtrl.text.trim(),
-        location: _locationCtrl.text.trim(),
+      final auth = context.read<AuthProvider>();
+      final res  = await _profileService.updateProfile(
+        name:      _nameCtrl.text.trim(),
+        bio:       _bioCtrl.text.trim(),
+        location:  _locationCtrl.text.trim(),
+        isPrivate: _isPrivate,
+        website:   _websiteCtrl.text.trim().isEmpty ? null : _websiteCtrl.text.trim(),
+        phone:     _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+        interests: _selectedInterests.toList(),
         currentUserUid: auth.user?.uid,
       );
-
       if (!mounted) return;
+      final current = auth.user;
+      if (current != null) {
+        final websiteVal = _websiteCtrl.text.trim();
+        auth.updateCurrentUser(current.copyWith(
+          name: _nameCtrl.text.trim(),
+          bio: _bioCtrl.text.trim(),
+          location: _locationCtrl.text.trim(),
+          isPrivate: _isPrivate,
+          website: websiteVal.isEmpty ? null : websiteVal,
+          clearWebsite: websiteVal.isEmpty,
+          phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+          interests: _selectedInterests.toList(),
+        ));
+      }
       final userMap = res?['user'];
       if (userMap is Map<String, dynamic>) {
-        auth.updateUserFromMap(userMap);
-      } else {
-        await auth.loadUser();
+        final fromServer = auth.user;
+        final serverUser = _mergeServerResponse(userMap, fromServer);
+        if (serverUser != null) auth.updateCurrentUser(serverUser);
       }
-
       if (!mounted) return;
       Navigator.pop(context);
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Profile saved")),
+        const SnackBar(content: Text('Profile saved')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Save failed: $e")),
+        SnackBar(content: Text('Save failed: $e')),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
+  User? _mergeServerResponse(Map<String, dynamic> map, User? current) {
+    try {
+      final fromServer = User.fromJson(map);
+      if (current == null) return fromServer;
+      return fromServer.copyWith(
+        interests: fromServer.interests.isNotEmpty
+            ? fromServer.interests
+            : current.interests,
+        website: fromServer.website ?? current.website,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _showErr(Object e) {
+    String msg = 'Upload failed';
+    if (e is DioException) {
+      final d = e.response?.data;
+      final s = d is Map && d['message'] is String ? (d['message'] as String).trim() : null;
+      if (s != null && s.isNotEmpty) msg = s;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final auth = Provider.of<AuthProvider>(context);
-    final user = auth.user;
+    final user = context.watch<AuthProvider>().user;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: scheme.onSurface),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          "Edit Profile",
-          style: TextStyle(
-            color: scheme.onSurface,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 140),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // COVER
-                Container(
-                  height: 140,
-                  width: double.infinity,
-                  color: scheme.surfaceContainerHighest,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: _localCover != null
-                            ? Image.file(_localCover!, fit: BoxFit.cover)
-                            : (user?.coverImage != null
-                                ? Image.network(user!.coverImage!, fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.image, color: Colors.grey)))
-                                : const SizedBox.shrink()),
-                      ),
-                      Positioned(
-                        right: 12,
-                        bottom: 12,
-                        child: InkWell(
-                          onTap: _uploadingCover ? null : _pickCover,
-                          borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: scheme.primary,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: _uploadingCover
-                                ? SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: scheme.onPrimary,
-                                    ),
-                                  )
-                                : Icon(Icons.camera_alt, size: 18, color: scheme.onPrimary),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // AVATAR
-                Transform.translate(
-  offset: const Offset(0, -40),
-  child: Center(
-    child: SizedBox(
-      width: 88,
-      height: 88,
-      child: Stack(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: scheme.surface, width: 3),
+      backgroundColor: scheme.surface,
+      appBar: _buildAppBar(scheme),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 40),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildCover(user, scheme),
+            Transform.translate(
+              offset: const Offset(0, -36),
+              child: Center(child: _buildAvatar(user, scheme)),
             ),
-            child: ClipOval(
-              child: SizedBox(
-                width: 88,
-                height: 88,
-                child: _localAvatar != null
-                    ? Image.file(_localAvatar!, fit: BoxFit.cover)
-                    : (user?.avatar != null && user!.avatar!.isNotEmpty)
-                        ? safeAvatarNetworkImage(url: user.avatar, size: 88)
-                        : CircleAvatar(
-                            radius: 44,
-                            backgroundColor: scheme.surfaceContainerHighest,
-                            child: Text(
-                              user?.name.isNotEmpty == true
-                                  ? user!.name[0].toUpperCase()
-                                  : "U",
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: scheme.onSurface,
-                              ),
-                            ),
-                          ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _label('DISPLAY NAME', scheme),
+                  _input(_nameCtrl, 'Your display name', scheme),
+                  const SizedBox(height: 14),
+
+                  _label('USERNAME', scheme),
+                  _input(
+                    _usernameCtrl,
+                    'username',
+                    scheme,
+                    prefix: Padding(
+                      padding: const EdgeInsets.only(left: 14, right: 4),
+                      child: Text('@',
+                          style: TextStyle(
+                              color: scheme.onSurfaceVariant, fontSize: 15)),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  _label('BIO', scheme),
+                  _input(_bioCtrl, 'Write something about you…', scheme,
+                      maxLines: 4, maxLength: 100),
+                  const SizedBox(height: 14),
+
+                  _label('LOCATION', scheme),
+                  _input(_locationCtrl, 'City, Country', scheme,
+                      prefixIcon: Icons.location_on_outlined),
+                  const SizedBox(height: 14),
+
+                  _label('WEBSITE', scheme),
+                  _input(_websiteCtrl, 'Add website link', scheme,
+                      prefixIcon: Icons.link),
+                  const SizedBox(height: 14),
+
+                  _label('MOBILE NUMBER', scheme),
+                  _input(_phoneCtrl, 'Add mobile number', scheme,
+                      prefixIcon: Icons.phone_outlined,
+                      keyboardType: TextInputType.phone),
+                  const SizedBox(height: 20),
+
+                  _label('INTERESTS', scheme),
+                  const SizedBox(height: 10),
+                  _buildInterests(scheme),
+                  const SizedBox(height: 24),
+
+                  _buildPrivateToggle(scheme),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── AppBar ────────────────────────────────────────────────────────────────
+
+  PreferredSizeWidget _buildAppBar(ColorScheme scheme) {
+    return AppBar(
+      backgroundColor: scheme.surface,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      leadingWidth: 56,
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 12),
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: scheme.outline.withValues(alpha: 0.4)),
+                ),
+                child: Icon(Icons.chevron_left,
+                    color: scheme.onSurface, size: 22),
               ),
             ),
           ),
-          Positioned(
-            right: -2,
-            bottom: -2,
-            child: InkWell(
-              onTap: _uploadingAvatar ? null : _pickAvatar,
-              borderRadius: BorderRadius.circular(30),
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: scheme.primary,
-                  borderRadius: BorderRadius.circular(30),
+        ),
+      ),
+      title: Text(
+        'Edit Profile',
+        style: TextStyle(
+          color: scheme.onSurface,
+          fontWeight: FontWeight.w700,
+          fontSize: 18,
+        ),
+      ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 14),
+          child: GestureDetector(
+            onTap: _saving ? null : _save,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [_kOrange, _kPurple],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.20)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _kOrange.withValues(alpha: 0.30),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Save',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
                 ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Cover image ───────────────────────────────────────────────────────────
+
+  Widget _buildCover(dynamic user, ColorScheme scheme) {
+    final coverUrl = user?.coverImage != null &&
+            (user!.coverImage as String).isNotEmpty
+        ? user.coverImage as String
+        : null;
+
+    return GestureDetector(
+      onTap: _uploadingCover ? null : _pickCover,
+      child: Container(
+        height: 140,
+        width: double.infinity,
+        color: scheme.surfaceContainerHighest,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (_localCover != null)
+              Image.file(_localCover!, fit: BoxFit.cover)
+            else if (coverUrl != null)
+              safeNetworkImage(url: coverUrl, fit: BoxFit.cover)
+            else
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_photo_alternate_outlined,
+                      size: 36, color: scheme.onSurfaceVariant),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Add cover photo',
+                    style: TextStyle(
+                        color: scheme.onSurfaceVariant, fontSize: 13),
+                  ),
+                ],
+              ),
+            if (_uploadingCover)
+              Container(
+                color: Colors.black54,
+                child: Center(
+                  child:
+                      CircularProgressIndicator(color: scheme.primary),
+                ),
+              ),
+            if (_localCover != null || coverUrl != null)
+              Positioned(
+                right: 10,
+                bottom: 10,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color:
+                                Colors.white.withValues(alpha: 0.25)),
+                      ),
+                      child: const Icon(Icons.camera_alt,
+                          size: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Avatar ────────────────────────────────────────────────────────────────
+
+  Widget _buildAvatar(dynamic user, ColorScheme scheme) {
+    return GestureDetector(
+      onTap: _uploadingAvatar ? null : _pickAvatar,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 90,
+            height: 90,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: SweepGradient(
+                colors: [
+                  Color(0xFF9B59B6),
+                  _kOrange,
+                  Color(0xFFFFD700),
+                  Color(0xFF9B59B6),
+                ],
+              ),
+            ),
+            padding: const EdgeInsets.all(3),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: scheme.surface,
+              ),
+              child: ClipOval(
                 child: _uploadingAvatar
-                    ? SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: scheme.onPrimary,
+                    ? Container(
+                        color: scheme.surfaceContainerHighest,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: scheme.primary),
                         ),
                       )
-                    : Icon(Icons.camera_alt,
-                        size: 14, color: scheme.onPrimary),
+                    : _localAvatar != null
+                        ? Image.file(_localAvatar!, fit: BoxFit.cover)
+                        : (user?.avatar != null &&
+                                (user!.avatar as String).isNotEmpty)
+                            ? safeAvatarNetworkImage(
+                                url: user.avatar as String,
+                                size: 84,
+                                backgroundColor:
+                                    scheme.surfaceContainerHighest,
+                              )
+                            : Container(
+                                color: const Color(0xFF7C3AED),
+                                child: Center(
+                                  child: Text(
+                                    user?.name?.isNotEmpty == true
+                                        ? (user!.name as String)[0]
+                                            .toUpperCase()
+                                        : 'U',
+                                    style: const TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+              ),
+            ),
+          ),
+          // Camera badge — glass style
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(13),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [_kOrange, _kPurple],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: scheme.surface, width: 2),
+                  ),
+                  child: const Icon(Icons.camera_alt,
+                      size: 13, color: Colors.white),
+                ),
               ),
             ),
           ),
         ],
       ),
-    ),
-  ),
-),
-            
-                const SizedBox(height: 18),
+    );
+  }
 
-                // FORM
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: [
-                      _Field(
-                        label: "Name",
-                        child: TextField(
-                          controller: _nameCtrl,
-                          decoration: _inputDecoration("Your name", scheme),
-                        ),
-                      ),
-                      _Field(
-                        label: "Website",
-                        child: TextField(
-                          controller: _websiteCtrl,
-                          decoration: _inputDecoration("https://yourwebsite.com", scheme),
-                        ),
-                      ),
-                      _Field(
-                        label: "Bio",
-                        child: Column(
-                          children: [
-                            TextField(
-  controller: _bioCtrl,
-  maxLines: 4,
-  maxLength: 100,
-  onChanged: (_) => setState(() {}),
-                          decoration: _inputDecoration("Write something about you", scheme).copyWith(
-    counterText: "",
-  ),
-),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                "${_bioCtrl.text.length}/100",
-                                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      _Field(
-                        label: "Location",
-                        child: TextField(
-                          controller: _locationCtrl,
-                          decoration: _inputDecoration("City", scheme),
-                        ),
-                      ),
-                    ],
+  // ── Field label ───────────────────────────────────────────────────────────
+
+  Widget _label(String text, ColorScheme scheme) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: scheme.onSurfaceVariant,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+
+  // ── Input field ───────────────────────────────────────────────────────────
+
+  Widget _input(
+    TextEditingController ctrl,
+    String hint,
+    ColorScheme scheme, {
+    int maxLines = 1,
+    int? maxLength,
+    Widget? prefix,
+    IconData? prefixIcon,
+    TextInputType? keyboardType,
+  }) {
+    return TextField(
+      controller: ctrl,
+      maxLines: maxLines,
+      maxLength: maxLength,
+      keyboardType: keyboardType,
+      onChanged: maxLength != null ? (_) => setState(() {}) : null,
+      style: TextStyle(color: scheme.onSurface, fontSize: 14),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle:
+            TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
+        counterText:
+            maxLength != null ? '${ctrl.text.length}/$maxLength' : null,
+        counterStyle:
+            TextStyle(color: scheme.onSurfaceVariant, fontSize: 11),
+        filled: true,
+        fillColor: scheme.surfaceContainerHighest,
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: prefixIcon != null || prefix != null ? 0 : 14,
+          vertical: maxLines > 1 ? 14 : 0,
+        ),
+        prefixIcon: prefix != null
+            ? prefix
+            : prefixIcon != null
+                ? Icon(prefixIcon,
+                    color: scheme.onSurfaceVariant, size: 18)
+                : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(
+              color: scheme.outline.withValues(alpha: 0.4)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _kOrange, width: 1.5),
+        ),
+      ),
+    );
+  }
+
+  // ── Interests ─────────────────────────────────────────────────────────────
+
+  Widget _buildInterests(ColorScheme scheme) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _kInterests.map((tag) {
+        final selected = _selectedInterests.contains(tag);
+        return GestureDetector(
+          onTap: () => setState(() {
+            if (selected) {
+              _selectedInterests.remove(tag);
+            } else {
+              _selectedInterests.add(tag);
+            }
+          }),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  gradient: selected
+                      ? const LinearGradient(
+                          colors: [_kOrange, _kPurple],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  color: selected ? null : scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: selected
+                        ? Colors.white.withValues(alpha: 0.25)
+                        : scheme.outline.withValues(alpha: 0.5),
+                    width: 1,
                   ),
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: _kOrange.withValues(alpha: 0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          )
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  tag,
+                  style: TextStyle(
+                    color: selected
+                        ? Colors.white
+                        : scheme.onSurfaceVariant,
+                    fontSize: 13,
+                    fontWeight: selected
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // ── Private toggle ────────────────────────────────────────────────────────
+
+  Widget _buildPrivateToggle(ColorScheme scheme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+        border:
+            Border.all(color: scheme.outline.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.lock_outline,
+              color: scheme.onSurfaceVariant, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Private account',
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Only followers can see your posts',
+                  style: TextStyle(
+                      color: scheme.onSurfaceVariant, fontSize: 12),
                 ),
               ],
             ),
           ),
-
-          // SAVE BUTTON
-          Positioned(
-            left: 80,
-            right: 80,
-            bottom: 10 + MediaQuery.of(context).padding.bottom,
-            child: SizedBox(
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _saving ? null : _save,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: scheme.primary,
-                  foregroundColor: scheme.onPrimary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                ),
-                child: _saving
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: scheme.onPrimary,
-                        ),
-                      )
-                    : Text(
-                        "Save changes",
-                        style: TextStyle(
-                          color: scheme.onPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
-            ),
+          Switch(
+            value: _isPrivate,
+            onChanged: (v) => setState(() => _isPrivate = v),
+            activeColor: _kOrange,
           ),
-          if (_uploadingAvatar || _uploadingCover)
-            Positioned.fill(
-              child: Container(
-                color: scheme.surface.withValues(alpha: 0.7),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: scheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Uploading photo…',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: scheme.onSurface,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint, ColorScheme scheme) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(color: scheme.onSurfaceVariant),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: scheme.outline),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: scheme.outline),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: scheme.primary),
-      ),
-    );
-  }
-}
-
-class _Field extends StatelessWidget {
-  final String label;
-  final Widget child;
-
-  const _Field({required this.label, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-          const SizedBox(height: 6),
-          child,
         ],
       ),
     );

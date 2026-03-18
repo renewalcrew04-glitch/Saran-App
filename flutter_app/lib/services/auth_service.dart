@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
@@ -62,6 +65,55 @@ class AuthService {
     return Map<String, dynamic>.from(response.data);
   }
 
+  /// 🔹 SEND EMAIL OTP — called right after collecting email on signup page 2
+  Future<Map<String, dynamic>> sendEmailOtp(String email) async {
+    final response = await _dio.post(
+      '${ApiConfig.auth}/send-otp',
+      data: {'email': email.trim().toLowerCase()},
+    );
+    return Map<String, dynamic>.from(response.data);
+  }
+
+  /// 🔹 VERIFY EMAIL OTP — user submits the 6-digit code
+  Future<Map<String, dynamic>> verifyEmailOtp(String email, String otp) async {
+    final response = await _dio.post(
+      '${ApiConfig.auth}/verify-otp',
+      data: {
+        'email': email.trim().toLowerCase(),
+        'otp': otp.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(response.data);
+  }
+
+  /// Check if email is already registered
+  Future<Map<String, dynamic>> checkEmailAvailability(String email) async {
+    final raw = email.trim().toLowerCase();
+    if (raw.isEmpty) {
+      return {'available': false, 'message': 'Email is required'};
+    }
+    try {
+      final response = await _dio.get(
+        '${ApiConfig.auth}/email/check',
+        queryParameters: {'email': raw},
+      );
+      return Map<String, dynamic>.from(response.data);
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      final data = e.response?.data;
+      final msg = data is Map ? data['message'] : null;
+      // 409 = already registered
+      if (status == 409) {
+        return {'available': false, 'message': msg?.toString() ?? 'Email is already registered'};
+      }
+      // 404 = endpoint not found (backend doesn't support it yet — treat as available)
+      if (status == 404) {
+        return {'available': true, 'message': ''};
+      }
+      return {'available': true, 'message': ''};
+    }
+  }
+
   /// Check if username is available
   Future<Map<String, dynamic>> checkUsernameAvailability(String username) async {
     final raw = username.trim().toLowerCase();
@@ -80,7 +132,7 @@ class AuthService {
       final msg = data is Map ? data['message'] : null;
       String fallback = 'Could not check username.';
       if (status == 404) {
-        fallback = 'Server doesn’t support username check. Restart the backend or try again.';
+        fallback = 'Server doesn\u2019t support username check. Restart the backend or try again.';
       } else if (e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.connectionTimeout) {
         fallback = 'No connection. Check network and try again.';
@@ -104,7 +156,6 @@ class AuthService {
       );
       final data = response.data;
       if (data is! Map) return [];
-      // Backend can return { suggestions: [...] } or { data: { suggestions: [...] } }
       List<dynamic>? list = data['suggestions'] is List ? data['suggestions'] as List<dynamic> : null;
       if (list == null && data['data'] is Map) {
         final inner = data['data'] as Map;
@@ -117,7 +168,7 @@ class AuthService {
     }
   }
 
-  /// 🔹 REGISTER
+  /// 🔹 REGISTER — selfie sent as base64, emailToken proves OTP was verified
   Future<Map<String, dynamic>> register(
     String username,
     String email,
@@ -125,8 +176,20 @@ class AuthService {
     String name,
     String gender,
     String dob,
-    String selfieImage,
-  ) async {
+    String selfiePath, {
+    String? emailToken,
+  }) async {
+    // Convert selfie file to base64 so the backend can store it properly
+    String selfieBase64 = '';
+    if (selfiePath.isNotEmpty) {
+      try {
+        final bytes = await File(selfiePath).readAsBytes();
+        selfieBase64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      } catch (_) {
+        // if conversion fails, send empty string — backend will handle gracefully
+      }
+    }
+
     final response = await _dio.post(
       '${ApiConfig.auth}/register',
       data: {
@@ -136,7 +199,9 @@ class AuthService {
         'name': name,
         'gender': gender,
         'dob': dob,
-        'selfieImage': selfieImage,
+        'selfieImage': selfieBase64,
+        'emailToken': emailToken ?? '',
+        'termsAccepted': true,
       },
     );
 

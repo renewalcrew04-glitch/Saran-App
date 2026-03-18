@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import 'verification_pending_screen.dart';
 
 class VerificationProcessingScreen extends StatefulWidget {
@@ -16,19 +18,41 @@ class _VerificationProcessingScreenState
   @override
   void initState() {
     super.initState();
-
-    _startVerification();
+    _checkVerificationStatus();
   }
 
-  Future<void> _startVerification() async {
-    await Future.delayed(const Duration(seconds: 3));
+  Future<void> _checkVerificationStatus() async {
+    // Poll the backend up to 5 times (every 2 seconds) waiting for verification
+    const maxAttempts = 5;
+    const delay = Duration(seconds: 2);
 
-    bool approved = DateTime.now().millisecondsSinceEpoch % 5 != 0;
+    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      await Future.delayed(delay);
+      if (!mounted) return;
 
+      try {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        await authProvider.loadUser();
+
+        if (!mounted) return;
+
+        final user = authProvider.user;
+        if (user != null && user.verified) {
+          Navigator.pushReplacementNamed(context, '/home');
+          return;
+        }
+      } catch (_) {
+        // continue polling
+      }
+    }
+
+    // After all attempts, check final status
     if (!mounted) return;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
 
-    if (approved) {
-      Navigator.pushReplacementNamed(context, "/home");
+    if (user != null && user.verified) {
+      Navigator.pushReplacementNamed(context, '/home');
     } else {
       Navigator.pushReplacement(
         context,
@@ -49,12 +73,12 @@ class _VerificationProcessingScreenState
             CircularProgressIndicator(),
             SizedBox(height: 30),
             Text(
-              "Analyzing your selfie...",
+              "Verifying your identity...",
               style: TextStyle(fontSize: 20),
             ),
             SizedBox(height: 10),
             Text("Face detection"),
-            Text("Authenticity verification"),
+            Text("Authenticity check"),
             Text("Identity validation"),
           ],
         ),

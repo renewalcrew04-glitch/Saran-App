@@ -9,6 +9,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import 'config/api_config.dart';
 import 'routes/app_router.dart';
+import 'services/local_notification_service.dart';
 
 // Providers
 import 'providers/auth_provider.dart';
@@ -25,6 +26,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   ApiConfig.init();
+  await LocalNotificationService.init();
 
   runApp(
     const riverpod.ProviderScope(

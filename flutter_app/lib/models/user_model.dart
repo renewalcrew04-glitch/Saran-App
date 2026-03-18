@@ -21,6 +21,9 @@ class User {
   final int followingCount;
   final int postsCount;
   final int wellnessStreak;
+  final String? website;
+  final String? phone;
+  final List<String> interests;
   /// When loading from suggestions/search/profile API: am I following this user (accepted)?
   final bool? isFollowing;
   /// When loading from suggestions/search/profile API: do I have a pending follow request to this user?
@@ -45,6 +48,9 @@ class User {
     this.followingCount = 0,
     this.postsCount = 0,
     this.wellnessStreak = 0,
+    this.website,
+    this.phone,
+    this.interests = const <String>[],
     this.isFollowing,
     this.isFollowPending,
   });
@@ -79,8 +85,58 @@ class User {
       followingCount: (json['followingCount'] ?? 0) as int,
       postsCount: (json['postsCount'] ?? 0) as int,
       wellnessStreak: (json['wellnessStreak'] ?? 0) as int,
+      website: json['website']?.toString(),
+      phone: json['phone']?.toString(),
+      interests: json['interests'] != null
+          ? List<String>.from(
+              (json['interests'] as List).map((e) => e.toString()))
+          : <String>[],
       isFollowing: json['isFollowing'] as bool?,
       isFollowPending: json['isFollowPending'] as bool?,
+    );
+  }
+
+  /// Returns a copy of this user with the given fields replaced.
+  /// Pass [clearWebsite] = true to explicitly set website to null.
+  User copyWith({
+    String? name,
+    String? bio,
+    String? location,
+    bool? isPrivate,
+    String? website,
+    bool clearWebsite = false,
+    String? phone,
+    List<String>? interests,
+    String? avatar,
+    String? coverImage,
+    int? followersCount,
+    int? followingCount,
+    int? postsCount,
+  }) {
+    return User(
+      uid: uid,
+      username: username,
+      email: email,
+      name: name ?? this.name,
+      avatar: avatar ?? this.avatar,
+      bio: bio ?? this.bio,
+      location: location ?? this.location,
+      coverImage: coverImage ?? this.coverImage,
+      isPrivate: isPrivate ?? this.isPrivate,
+      profileCompleted: profileCompleted,
+      gender: gender,
+      dob: dob,
+      selfieImage: selfieImage,
+      verified: verified,
+      followersCount: followersCount ?? this.followersCount,
+      followingCount: followingCount ?? this.followingCount,
+      postsCount: postsCount ?? this.postsCount,
+      wellnessStreak: wellnessStreak,
+      website: clearWebsite ? null : (website ?? this.website),
+      phone: phone ?? this.phone,
+      interests: interests ?? this.interests,
+      isFollowing: isFollowing,
+      isFollowPending: isFollowPending,
     );
   }
 
@@ -104,6 +160,9 @@ class User {
       'followingCount': followingCount,
       'postsCount': postsCount,
       'wellnessStreak': wellnessStreak,
+      'website': website,
+      'phone': phone,
+      'interests': interests,
     };
   }
 }

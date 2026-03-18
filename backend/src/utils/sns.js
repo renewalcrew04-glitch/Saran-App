@@ -12,6 +12,26 @@ AWS.config.update({
 
 const sns = new AWS.SNS();
 
+export const registerDeviceToken = async (fcmToken) => {
+  const platformApplicationArn = process.env.AWS_SNS_PLATFORM_APP_ARN;
+
+  if (!platformApplicationArn) {
+    console.warn('AWS_SNS_PLATFORM_APP_ARN not set — push notifications disabled');
+    return null;
+  }
+
+  try {
+    const result = await sns.createPlatformEndpoint({
+      PlatformApplicationArn: platformApplicationArn,
+      Token: fcmToken,
+    }).promise();
+    return result.EndpointArn;
+  } catch (error) {
+    console.error('SNS Register Device Error:', error);
+    return null;
+  }
+};
+
 export const sendPush = async (endpointArn, payload) => {
   if (!endpointArn) return;
 

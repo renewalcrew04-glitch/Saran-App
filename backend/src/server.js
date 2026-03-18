@@ -2,8 +2,10 @@ import compression from 'compression';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
+import { createServer } from 'http';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
+import { Server } from 'socket.io';
 import { connectDB } from './config/database.js';
 import { checkUsernameAvailability, getUsernameSuggestions } from './controllers/auth.controller.js';
 import { createPost } from './controllers/post.controller.js';
@@ -11,9 +13,11 @@ import { uploadSingle } from './controllers/upload.controller.js';
 import "./jobs/spaceReminder.job.js";
 import { protect } from './middleware/auth.middleware.js';
 import { errorHandler, notFound } from './middleware/errorMiddleware.js';
+import { initSocket } from './socket/socket.js';
 import aiProfileRoutes from "./routes/aiProfile.routes.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import eventReminderRoutes from "./routes/eventReminder.routes.js";
+import * as podcastController from "./controllers/podcast.controller.js";
 import podcastRoutes from "./routes/podcast.routes.js";
 
 // Routes
@@ -48,6 +52,18 @@ import spaceRoutes from "./routes/space.routes.js";
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
+
+// Push notifications (AWS SNS) diagnostics
+if (!process.env.AWS_SNS_PLATFORM_APP_ARN) {
+  console.warn('[push] AWS_SNS_PLATFORM_APP_ARN not set — push notifications will be disabled');
+}
+
+export const io = new Server(httpServer, {
+  cors: { origin: '*', credentials: true },
+  transports: ['websocket', 'polling'],
+});
+initSocket(io);
 
 // DB
 connectDB();
@@ -115,7 +131,10 @@ app.use("/api/sframes", sframeRoutes);
 // Event Reminders
 app.use("/api/event-reminders", eventReminderRoutes);
 
-// Podcast routes
+// Podcast routes (explicit GETs first so /api/podcasts/:id and .../episodes always match)
+app.get("/api/podcasts", podcastController.getPodcasts);
+app.get("/api/podcasts/:id/episodes", podcastController.getEpisodes);
+app.get("/api/podcasts/:id", podcastController.getPodcast);
 app.use("/api", podcastRoutes);
 
 // ✅ SPACE (FIXED)
@@ -130,7 +149,7 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0'; // 0.0.0.0 = accept connections from any IP (required on EC2)
-app.listen(PORT, HOST, () => {
+httpServer.listen(PORT, HOST, () => {
   console.log(`🚀 Server running on http://${HOST}:${PORT}`);
   console.log(`📎 Upload routes mounted: ${typeof uploadRoutes?.stack !== 'undefined' ? 'yes' : 'no'}`);
 });

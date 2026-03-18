@@ -70,6 +70,12 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 
+// Apply Google Services plugin only when `google-services.json` exists.
+// This lets the app still build even if Firebase config files haven't been added yet.
+if (project.file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 flutter {
     source = "../.."
 }

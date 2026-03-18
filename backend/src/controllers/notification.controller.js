@@ -1,4 +1,6 @@
 import Notification from "../models/Notification.model.js";
+import User from "../models/User.model.js";
+import { registerDeviceToken } from "../utils/sns.js";
 
 export const getNotifications = async (req, res, next) => {
   try {
@@ -27,6 +29,36 @@ export const getNotifications = async (req, res, next) => {
     });
 
     res.json({ success: true, notifications: list });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getUnreadCount = async (req, res, next) => {
+  try {
+    const count = await Notification.countDocuments({
+      userId: req.user._id,
+      read: false,
+      deleted: false,
+    });
+    res.json({ success: true, count });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const registerDevice = async (req, res, next) => {
+  try {
+    const { fcmToken } = req.body;
+    if (!fcmToken) {
+      return res.status(400).json({ success: false, message: 'fcmToken is required' });
+    }
+
+    const endpointArn = await registerDeviceToken(fcmToken);
+
+    await User.findByIdAndUpdate(req.user._id, { awsPushEndpointArn: endpointArn });
+
+    res.json({ success: true });
   } catch (err) {
     next(err);
   }

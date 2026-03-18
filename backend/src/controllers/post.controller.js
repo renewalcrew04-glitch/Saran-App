@@ -57,6 +57,26 @@ export const createPost = async (req, res, next) => {
       $inc: { postsCount: 1 },
     });
 
+    // Send mention notifications
+    if (Array.isArray(mentions) && mentions.length > 0) {
+      const mentionedUsers = await User.find({
+        username: { $in: mentions },
+        _id: { $ne: userId },
+      }).select('_id');
+
+      await Promise.all(
+        mentionedUsers.map((u) =>
+          createNotification({
+            userId: u._id,
+            actorId: userId,
+            type: 'mention',
+            entityId: post._id,
+            entityType: 'post',
+          })
+        )
+      );
+    }
+
     return res.status(201).json({
       success: true,
       post,

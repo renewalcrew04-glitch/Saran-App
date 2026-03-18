@@ -44,6 +44,8 @@ const notificationSchema = new mongoose.Schema(
         "sdaily",
 
         "sframe_view",
+
+        "dm",
       ],
       required: true,
     },
@@ -55,7 +57,7 @@ const notificationSchema = new mongoose.Schema(
 
     entityType: {
       type: String,
-      enum: ["post", "comment", "event", "sos", "user"],
+      enum: ["post", "comment", "event", "sos", "user", "conversation"],
       default: null,
     },
 

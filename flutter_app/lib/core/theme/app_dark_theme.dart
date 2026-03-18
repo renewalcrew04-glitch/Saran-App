@@ -1,19 +1,30 @@
 import 'package:flutter/material.dart';
 
 /// Dark theme for SARAN app.
+/// Matches the SARAN dark-navy + orange-brand design system.
 class AppDarkTheme {
-  static const Color primary = Color(0xFF3B82F6);
-  static const Color primaryLight = Color(0xFF60A5FA);
-  static const Color primaryDark = Color(0xFF2563EB);
-  static const Color surface = Color(0xFF121212);
-  static const Color surfaceVariant = Color(0xFF1E1E1E);
-  static const Color background = Color(0xFF000000);
-  static const Color onSurface = Color(0xFFFFFFFF);
-  static const Color onSurfaceVariant = Color(0xFFB3B3B3);
-  static const Color outline = Color(0xFF2C2C2C);
-  static const Color outlineVariant = Color(0xFF404040);
+  // Brand orange
+  static const Color primary       = Color(0xFFFF8132);
+  static const Color primaryLight  = Color(0xFFFF9D5C);
+  static const Color primaryDark   = Color(0xFFFF6A00);
+
+  // Backgrounds — deep navy hierarchy
+  static const Color background       = Color(0xFF060B14); // page bg
+  static const Color surface          = Color(0xFF0B0F1A); // appbar / sidebar
+  static const Color surfaceVariant   = Color(0xFF111827); // card interior
+  static const Color surfaceContainer = Color(0xFF1A2235); // elevated inputs
+
+  // Text
+  static const Color onSurface        = Color(0xFFF1F5F9); // primary text
+  static const Color onSurfaceVariant = Color(0xFF64748B); // muted / placeholder
+
+  // Borders
+  static const Color outline        = Color(0xFF1E2535);
+  static const Color outlineVariant = Color(0xFF252D40);
+
+  // Semantic
   static const Color error = Color(0xFFEF4444);
-  static const Color sos = Color(0xFFEF4444);
+  static const Color sos   = Color(0xFFEF4444);
 
   static ThemeData get theme {
     return ThemeData(
@@ -22,18 +33,21 @@ class AppDarkTheme {
       colorScheme: const ColorScheme.dark(
         primary: primary,
         onPrimary: Colors.white,
-        primaryContainer: Color(0xFF1E3A8A),
-        onPrimaryContainer: Color(0xFF93C5FD),
+        primaryContainer: Color(0xFF3D1500),
+        onPrimaryContainer: Color(0xFFFF9D5C),
         secondary: Color(0xFF94A3B8),
-        onSecondary: Color(0xFF1E293B),
+        onSecondary: Color(0xFF1E2535),
         surface: surface,
         onSurface: onSurface,
-        surfaceContainerHighest: surfaceVariant,
+        surfaceContainerHighest: surfaceContainer,
+        surfaceContainerHigh: surfaceVariant,
         onSurfaceVariant: onSurfaceVariant,
         outline: outline,
         outlineVariant: outlineVariant,
         error: error,
         onError: Colors.white,
+        shadow: Color(0x70000000),
+        scrim: Color(0x99000000),
       ),
       scaffoldBackgroundColor: background,
       appBarTheme: const AppBarTheme(
@@ -43,16 +57,19 @@ class AppDarkTheme {
         centerTitle: false,
         titleTextStyle: TextStyle(
           color: onSurface,
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.3,
+          fontSize: 22,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.5,
         ),
-        iconTheme: IconThemeData(color: onSurface, size: 24),
+        iconTheme: IconThemeData(color: Color(0xFF94A3B8), size: 22),
       ),
       cardTheme: CardThemeData(
-        color: surface,
+        color: surfaceVariant,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: outline),
+        ),
         clipBehavior: Clip.antiAlias,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -62,13 +79,13 @@ class AppDarkTheme {
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: onSurface,
-          side: const BorderSide(color: outline),
+          foregroundColor: primary,
+          side: const BorderSide(color: primary),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -84,23 +101,35 @@ class AppDarkTheme {
         filled: true,
         fillColor: surfaceVariant,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: outline),
+        ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: outline),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: primary, width: 2),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: primary, width: 1.5),
         ),
-        hintStyle: const TextStyle(color: onSurfaceVariant, fontSize: 15),
+        labelStyle: const TextStyle(color: onSurfaceVariant, fontSize: 16),
+        floatingLabelStyle: const TextStyle(color: primary, fontSize: 12),
+        hintStyle: const TextStyle(color: onSurfaceVariant, fontSize: 13),
+        prefixIconColor: onSurfaceVariant,
+        suffixIconColor: onSurfaceVariant,
+        counterStyle: const TextStyle(color: onSurfaceVariant),
+        errorStyle: const TextStyle(color: error),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: surfaceVariant,
-        selectedColor: const Color(0xFF1E3A8A),
-        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        backgroundColor: Colors.transparent,
+        selectedColor: Color(0x26FF8132), // primary @15%
+        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: outline),
+        ),
       ),
       dividerTheme: const DividerThemeData(color: outline, thickness: 1),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
@@ -112,37 +141,37 @@ class AppDarkTheme {
       textTheme: const TextTheme(
         headlineMedium: TextStyle(
           fontSize: 22,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w900,
           color: onSurface,
-          letterSpacing: -0.3,
+          letterSpacing: -0.5,
         ),
         titleLarge: TextStyle(
           fontSize: 18,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w800,
           color: onSurface,
         ),
         titleMedium: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
           color: onSurface,
         ),
         bodyLarge: TextStyle(
-          fontSize: 16,
-          color: onSurface,
-          height: 1.4,
+          fontSize: 14,
+          color: Color(0xFFCBD5E1),
+          height: 1.6,
         ),
         bodyMedium: TextStyle(
-          fontSize: 14,
-          color: onSurface,
-          height: 1.4,
+          fontSize: 13,
+          color: Color(0xFFCBD5E1),
+          height: 1.5,
         ),
         bodySmall: TextStyle(
-          fontSize: 12,
+          fontSize: 11,
           color: onSurfaceVariant,
         ),
         labelLarge: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
           color: onSurface,
         ),
       ),

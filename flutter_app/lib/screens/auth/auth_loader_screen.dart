@@ -3,6 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
+import '../../providers/message_provider.dart';
+import '../../services/push_notification_service.dart';
 
 /// Shown on app start. Restores session from stored token, then redirects
 /// to /home if logged in or /login if not. Prevents "logout on close".
@@ -42,6 +45,10 @@ class _AuthLoaderScreenState extends State<AuthLoaderScreen> {
     }
     if (!mounted) return;
     if (auth.isLoggedIn) {
+      final token = auth.token!;
+      await PushNotificationService.registerIfPossible();
+      Provider.of<NotificationProvider>(context, listen: false).load();
+      Provider.of<MessageProvider>(context, listen: false).loadConversations(token: token);
       context.go('/home');
     } else {
       context.go('/login');
@@ -59,18 +66,22 @@ class _AuthLoaderScreenState extends State<AuthLoaderScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // App icon for branded loading (avoids "blank screen" impression)
-              Image.asset(
-                'assets/app_icon.png',
-                width: 80,
-                height: 80,
-                errorBuilder: (_, __, ___) => Icon(
-                  Icons.spa,
-                  size: 80,
-                  color: theme.colorScheme.primary,
+              // App logo
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Image.asset(
+                  'assets/app_icon.png',
+                  width: 110,
+                  height: 110,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Icon(
+                    Icons.spa,
+                    size: 110,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               Text(
                 'SARAN',
                 style: theme.textTheme.headlineMedium?.copyWith(

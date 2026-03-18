@@ -10,6 +10,9 @@ import 'package:saran_app/features/settings/screens/appearance_screen.dart';
 import 'package:saran_app/screens/auth/auth_loader_screen.dart';
 import 'package:saran_app/screens/auth/login_screen.dart';
 import 'package:saran_app/screens/auth/signup_screen.dart';
+import 'package:saran_app/screens/auth/create_profile_screen.dart';
+import 'package:saran_app/screens/sdaily/sdaily_screen.dart';
+import 'package:saran_app/screens/explore/explore_people_screen.dart';
 
 import 'package:saran_app/screens/messages/messages_screen.dart';
 import 'package:saran_app/screens/notifications/notifications_screen.dart';
@@ -31,6 +34,12 @@ import 'package:saran_app/screens/profile/games/games_home_screen.dart';
 import 'package:saran_app/screens/profile/games/garden_screen.dart';
 import 'package:saran_app/screens/profile/games/soundboard_screen.dart';
 import 'package:saran_app/screens/profile/games/mirror_screen.dart';
+import 'package:saran_app/screens/profile/games/memory_bloom_screen.dart';
+import 'package:saran_app/screens/profile/games/word_weave_screen.dart';
+import 'package:saran_app/screens/profile/games/mind_quiz_screen.dart';
+import 'package:saran_app/screens/profile/games/zen_puzzle_screen.dart';
+import 'package:saran_app/screens/profile/games/pattern_lock_screen.dart';
+import 'package:saran_app/screens/profile/games/creative_color_screen.dart';
 
 // =========================
 // WELLNESS
@@ -75,6 +84,18 @@ class AppRouter {
         path: '/signup',
         builder: (context, state) => const SignupScreen(),
       ),
+      GoRoute(
+        path: '/create-profile',
+        builder: (context, state) {
+          final extra = state.extra;
+          final name     = (extra is Map ? extra['name']     : null)?.toString() ?? '';
+          final username = (extra is Map ? extra['username'] : null)?.toString() ?? '';
+          return CreateProfileScreen(
+            initialName: name,
+            initialUsername: username,
+          );
+        },
+      ),
 
       // =========================
       // MAIN APP NAVIGATION
@@ -90,7 +111,15 @@ class AppRouter {
       GoRoute(
         path: '/ai',
         builder: (context, state) => const AIChatScreen(),
-        ),
+      ),
+      GoRoute(
+        path: '/sdaily',
+        builder: (context, state) => const SDailyScreen(),
+      ),
+      GoRoute(
+        path: '/explore/people',
+        builder: (context, state) => const ExplorePeopleScreen(),
+      ),
 
       // =========================
       // SPACE ROUTES (✅ ADDED)
@@ -151,18 +180,44 @@ class AppRouter {
       GoRoute(
         path: '/games',
         builder: (context, state) => const GamesHomeScreen(),
-      ),
-      GoRoute(
-        path: '/games/garden',
-        builder: (context, state) => const GardenScreen(),
-      ),
-      GoRoute(
-        path: '/games/soundboard',
-        builder: (context, state) => const SoundboardScreen(),
-      ),
-      GoRoute(
-        path: '/games/mirror',
-        builder: (context, state) => const MirrorScreen(),
+        routes: [
+          GoRoute(
+            path: 'garden',
+            builder: (context, state) => const GardenScreen(),
+          ),
+          GoRoute(
+            path: 'soundboard',
+            builder: (context, state) => const SoundboardScreen(),
+          ),
+          GoRoute(
+            path: 'mirror',
+            builder: (context, state) => const MirrorScreen(),
+          ),
+          GoRoute(
+            path: 'memory-bloom',
+            builder: (context, state) => const MemoryBloomScreen(),
+          ),
+          GoRoute(
+            path: 'word-weave',
+            builder: (context, state) => const WordWeaveScreen(),
+          ),
+          GoRoute(
+            path: 'mind-quiz',
+            builder: (context, state) => const MindQuizScreen(),
+          ),
+          GoRoute(
+            path: 'zen-puzzle',
+            builder: (context, state) => const ZenPuzzleScreen(),
+          ),
+          GoRoute(
+            path: 'pattern-lock',
+            builder: (context, state) => const PatternLockScreen(),
+          ),
+          GoRoute(
+            path: 'creative-color',
+            builder: (context, state) => const CreativeColorScreen(),
+          ),
+        ],
       ),
 
       // =========================

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as p;
 import '../models/podcast_model.dart';
 import '../services/podcast_service.dart';
 import '../../../services/upload_service.dart';
@@ -35,10 +36,25 @@ class _AddEpisodeScreenState extends State<AddEpisodeScreen> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.audio,
       allowMultiple: false,
+      withData: true,
     );
-    if (result != null && result.files.single.path != null && mounted) {
-      setState(() => _audioFile = File(result.files.single.path!));
+    if (result == null || result.files.isEmpty || !mounted) return;
+    final platformFile = result.files.single;
+
+    File? file;
+    if (platformFile.path != null && platformFile.path!.isNotEmpty) {
+      file = File(platformFile.path!);
+    } else if (platformFile.bytes != null && platformFile.bytes!.isNotEmpty) {
+      final dir = Directory.systemTemp;
+      String name = platformFile.name;
+      if (name.isEmpty) name = 'audio.m4a';
+      else if (!name.contains('.')) name = '$name.m4a';
+      final tempPath = p.join(dir.path, 'podcast_upload_${DateTime.now().millisecondsSinceEpoch}_$name');
+      final tempFile = File(tempPath);
+      await tempFile.writeAsBytes(platformFile.bytes!);
+      file = tempFile;
     }
+    if (file != null && mounted) setState(() => _audioFile = file);
   }
 
   Future<void> _submit() async {

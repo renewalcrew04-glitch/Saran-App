@@ -27,10 +27,26 @@ const getPushText = (type) => {
       return "Someone joined your Space";
     case "space_reminder":
       return "Your Space is starting soon";
+    case "mention":
+      return "Someone mentioned you in a post";
     case "sos_close":
       return "SOS from a close friend";
     case "sos_nearby":
       return "Emergency SOS nearby";
+    case "sos_accept":
+      return "Someone is on their way to help";
+    case "sos_resolve":
+      return "SOS has been resolved";
+    case "wellness":
+      return "Time for your daily wellness check-in";
+    case "sdaily":
+      return "You have a new daily update";
+    case "sframe_view":
+      return "Someone viewed your SFrame";
+    case "moderation":
+      return "A moderation action was taken on your content";
+    case "verification":
+      return "Your verification status has been updated";
     default:
       return "You have a new notification";
   }
@@ -65,7 +81,11 @@ export const createNotification = async ({
     (type === "reply" && prefs.comments === false) ||
     (type === "repost" && prefs.reposts === false) ||
     (type === "quote" && prefs.reposts === false) ||
-    (type.startsWith("space_") && prefs.spaces === false);
+    ((type === "follow" || type === "follow_request" || type === "follow_accept") && prefs.follows === false) ||
+    (type === "mention" && prefs.mentions === false) ||
+    (type.startsWith("space_") && prefs.spaces === false) ||
+    ((type === "sos_close") && prefs.sosCloseFriends === false) ||
+    ((type === "sos_nearby") && prefs.sosNearby === false);
 
   if (blocked) return;
 

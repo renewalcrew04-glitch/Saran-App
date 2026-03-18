@@ -1,9 +1,13 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../config/api_config.dart';
 import '../../models/user_model.dart';
+import '../../widgets/glass_box.dart';
 import '../../utils/media_utils.dart';
+import '../../utils/category_gradients.dart';
 import '../../models/post_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dm_provider.dart';
@@ -14,6 +18,8 @@ import '../messages/chat_screen.dart';
 import '../post/post_detail_screen.dart';
 import 'followers_list_screen.dart';
 import 'following_list_screen.dart';
+
+const _kPrimary = Color(0xFFFF8132);
 
 class UserProfileScreen extends StatefulWidget {
   final User user;
@@ -389,6 +395,80 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
+  // ── Glass-morphism post sub-tab pill (matches own profile) ──────────────────
+  Widget _buildPostSubTabs() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    Widget pill = ClipRRect(
+      borderRadius: BorderRadius.circular(isDark ? 18 : 17),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDark
+                  ? [
+                      Colors.white.withValues(alpha: 0.10),
+                      Colors.white.withValues(alpha: 0.04),
+                    ]
+                  : [
+                      Colors.white.withValues(alpha: 1.0),
+                      const Color(0xFFF0F0FC).withValues(alpha: 0.92),
+                      const Color(0xFFE4E4F4).withValues(alpha: 0.96),
+                    ],
+              stops: isDark ? null : const [0.0, 0.22, 1.0],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(isDark ? 18 : 17),
+            border: isDark
+                ? Border.all(color: Colors.white.withValues(alpha: 0.14), width: 0.8)
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _PostSubTab(icon: Icons.grid_view_rounded,           isActive: _contentFilter == 'All',     tooltip: 'All',     onTap: () => setState(() => _contentFilter = 'All')),
+              _PostSubTab(icon: Icons.article_outlined,            isActive: _contentFilter == 'Texts',   tooltip: 'Text',    onTap: () => setState(() => _contentFilter = 'Texts')),
+              _PostSubTab(icon: Icons.photo_outlined,              isActive: _contentFilter == 'Photos',  tooltip: 'Photos',  onTap: () => setState(() => _contentFilter = 'Photos')),
+              _PostSubTab(icon: Icons.play_circle_outline_rounded, isActive: _contentFilter == 'Videos',  tooltip: 'Videos',  onTap: () => setState(() => _contentFilter = 'Videos')),
+              _PostSubTab(icon: Icons.repeat_rounded,              isActive: _contentFilter == 'Reposts', tooltip: 'Reposts', onTap: () => setState(() => _contentFilter = 'Reposts')),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (!isDark) {
+      pill = Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: const LinearGradient(
+            colors: [Colors.white, Color(0xFFAAAEC0)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF7070A0).withValues(alpha: 0.13),
+              blurRadius: 20,
+              spreadRadius: -2,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(1),
+        child: pill,
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+      child: pill,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = widget.user;
@@ -493,27 +573,47 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Cover (same height as own profile)
-              Container(
-                height: 160,
-                width: double.infinity,
-                color: Colors.grey.shade200,
-                child: user.coverImage != null && user.coverImage!.isNotEmpty
-                    ? safeNetworkImage(
-                        url: ApiConfig.networkImageUrl(user.coverImage!) ?? user.coverImage!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: 160,
-                        placeholderIcon: Icons.photo_camera_outlined,
-                      )
-                    : Center(child: Icon(Icons.add_photo_alternate_outlined, size: 48, color: Colors.grey[500])),
-              ),
-              // Avatar overlapping cover (same as own profile)
+              // Cover
+              Builder(builder: (context) {
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+                return Container(
+                  height: 160,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isDark
+                          ? [const Color(0xFF0D1120), const Color(0xFF1A2235)]
+                          : [_kPrimary.withOpacity(0.18), _kPrimary.withOpacity(0.06)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: user.coverImage != null && user.coverImage!.isNotEmpty
+                      ? safeNetworkImage(
+                          url: ApiConfig.networkImageUrl(user.coverImage!) ?? user.coverImage!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: 160,
+                          placeholderIcon: Icons.photo_camera_outlined,
+                        )
+                      : Center(
+                          child: Icon(
+                            Icons.photo_camera_outlined,
+                            size: 40,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : _kPrimary.withOpacity(0.5),
+                          ),
+                        ),
+                );
+              }),
+              // Avatar + info
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Avatar overlapping cover
                     Transform.translate(
                       offset: const Offset(16, -48),
                       child: Align(
@@ -521,9 +621,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: Theme.of(context).scaffoldBackgroundColor,
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.grey.shade300),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.08),
@@ -536,42 +635,108 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    // Name, username, location, bio, website, interests
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        user.name,
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.black),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        '@${user.username}',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                    ),
-                    if (user.bio != null && user.bio!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          user.bio!,
-                          style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.4),
-                        ),
-                      ),
-                    ],
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
                           Text(
-                            'Location',
-                            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                            user.name,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: Theme.of(context).colorScheme.onSurface,
+                              letterSpacing: -0.3,
+                            ),
                           ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '@${user.username}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          // Location
+                          if (user.location != null && user.location!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.location_on_outlined, size: 14,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    user.location!,
+                                    style: TextStyle(fontSize: 13,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          // Bio
+                          if (user.bio != null && user.bio!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                user.bio!,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          // Website
+                          if (user.website != null && user.website!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.link, size: 14,
+                                      color: Theme.of(context).colorScheme.primary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    user.website!,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          // Interest chips
+                          if (user.interests.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: user.interests.asMap().entries.map((e) {
+                                const chipColors = [
+                                  Color(0xFFFF6B35),
+                                  Color(0xFF22C55E),
+                                  Color(0xFF8B5CF6),
+                                  Color(0xFF06B6D4),
+                                  Color(0xFFEC4899),
+                                  Color(0xFFF59E0B),
+                                  Color(0xFF3B82F6),
+                                  Color(0xFFA855F7),
+                                ];
+                                final color = chipColors[e.key % chipColors.length];
+                                return LiquidGlassChip(
+                                  label: e.value,
+                                  isActive: false,
+                                  fixedColor: color,
+                                  textColor: color,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                );
+                              }).toList(),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -642,8 +807,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             );
                           },
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.black,
-                            side: const BorderSide(color: Colors.black),
+                            foregroundColor: Theme.of(context).colorScheme.onSurface,
+                            side: BorderSide(color: Theme.of(context).colorScheme.outline),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),
@@ -788,9 +953,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                           },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: _isFollowing
-                                          ? Colors.grey
-                                          : Colors.black,
-                                      foregroundColor: Colors.white,
+                                          ? Theme.of(context).colorScheme.surfaceContainerHighest
+                                          : _kPrimary,
+                                      foregroundColor: _isFollowing
+                                          ? Theme.of(context).colorScheme.onSurface
+                                          : Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(14),
                                       ),
@@ -849,8 +1016,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               icon: const Icon(Icons.chat_bubble_outline, size: 20),
                               label: const Text("Message"),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.black,
-                                side: const BorderSide(color: Colors.black),
+                                foregroundColor: Theme.of(context).colorScheme.onSurface,
+                                side: BorderSide(color: Theme.of(context).colorScheme.outline),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
                                 ),
@@ -885,41 +1052,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
               const SizedBox(height: 8),
 
-              // Post sub-tabs: All, Texts, Photos, Videos, Reposts (icons only, space between)
+              // Post sub-tabs: glass-morphism pill matching own profile
               if (_canSeePosts && !_loading && _posts.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _PostSubTab(
-                        icon: Icons.apps,
-                        isActive: _contentFilter == 'All',
-                        onTap: () => setState(() => _contentFilter = 'All'),
-                      ),
-                      _PostSubTab(
-                        icon: Icons.text_fields,
-                        isActive: _contentFilter == 'Texts',
-                        onTap: () => setState(() => _contentFilter = 'Texts'),
-                      ),
-                      _PostSubTab(
-                        icon: Icons.image_outlined,
-                        isActive: _contentFilter == 'Photos',
-                        onTap: () => setState(() => _contentFilter = 'Photos'),
-                      ),
-                      _PostSubTab(
-                        icon: Icons.videocam_outlined,
-                        isActive: _contentFilter == 'Videos',
-                        onTap: () => setState(() => _contentFilter = 'Videos'),
-                      ),
-                      _PostSubTab(
-                        icon: Icons.repeat,
-                        isActive: _contentFilter == 'Reposts',
-                        onTap: () => setState(() => _contentFilter = 'Reposts'),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildPostSubTabs(),
 
               if (_canSeePosts && !_loading && _posts.isNotEmpty) const SizedBox(height: 12),
 
@@ -929,14 +1064,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.lock_outline, size: 64, color: Colors.grey.shade600),
+                      Icon(Icons.lock_outline, size: 64,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant),
                       const SizedBox(height: 16),
                       Text(
                         "This Account is Private",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: Colors.grey.shade800,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -945,7 +1081,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         "Follow to see photos and videos.",
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey.shade600,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -979,99 +1115,115 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             ),
                           ),
                         )
-                      : GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _filteredPosts.length,
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 6,
-                            mainAxisSpacing: 6,
-                          ),
-                          itemBuilder: (context, index) {
-                            final post = _filteredPosts[index];
-                            final embedded = post.quotedPost ?? post.originalPost;
-                            final mediaUrls = post.media.isNotEmpty
-                                ? post.media
-                                : (embedded?.media ?? []);
-                            return GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => PostDetailScreen(
-                                      posts: _filteredPosts,
-                                      initialIndex: index,
+                      : Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: MasonryGridView.count(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 4,
+                            crossAxisSpacing: 4,
+                            itemCount: _filteredPosts.length,
+                            itemBuilder: (context, index) {
+                              final post = _filteredPosts[index];
+                              final embedded = post.quotedPost ?? post.originalPost;
+                              final mediaUrls = post.media.isNotEmpty
+                                  ? post.media
+                                  : (embedded?.media ?? []);
+
+                              double height;
+                              if (post.type == 'text') {
+                                height = 180;
+                              } else if (post.type == 'photo') {
+                                height = index.isEven ? 200 : 240;
+                              } else if (post.type == 'video') {
+                                height = index % 3 == 0 ? 320 : 220;
+                              } else {
+                                height = 200;
+                              }
+
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => PostDetailScreen(
+                                        posts: _filteredPosts,
+                                        initialIndex: index,
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(6),
-                                child: Container(
-                                  color: Colors.grey.shade200,
-                                  child: mediaUrls.isNotEmpty
-                                      ? Stack(
-                                          fit: StackFit.expand,
-                                          children: [
-                                            _buildPostMedia(mediaUrls.first),
-                                            if (post.type == 'video' || embedded?.type == 'video')
-                                              Positioned(
-                                                right: 8,
-                                                top: 8,
-                                                child: Container(
-                                                  padding: const EdgeInsets.all(6),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.black.withValues(alpha: 0.55),
-                                                    borderRadius: BorderRadius.circular(10),
-                                                  ),
-                                                  child: const Icon(
-                                                    Icons.play_arrow,
-                                                    color: Colors.white,
-                                                    size: 16,
+                                  );
+                                },
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: SizedBox(
+                                    height: height,
+                                    child: mediaUrls.isNotEmpty
+                                        ? Stack(
+                                            fit: StackFit.expand,
+                                            children: [
+                                              _buildPostMedia(mediaUrls.first),
+                                              if (post.type == 'video' || embedded?.type == 'video')
+                                                Positioned(
+                                                  right: 8,
+                                                  top: 8,
+                                                  child: Container(
+                                                    padding: const EdgeInsets.all(6),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.black.withValues(alpha: 0.55),
+                                                      borderRadius: BorderRadius.circular(10),
+                                                    ),
+                                                    child: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
                                                   ),
                                                 ),
-                                              ),
-                                            if (post.type == 'repost' ||
-                                                post.type == 'quote' ||
-                                                post.isQuote)
-                                              Positioned(
-                                                left: 8,
-                                                top: 8,
-                                                child: Container(
-                                                  padding: const EdgeInsets.all(6),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.black.withValues(alpha: 0.55),
-                                                    borderRadius: BorderRadius.circular(10),
-                                                  ),
-                                                  child: Icon(
-                                                    post.isQuote || post.type == 'quote'
-                                                        ? Icons.format_quote
-                                                        : Icons.repeat,
-                                                    color: Colors.white,
-                                                    size: 16,
+                                              if (post.type == 'repost' || post.type == 'quote' || post.isQuote)
+                                                Positioned(
+                                                  left: 8,
+                                                  top: 8,
+                                                  child: Container(
+                                                    padding: const EdgeInsets.all(6),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.black.withValues(alpha: 0.55),
+                                                      borderRadius: BorderRadius.circular(10),
+                                                    ),
+                                                    child: Icon(
+                                                      post.isQuote || post.type == 'quote'
+                                                          ? Icons.format_quote
+                                                          : Icons.repeat,
+                                                      color: Colors.white,
+                                                      size: 16,
+                                                    ),
                                                   ),
                                                 ),
+                                            ],
+                                          )
+                                        : Container(
+                                            decoration: BoxDecoration(
+                                              gradient: CategoryGradients.forCategory(post.category ?? ''),
+                                            ),
+                                            child: Container(
+                                              color: Colors.black.withOpacity(0.15),
+                                              alignment: Alignment.center,
+                                              padding: const EdgeInsets.all(10),
+                                              child: Text(
+                                                post.text.isNotEmpty ? post.text : 'Text',
+                                                maxLines: 5,
+                                                overflow: TextOverflow.ellipsis,
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                  height: 1.3,
+                                                ),
                                               ),
-                                          ],
-                                        )
-                                      : Container(
-                                          padding: const EdgeInsets.all(10),
-                                          alignment: Alignment.topLeft,
-                                          child: Text(
-                                            post.text.isNotEmpty ? post.text : 'Text',
-                                            maxLines: 5,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
-                                        ),
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                          ),
                         ),
                 ),
             ],
@@ -1126,6 +1278,7 @@ class _ProfileStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -1135,10 +1288,10 @@ class _ProfileStat extends StatelessWidget {
           children: [
             Text(
               count.toString(),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: Colors.black,
+                color: scheme.onSurface,
               ),
             ),
             const SizedBox(height: 2),
@@ -1146,7 +1299,7 @@ class _ProfileStat extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: scheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -1171,6 +1324,7 @@ class _ProfileLabelTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -1178,7 +1332,7 @@ class _ProfileLabelTab extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: isActive ? Colors.black : Colors.transparent,
+              color: isActive ? scheme.primary : Colors.transparent,
               width: 2,
             ),
           ),
@@ -1189,7 +1343,7 @@ class _ProfileLabelTab extends StatelessWidget {
             Icon(
               icon,
               size: 22,
-              color: isActive ? Colors.black : Colors.grey[600],
+              color: isActive ? scheme.primary : scheme.onSurfaceVariant,
             ),
             const SizedBox(height: 4),
             Text(
@@ -1197,7 +1351,7 @@ class _ProfileLabelTab extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                color: isActive ? Colors.black : Colors.grey[600],
+                color: isActive ? scheme.primary : scheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -1211,25 +1365,59 @@ class _PostSubTab extends StatelessWidget {
   final IconData icon;
   final bool isActive;
   final VoidCallback onTap;
+  final String tooltip;
 
   const _PostSubTab({
     required this.icon,
     required this.isActive,
     required this.onTap,
+    required this.tooltip,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: isActive ? Colors.black : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(999),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          width: 46,
+          height: 36,
+          decoration: BoxDecoration(
+            gradient: isActive
+                ? const LinearGradient(
+                    colors: [Color(0xFFFF9D5C), Color(0xFFFF6A00)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isActive
+                ? [
+                    const BoxShadow(
+                      color: Color(0x55FF7A20),
+                      blurRadius: 10,
+                      spreadRadius: -1,
+                      offset: Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            icon,
+            size: 20,
+            color: isActive
+                ? Colors.white
+                : (isDark
+                    ? Colors.white.withValues(alpha: 0.55)
+                    : const Color(0xFF48485A).withValues(alpha: 0.70)),
+          ),
         ),
-        child: Icon(icon, size: 20, color: isActive ? Colors.white : Colors.black),
       ),
     );
   }

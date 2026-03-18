@@ -1,23 +1,25 @@
-import 'package:dio/dio.dart';
-import '../../../config/api_config.dart';
+import 'package:flutter/foundation.dart';
+import '../services/api_client.dart';
 
 class NotificationService {
-  final Dio _dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl));
-
-  void setToken(String token) {
-    _dio.options.headers['Authorization'] = 'Bearer $token';
-  }
-
   Future<List<dynamic>> getNotifications() async {
-    final res = await _dio.get('/notifications');
-    return res.data['notifications'];
+    final res = await ApiClient.get('/notifications');
+    debugPrint('[NotificationService] raw response keys: ${res.keys.toList()}');
+    debugPrint('[NotificationService] raw response: $res');
+    // Try common key names backends use
+    for (final key in ['notifications', 'data', 'results', 'items']) {
+      final val = res[key];
+      if (val is List) return val;
+    }
+    // If the response itself is wrapped as a list under 'data' Map
+    return [];
   }
 
   Future<void> markRead(String id) async {
-    await _dio.put('/notifications/$id/read');
+    await ApiClient.put('/notifications/$id/read');
   }
 
   Future<void> markAllRead() async {
-    await _dio.put('/notifications/read-all');
+    await ApiClient.put('/notifications/read-all');
   }
 }

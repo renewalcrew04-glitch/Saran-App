@@ -1,11 +1,21 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'glass_box.dart';
+
+// ── SARAN brand tokens ────────────────────────────────────────────────────
+const _kSurface   = Color(0xFF0B0F1A);
+const _kPrimary   = Color(0xFFFF8132);
+const _kPrimaryLt = Color(0xFFFF9D5C);
+const _kSubtext   = Color(0xFF94A3B8);
+const _kBorder    = Color(0xFF1E2535);
+const _kText      = Color(0xFFF1F5F9);
 
 class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final bool showBack;
   final bool dark;
   final int unreadCount;
+  final int messageUnreadCount;
   final VoidCallback? onBack;
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenMessages;
@@ -14,10 +24,11 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
 
   const AppHeader({
     super.key,
-    this.title = "SARAN",
+    this.title = 'SARAN',
     this.showBack = false,
     this.dark = false,
     this.unreadCount = 0,
+    this.messageUnreadCount = 0,
     this.onBack,
     this.onOpenNotifications,
     this.onOpenMessages,
@@ -26,114 +37,181 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(50);
+  Size get preferredSize => const Size.fromHeight(52);
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final fg = dark ? Colors.white : colorScheme.onSurface;
-    final bg = dark ? Colors.black : colorScheme.surface;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg     = isDark ? _kSurface : Theme.of(context).colorScheme.surface;
+    final iconFg = isDark ? _kSubtext  : Theme.of(context).colorScheme.onSurfaceVariant;
+    final textFg = isDark ? _kText     : Theme.of(context).colorScheme.onSurface;
 
     return AppBar(
       backgroundColor: bg,
       elevation: 0,
-      surfaceTintColor: bg,
+      scrolledUnderElevation: 0,
+      surfaceTintColor: Colors.transparent,
       centerTitle: false,
+      automaticallyImplyLeading: false,
       titleSpacing: 16,
+
+      // ── Logo / back button ──────────────────────────────────────────────
       leading: showBack
           ? IconButton(
               onPressed: onBack ?? () => Navigator.pop(context),
-              icon: Icon(Icons.chevron_left, color: fg),
+              icon: Icon(Icons.chevron_left_rounded, color: iconFg, size: 26),
             )
-          : (dark
-              ? Padding(
-                  padding: const EdgeInsets.only(left: 12),
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      border: Border.all(color: Colors.white, width: 1.2),
-                      borderRadius: BorderRadius.circular(8),
+          : Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: Row(
+                children: [
+                  // App logo
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      'assets/app_icon.png',
+                      width: 32,
+                      height: 32,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [_kPrimaryLt, Color(0xFFFF6A00)],
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          'S',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 17,
+                            height: 1,
+                          ),
+                        ),
+                      ),
                     ),
-                    child: const Icon(Icons.star, color: Colors.white, size: 20),
                   ),
-                )
-              : null),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: fg,
-          fontWeight: FontWeight.w800,
-          fontSize: 18,
-          letterSpacing: 0.5,
-        ),
-      ),
+                ],
+              ),
+            ),
+      leadingWidth: showBack ? 48 : 56,
+
+      // ── Title ──────────────────────────────────────────────────────────
+      title: showBack
+          ? Text(
+              title,
+              style: TextStyle(
+                color: textFg,
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
+              ),
+            )
+          : Text(
+              'SARAN',
+              style: TextStyle(
+                color: textFg,
+                fontWeight: FontWeight.w900,
+                fontSize: 22,
+                letterSpacing: -0.5,
+              ),
+            ),
+
+      // ── Actions ────────────────────────────────────────────────────────
       actions: showBack
           ? []
           : [
-              if (onOpenAI != null)
-                IconButton(
-                  onPressed: onOpenAI,
-                  icon: Image.asset(
-                    'assets/ai_logo.png',
-                    width: 24,
-                    height: 24,
-                    fit: BoxFit.contain,
+              // ── Saran AI icon ────────────────────────────────────────────
+              GestureDetector(
+                onTap: onOpenAI,
+                child: SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/ai_logo.png',
+                      width: 36,
+                      height: 36,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.auto_awesome,
+                        color: iconFg,
+                        size: 20,
+                      ),
+                    ),
                   ),
-                  tooltip: 'SARAN AI',
                 ),
+              ),
+              const SizedBox(width: 6),
+              // ── Bell — liquid glass circle ───────────────────────────────
               Stack(
                 children: [
-                  IconButton(
-                    onPressed: onOpenNotifications,
-                    icon: FaIcon(FontAwesomeIcons.bell, color: fg, size: 20),
+                  GlassIconButton(
+                    icon: Icons.notifications_none_rounded,
+                    onTap: onOpenNotifications,
+                    size: 36,
+                    iconSize: 20,
+                    iconColor: iconFg,
                   ),
                   if (unreadCount > 0)
                     Positioned(
-                      right: 10,
-                      top: 10,
+                      top: 4,
+                      right: 4,
                       child: Container(
-                        width: 18,
-                        height: 18,
-                        alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: dark ? Colors.white : colorScheme.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    unreadCount > 99 ? "99+" : unreadCount.toString(),
-                    style: TextStyle(
-                      color: dark ? Colors.black : Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _kPrimary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: bg, width: 1.5),
                         ),
                       ),
                     ),
                 ],
               ),
-              if (onOpenSearch != null)
-                IconButton(
-                  onPressed: onOpenSearch,
-                  icon: Icon(Icons.search, color: fg, size: 22),
-                )
-              else
-                IconButton(
-                  onPressed: onOpenMessages,
-                  icon: FaIcon(FontAwesomeIcons.comment, color: fg, size: 20),
-                ),
               const SizedBox(width: 6),
-            ],
-      bottom: dark
-          ? null
-          : PreferredSize(
-              preferredSize: const Size.fromHeight(1),
-              child: Container(
-                height: 1,
-                color: colorScheme.outline.withValues(alpha: 0.5),
+              // ── Chat bubble — liquid glass circle ────────────────────────
+              Stack(
+                children: [
+                  GlassIconButton(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    onTap: onOpenMessages,
+                    size: 36,
+                    iconSize: 19,
+                    iconColor: iconFg,
+                  ),
+                  if (messageUnreadCount > 0)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _kPrimary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: bg, width: 1.5),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ),
+              const SizedBox(width: 8),
+            ],
+
+      // ── Bottom border ──────────────────────────────────────────────────
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Container(
+          height: 1,
+          color: isDark
+              ? _kBorder
+              : Theme.of(context).colorScheme.outlineVariant,
+        ),
+      ),
     );
   }
 }

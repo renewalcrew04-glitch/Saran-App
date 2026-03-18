@@ -26,6 +26,12 @@ class AuthProvider extends ChangeNotifier {
     _authService.clearToken(); // fire-and-forget
   }
 
+  /// Directly replace the in-memory user (e.g. after editing profile fields locally).
+  void updateCurrentUser(User user) {
+    _user = user;
+    notifyListeners();
+  }
+
   /// Update in-memory user from a profile API response (e.g. after avatar/cover update).
   /// Use this so the UI updates immediately without waiting for loadUser().
   void updateUserFromMap(Map<String, dynamic>? userMap) {
@@ -48,7 +54,18 @@ class AuthProvider extends ChangeNotifier {
       final dynamic rawUser = userJson['user'] ?? userJson;
 
       if (rawUser is Map<String, dynamic>) {
-        _user = User.fromJson(rawUser);
+        final fresh = User.fromJson(rawUser);
+        // Preserve interests/website if the server response omits them
+        // (some backends don't echo these back in every response)
+        final prev = _user;
+        if (prev != null) {
+          _user = fresh.copyWith(
+            interests: fresh.interests.isNotEmpty ? fresh.interests : prev.interests,
+            website: fresh.website ?? prev.website,
+          );
+        } else {
+          _user = fresh;
+        }
       }
     } catch (e) {
       // keep old user
@@ -147,8 +164,9 @@ class AuthProvider extends ChangeNotifier {
   String name,
   String gender,
   String dob,
-  String selfieImage,
-) async {
+  String selfieImage, {
+  String? emailToken,
+}) async {
   try {
     _isLoading = true;
     notifyListeners();
@@ -161,15 +179,21 @@ class AuthProvider extends ChangeNotifier {
       gender,
       dob,
       selfieImage,
+      emailToken: emailToken,
     );
 
     final token = data['token'];
 
     if (token != null) {
       await _authService.setToken(token);
+      _token = token;
+      ApiClient.setToken(token);
 
       final meData = await _authService.getCurrentUser();
-      _user = meData['user'];
+      final dynamic rawMe = meData['user'] ?? meData;
+      if (rawMe is Map<String, dynamic>) {
+        _user = User.fromJson(rawMe);
+      }
 
       _isLoading = false;
       notifyListeners();

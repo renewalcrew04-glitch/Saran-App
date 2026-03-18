@@ -25,6 +25,20 @@ class ConversationModel {
     required this.otherUser,
   });
 
+  ConversationModel copyWith({int? unreadCount}) {
+    return ConversationModel(
+      id: id,
+      participants: participants,
+      lastMessage: lastMessage,
+      lastMessageAt: lastMessageAt,
+      unreadCount: unreadCount ?? this.unreadCount,
+      isPinned: isPinned,
+      isMuted: isMuted,
+      isArchived: isArchived,
+      otherUser: otherUser,
+    );
+  }
+
   factory ConversationModel.fromJson(Map<String, dynamic> json) {
     DateTime parseDate(dynamic v) {
       if (v == null) return DateTime.now();

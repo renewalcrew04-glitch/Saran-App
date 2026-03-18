@@ -97,6 +97,8 @@ dependencies:
   flutter_tts: ^3.8.5
   flutter_image_compress: ^2.4.0
   image: ^4.8.0
+  firebase_core: ^4.5.0
+  firebase_messaging: ^16.1.2
 
 dev_dependencies:
   flutter_test:
@@ -108,12 +110,11 @@ dev_dependencies:
 # Generate app icons: add your 1024x1024 PNG to assets/app_icon.png, then run:
 #   dart run flutter_launcher_icons
 flutter_launcher_icons:
-  flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/SARAN Logo New.png"
+  image_path: "assets/app_icon.png"
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/images/SARAN Logo New.png"
+  adaptive_icon_foreground: "assets/app_icon.png"
 
 flutter:
   uses-material-design: true
@@ -122,4 +123,5 @@ flutter:
     - assets/
     - assets/companions/male.png
     - assets/companions/female.png
-    - assets/images/SARAN Logo New.png
+    - assets/app_icon.png
+

@@ -24,8 +24,8 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = isOwn ? Colors.black : const Color(0xFFEEEEEE);
-    final fg = isOwn ? Colors.white : Colors.black;
+    final bg = isOwn ? const Color(0xFFFF8132) : const Color(0xFF111827);
+    final fg = Colors.white;
 
     Widget content;
 

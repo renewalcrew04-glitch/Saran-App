@@ -23,8 +23,41 @@ export async function getPodcasts(req, res, next) {
 export async function getPodcast(req, res, next) {
   try {
     const podcast = await service.getPodcastById(req.params.id);
+    if (!podcast) {
+      return res.status(404).json({ success: false, message: 'Podcast not found' });
+    }
     res.json({ success: true, data: podcast });
   } catch (err) {
+    next(err);
+  }
+}
+
+export async function updatePodcast(req, res, next) {
+  try {
+    const podcast = await service.updatePodcast(req.params.id, req.user._id, req.body);
+    if (!podcast) {
+      return res.status(404).json({ success: false, message: "Podcast not found" });
+    }
+    res.json({ success: true, data: podcast });
+  } catch (err) {
+    if (err.statusCode === 403) {
+      return res.status(403).json({ success: false, message: err.message });
+    }
+    next(err);
+  }
+}
+
+export async function deletePodcast(req, res, next) {
+  try {
+    const podcast = await service.deletePodcast(req.params.id, req.user._id);
+    if (!podcast) {
+      return res.status(404).json({ success: false, message: "Podcast not found" });
+    }
+    res.json({ success: true, data: podcast });
+  } catch (err) {
+    if (err.statusCode === 403) {
+      return res.status(403).json({ success: false, message: err.message });
+    }
     next(err);
   }
 }

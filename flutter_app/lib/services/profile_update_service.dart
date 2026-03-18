@@ -60,11 +60,15 @@ class ProfileUpdateService {
     return response.data;
   }
 
-  /// Update current user's name, bio, and location. Use [currentUserUid] if your backend uses PUT /users/:uid.
+  /// Update current user's profile fields. Use [currentUserUid] if your backend uses PUT /users/:uid.
   Future<Map<String, dynamic>?> updateProfile({
     required String name,
     required String bio,
     required String location,
+    bool? isPrivate,
+    String? website,
+    String? phone,
+    List<String>? interests,
     String? currentUserUid,
   }) async {
     final headers = await _getAuthHeaders();
@@ -72,13 +76,18 @@ class ProfileUpdateService {
         ? '${ApiConfig.users}/$currentUserUid'
         : '${ApiConfig.users}/me';
     final url = ApiConfig.getUrl(path);
+    final data = <String, dynamic>{
+      'name': name,
+      'bio': bio,
+      'locationText': location,
+    };
+    if (isPrivate != null) data['isPrivate'] = isPrivate;
+    if (website != null) data['website'] = website;
+    if (phone != null) data['phone'] = phone;
+    if (interests != null) data['interests'] = interests;
     final response = await _dio.put<Map<String, dynamic>>(
       url,
-      data: {
-        'name': name,
-        'bio': bio,
-        'locationText': location,
-      },
+      data: data,
       options: Options(headers: headers),
     );
     return response.data;

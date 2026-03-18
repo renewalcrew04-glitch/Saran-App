@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../features/notifications/models/app_notification.dart';
 import '../services/notification_service.dart';
@@ -5,13 +6,25 @@ import '../services/notification_service.dart';
 class NotificationProvider extends ChangeNotifier {
   final NotificationService _service = NotificationService();
   List<AppNotification> notifications = [];
+  bool isLoading = false;
+  String? errorMessage;
 
-  void setToken(String token) => _service.setToken(token);
+  int get unreadCount => notifications.where((n) => !n.read).length;
 
   Future<void> load() async {
-    final data = await _service.getNotifications();
-    notifications = data.map((e) => AppNotification.fromJson(e)).toList();
+    isLoading = true;
+    errorMessage = null;
     notifyListeners();
+    try {
+      final data = await _service.getNotifications();
+      notifications = data.map((e) => AppNotification.fromJson(e)).toList();
+    } catch (e) {
+      errorMessage = e.toString();
+      debugPrint('[NotificationProvider] load error: $e');
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> markRead(String id) async {
@@ -22,6 +35,12 @@ class NotificationProvider extends ChangeNotifier {
           notifications[index].copyWith(read: true);
       notifyListeners();
     }
+  }
+
+  Future<void> markAllRead() async {
+    await _service.markAllRead();
+    notifications = notifications.map((n) => n.copyWith(read: true)).toList();
+    notifyListeners();
   }
 
   /// GROUP BY TYPE + ENTITY

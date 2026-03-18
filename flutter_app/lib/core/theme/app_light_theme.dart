@@ -3,17 +3,17 @@ import 'package:flutter/material.dart';
 /// Modern light theme for SARAN app.
 /// Clean, minimal, with soft accents and consistent spacing.
 class AppLightTheme {
-  // Palette – vibrant blue (matching profile reference)
-  static const Color primary = Color(0xFF2563EB);
-  static const Color primaryLight = Color(0xFF3B82F6);
-  static const Color primaryDark = Color(0xFF1D4ED8);
+  // Palette – warm orange brand colours
+  static const Color primary = Color(0xFFFF5722);        // vivid orange
+  static const Color primaryLight = Color(0xFFFF8A65);
+  static const Color primaryDark = Color(0xFFD94F1A);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFF5F5F5);
-  static const Color background = Color(0xFFFFFFFF);
-  static const Color onSurface = Color(0xFF000000);
-  static const Color onSurfaceVariant = Color(0xFF666666);
-  static const Color outline = Color(0xFFE2E8F0);
-  static const Color outlineVariant = Color(0xFFCBD5E1);
+  static const Color surfaceVariant = Color(0xFFF5F5FA); // subtle cool-white
+  static const Color background = Color(0xFFFFFFFF);     // pure white — glass pops, no grey wash
+  static const Color onSurface = Color(0xFF1A1A1A);
+  static const Color onSurfaceVariant = Color(0xFF48485A);
+  static const Color outline = Color(0xFFCCCCD8);        // more visible borders
+  static const Color outlineVariant = Color(0xFFDFDFEB);
   static const Color error = Color(0xFFDC2626);
   static const Color sos = Color(0xFFEF4444);
 
@@ -24,20 +24,21 @@ class AppLightTheme {
       colorScheme: const ColorScheme.light(
         primary: primary,
         onPrimary: Colors.white,
-        primaryContainer: Color(0xFFDBEAFE),
+        primaryContainer: Color(0xFFFFE5D9),
         onPrimaryContainer: primaryDark,
-        secondary: Color(0xFF64748B),
+        secondary: Color(0xFF7B2D8B),
         onSecondary: Colors.white,
         surface: surface,
         onSurface: onSurface,
-        surfaceContainerHighest: surfaceVariant,
+        surfaceContainerLow: Color(0xFFFFFFFF),    // cards
+        surfaceContainerHighest: Color(0xFFF2F1FA), // very subtle lavender tint
         onSurfaceVariant: onSurfaceVariant,
         outline: outline,
         outlineVariant: outlineVariant,
         error: error,
         onError: Colors.white,
       ),
-      scaffoldBackgroundColor: background,
+      scaffoldBackgroundColor: background, // pure white — glass elements pop, no grey wash
       appBarTheme: const AppBarTheme(
         backgroundColor: surface,
         elevation: 0,
@@ -99,7 +100,7 @@ class AppLightTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: surfaceVariant,
-        selectedColor: const Color(0xFFDBEAFE),
+        selectedColor: const Color(0xFFFFE5D9),
         labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -110,6 +111,7 @@ class AppLightTheme {
         selectedItemColor: primary,
         unselectedItemColor: onSurfaceVariant,
         type: BottomNavigationBarType.fixed,
+        elevation: 0,
       ),
       textTheme: const TextTheme(
         headlineMedium: TextStyle(

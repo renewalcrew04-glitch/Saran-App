@@ -3,6 +3,18 @@ import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/s_cycle_service.dart';
 
+// ── Brand tokens ───────────────────────────────────────────────────────────────
+const _kBg        = Color(0xFF060B14);
+const _kCard      = Color(0xFF111827);
+const _kBorder    = Color(0xFF1E2535);
+const _kPrimary   = Color(0xFFFF8132);
+const _kPrimaryLt = Color(0xFFFF9D5C);
+const _kText      = Color(0xFFF1F5F9);
+const _kMuted     = Color(0xFF64748B);
+const _kSubtext   = Color(0xFF94A3B8);
+const _kRose      = Color(0xFFBE185D);
+const _kRoseLt    = Color(0xFFF472B6);
+
 class SCycleScreen extends StatefulWidget {
   const SCycleScreen({super.key});
 
@@ -88,7 +100,11 @@ class _SCycleScreenState extends State<SCycleScreen> {
       setState(() => _saving = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Period started saved ✅")),
+        SnackBar(
+          content: const Text("Period started saved ✅"),
+          backgroundColor: _kCard,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
 
       await _loadAll();
@@ -96,13 +112,16 @@ class _SCycleScreenState extends State<SCycleScreen> {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to save period start ❌")),
+        SnackBar(
+          content: const Text("Failed to save period start ❌"),
+          backgroundColor: _kCard,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
 
   void _openLogBottomSheet() {
-    // reset sheet state
     setState(() {
       _selectedMood = null;
       _selectedSymptoms.clear();
@@ -112,7 +131,7 @@ class _SCycleScreenState extends State<SCycleScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: _kCard,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -120,14 +139,25 @@ class _SCycleScreenState extends State<SCycleScreen> {
         builder: (context, setSheetState) {
           return Padding(
             padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 14,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              left: 20,
+              right: 20,
+              top: 16,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Drag handle
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: _kBorder,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+
                 // Header
                 Row(
                   children: [
@@ -137,98 +167,93 @@ class _SCycleScreenState extends State<SCycleScreen> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w900,
-                          color: Colors.black,
+                          color: _kText,
                         ),
                       ),
                     ),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close, color: Colors.black),
-                    )
+                      icon: const Icon(Icons.close, color: _kSubtext, size: 20),
+                    ),
                   ],
                 ),
 
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
 
-                // Mood
-                Align(
+                // Mood label
+                const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     "How are you feeling?",
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey[800],
+                      color: _kSubtext,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
 
                 Wrap(
                   spacing: 12,
                   runSpacing: 12,
                   children: _moods.map((m) {
                     final isActive = _selectedMood == m["key"];
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(999),
-                      onTap: () {
-                        setSheetState(() {
-                          _selectedMood = m["key"];
-                        });
-                      },
-                      child: Container(
+                    return GestureDetector(
+                      onTap: () => setSheetState(() => _selectedMood = m["key"]),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
                         width: 54,
                         height: 54,
                         decoration: BoxDecoration(
-                          color: isActive ? Colors.black : Colors.white,
+                          color: isActive ? _kRose : const Color(0xFF1A2235),
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(
-                            color: isActive ? Colors.black : const Color(0xFFEDEDED),
+                            color: isActive ? _kRoseLt : _kBorder,
+                            width: isActive ? 2 : 1,
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.03),
-                              blurRadius: 10,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
+                          boxShadow: isActive
+                              ? [
+                                  BoxShadow(
+                                    color: _kRose.withOpacity(0.3),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  )
+                                ]
+                              : null,
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           m["emoji"] ?? "🙂",
-                          style: TextStyle(
-                            fontSize: 22,
-                            color: isActive ? Colors.white : Colors.black,
-                          ),
+                          style: const TextStyle(fontSize: 22),
                         ),
                       ),
                     );
                   }).toList(),
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
 
-                // Symptoms
-                Align(
+                // Symptoms label
+                const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     "Any symptoms?",
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey[800],
+                      color: _kSubtext,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
 
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   children: _symptoms.map((s) {
                     final active = _selectedSymptoms.contains(s);
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(999),
+                    return GestureDetector(
                       onTap: () {
                         setSheetState(() {
                           if (active) {
@@ -238,13 +263,15 @@ class _SCycleScreenState extends State<SCycleScreen> {
                           }
                         });
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 9),
                         decoration: BoxDecoration(
-                          color: active ? Colors.black : Colors.grey.shade100,
+                          color: active ? _kRose : const Color(0xFF1A2235),
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(
-                            color: active ? Colors.black : const Color(0xFFEDEDED),
+                            color: active ? _kRoseLt : _kBorder,
                           ),
                         ),
                         child: Text(
@@ -252,7 +279,7 @@ class _SCycleScreenState extends State<SCycleScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: active ? Colors.white : Colors.black,
+                            color: active ? Colors.white : _kSubtext,
                           ),
                         ),
                       ),
@@ -260,29 +287,35 @@ class _SCycleScreenState extends State<SCycleScreen> {
                   }).toList(),
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
 
                 // Period started toggle
-                InkWell(
-                  borderRadius: BorderRadius.circular(16),
+                GestureDetector(
                   onTap: () {
-                    setSheetState(() {
-                      _periodStartedToday = !_periodStartedToday;
-                    });
+                    setSheetState(
+                        () => _periodStartedToday = !_periodStartedToday);
                   },
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: _periodStartedToday
+                          ? _kRose.withOpacity(0.12)
+                          : const Color(0xFF1A2235),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFEDEDED)),
+                      border: Border.all(
+                        color:
+                            _periodStartedToday ? _kRose : _kBorder,
+                      ),
                     ),
                     child: Row(
                       children: [
                         Icon(
                           Icons.water_drop_outlined,
-                          color: _periodStartedToday ? Colors.black : Colors.grey[700],
+                          color:
+                              _periodStartedToday ? _kRoseLt : _kSubtext,
+                          size: 20,
                         ),
                         const SizedBox(width: 10),
                         const Expanded(
@@ -291,89 +324,101 @@ class _SCycleScreenState extends State<SCycleScreen> {
                             style: TextStyle(
                               fontWeight: FontWeight.w800,
                               fontSize: 13,
+                              color: _kText,
                             ),
                           ),
                         ),
                         Switch(
                           value: _periodStartedToday,
                           onChanged: (v) {
-                            setSheetState(() {
-                              _periodStartedToday = v;
-                            });
+                            setSheetState(() => _periodStartedToday = v);
                           },
-                          activeThumbColor: Colors.black,
-                        )
+                          activeColor: _kRose,
+                          inactiveThumbColor: _kMuted,
+                          inactiveTrackColor: _kBorder,
+                        ),
                       ],
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Buttons row
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(
-                        onPressed: () async {
-                          // Quick save as "period started"
-                          setSheetState(() {
-                            _periodStartedToday = true;
-                          });
+                      child: GestureDetector(
+                        onTap: () {
+                          setSheetState(() => _periodStartedToday = true);
                         },
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                          side: BorderSide(color: Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(
+                        child: Container(
+                          height: 48,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1A2235),
                             borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: _kBorder),
                           ),
-                        ),
-                        child: const Text(
-                          "Period Started",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: Colors.black,
+                          child: const Text(
+                            "Period Started",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: _kText,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: ElevatedButton(
-                        onPressed: _saving
+                      child: GestureDetector(
+                        onTap: _saving
                             ? null
                             : () async {
                                 await _saveLogFromSheet();
                               },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          minimumSize: const Size.fromHeight(48),
-                          shape: RoundedRectangleBorder(
+                        child: Container(
+                          height: 48,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [_kPrimaryLt, _kPrimary],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                             borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: _saving
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text(
-                                "Save Log",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x40FF8132),
+                                blurRadius: 12,
+                                offset: Offset(0, 4),
                               ),
+                            ],
+                          ),
+                          child: _saving
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  "Save Log",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 6),
               ],
             ),
           );
@@ -390,7 +435,10 @@ class _SCycleScreenState extends State<SCycleScreen> {
 
       if (_selectedMood == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Select your mood first 🙂")),
+          const SnackBar(
+            content: Text("Select your mood first 🙂"),
+            backgroundColor: _kCard,
+          ),
         );
         return;
       }
@@ -410,16 +458,27 @@ class _SCycleScreenState extends State<SCycleScreen> {
       Navigator.pop(context);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Saved successfully ✅")),
+        const SnackBar(
+          content: Text("Saved successfully ✅"),
+          backgroundColor: _kCard,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
 
       await _loadAll();
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      final msg = e.toString().replaceFirst('Exception: ', '');
+      final msg = e
+          .toString()
+          .replaceFirst('Exception: ', '');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to save log: ${msg.length > 60 ? '${msg.substring(0, 60)}…' : msg}")),
+        SnackBar(
+          content: Text(
+              "Failed to save log: ${msg.length > 60 ? '${msg.substring(0, 60)}…' : msg}"),
+          backgroundColor: _kCard,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -443,19 +502,29 @@ class _SCycleScreenState extends State<SCycleScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Delete log?"),
+        backgroundColor: _kCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: _kBorder),
+        ),
+        title: const Text(
+          "Delete log?",
+          style: TextStyle(color: _kText, fontWeight: FontWeight.w800),
+        ),
         content: const Text(
           "This log entry will be removed. This cannot be undone.",
+          style: TextStyle(color: _kSubtext, fontSize: 14, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Cancel"),
+            child: const Text("Cancel",
+                style: TextStyle(color: _kSubtext)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text("Delete"),
+            child: const Text("Delete",
+                style: TextStyle(color: Color(0xFFEF4444))),
           ),
         ],
       ),
@@ -467,12 +536,21 @@ class _SCycleScreenState extends State<SCycleScreen> {
       await _loadAll();
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(content: Text("Log deleted")),
+        const SnackBar(
+          content: Text("Log deleted"),
+          backgroundColor: _kCard,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text("Failed to delete: ${e.toString().replaceFirst('Exception: ', '')}")),
+        SnackBar(
+          content: Text(
+              "Failed to delete: ${e.toString().replaceFirst('Exception: ', '')}"),
+          backgroundColor: _kCard,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -486,14 +564,15 @@ class _SCycleScreenState extends State<SCycleScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: _kCard,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => _EditLogSheetContent(
         logId: id,
         initialMood: currentMood.isEmpty ? null : currentMood,
-        initialSymptoms: currentSymptoms.map((s) => s.toString()).toList(),
+        initialSymptoms:
+            currentSymptoms.map((s) => s.toString()).toList(),
         moods: _moods,
         symptoms: _symptoms,
         onSaved: () async {
@@ -502,11 +581,22 @@ class _SCycleScreenState extends State<SCycleScreen> {
           await _loadAll();
           if (!mounted) return;
           messenger.showSnackBar(
-            const SnackBar(content: Text("Log updated ✅")),
+            const SnackBar(
+              content: Text("Log updated ✅"),
+              backgroundColor: _kCard,
+              behavior: SnackBarBehavior.floating,
+            ),
           );
         },
       ),
     );
+  }
+
+  String _moodEmoji(String mood) {
+    return _moods
+            .firstWhere((m) => m["key"] == mood,
+                orElse: () => {"emoji": "🙂"})["emoji"] ??
+        "🙂";
   }
 
   @override
@@ -515,391 +605,653 @@ class _SCycleScreenState extends State<SCycleScreen> {
     final user = auth.user;
 
     return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        title: const Text(
-          "S-Cycle",
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: user == null
-          ? const Center(child: Text("Not logged in"))
-          : RefreshIndicator(
-              onRefresh: _loadAll,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: _loading
-                      ? const SizedBox(
-                          height: 450,
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Summary Card
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(18),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(22),
-                                border: Border.all(color: const Color(0xFFEDEDED)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.03),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                children: [
-                                  Text(
-                                    "$_daysUntilPeriod",
-                                    style: const TextStyle(
-                                      fontSize: 44,
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.black,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    "days until period",
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.black54,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    _motivation,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.black45,
-                                      fontStyle: FontStyle.italic,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+      backgroundColor: _kBg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Header ──────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                        color: _kSubtext, size: 20),
+                  ),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'S-Cycle',
+                        style: TextStyle(
+                          color: _kText,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        'Cycle tracker & daily logs',
+                        style: TextStyle(color: _kSubtext, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
 
-                            const SizedBox(height: 16),
-
-                            // Buttons
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: _saving ? null : _markPeriodStarted,
-                                    icon: const Icon(Icons.water_drop_outlined, color: Colors.black),
-                                    label: const Text(
-                                      "Period Started",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      minimumSize: const Size.fromHeight(48),
-                                      side: BorderSide(color: Colors.grey.shade300),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: _openLogBottomSheet,
-                                    icon: const Icon(Icons.add, color: Colors.black),
-                                    label: const Text(
-                                      "Log Symptoms",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      minimumSize: const Size.fromHeight(48),
-                                      side: BorderSide(color: Colors.grey.shade300),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 18),
-
-                            // Predictions Card
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(color: const Color(0xFFEDEDED)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.03),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    "Predictions",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 14,
-                                      color: Colors.black,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _PredictionRow(
-                                    label: "Next Period",
-                                    value: "In $_daysUntilPeriod days",
-                                  ),
-                                  const SizedBox(height: 10),
-                                  const _PredictionRow(
-                                    label: "Fertility Window",
-                                    value: "Feb 1 - Feb 7",
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 14),
-
-                            // Nutrition Tip
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(color: const Color(0xFFEDEDED)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.03),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.favorite_border, size: 18, color: Colors.black),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        "Nutrition Tip",
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w900,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    "Avoid excessive salt to reduce bloating",
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.black54,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 18),
-
-                            const Text(
-                              "History",
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.black,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-
-                            if (_history.isEmpty)
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(color: const Color(0xFFEDEDED)),
-                                ),
-                                child: const Text(
-                                  "No logs yet. Start logging today 💛",
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.black54,
+            // ── Body ────────────────────────────────────────────────────
+            Expanded(
+              child: user == null
+                  ? const Center(
+                      child: Text("Not logged in",
+                          style: TextStyle(color: _kSubtext)))
+                  : RefreshIndicator(
+                      color: _kPrimary,
+                      backgroundColor: _kCard,
+                      onRefresh: _loadAll,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                        child: _loading
+                            ? const SizedBox(
+                                height: 400,
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: _kPrimary,
                                   ),
                                 ),
                               )
-                            else
-                              ListView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: _history.length,
-                                itemBuilder: (context, index) {
-                                  final item = _history[index];
-
-                                  final date = _formatDate(item["date"] ?? item["createdAt"] ?? "");
-                                  final mood = (item["mood"] ?? "").toString();
-                                  final symptoms = (item["symptoms"] ?? []) as List<dynamic>;
-                                  final started = (item["periodStarted"] ?? item["isPeriodStart"] ?? false) == true;
-
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 10),
-                                    padding: const EdgeInsets.all(14),
+                            : Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  // ── Summary card ──────────────────
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(20),
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(18),
-                                      border: Border.all(color: const Color(0xFFEDEDED)),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.03),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 6),
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          _kRose.withOpacity(0.25),
+                                          _kRose.withOpacity(0.05),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius:
+                                          BorderRadius.circular(22),
+                                      border: Border.all(
+                                          color: _kRose.withOpacity(0.3)),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Container(
+                                              width: 8,
+                                              height: 8,
+                                              margin: const EdgeInsets.only(
+                                                  right: 8),
+                                              decoration: const BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: _kRoseLt,
+                                              ),
+                                            ),
+                                            const Text(
+                                              'NEXT CYCLE',
+                                              style: TextStyle(
+                                                color: _kRoseLt,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: 1.2,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          '$_daysUntilPeriod',
+                                          style: TextStyle(
+                                            fontSize: 56,
+                                            fontWeight: FontWeight.w900,
+                                            color: _kRoseLt,
+                                            height: 1,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        const Text(
+                                          'days until period',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: _kSubtext,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 14),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 10),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                Colors.white.withOpacity(0.05),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: _kRose
+                                                    .withOpacity(0.2)),
+                                          ),
+                                          child: Text(
+                                            _motivation,
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: _kSubtext,
+                                              fontStyle: FontStyle.italic,
+                                              fontWeight: FontWeight.w500,
+                                              height: 1.4,
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                date,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w900,
-                                                  fontSize: 13,
-                                                ),
-                                              ),
+                                  ),
+
+                                  const SizedBox(height: 14),
+
+                                  // ── Action buttons ────────────────
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap: _saving
+                                              ? null
+                                              : _markPeriodStarted,
+                                          child: Container(
+                                            height: 48,
+                                            alignment: Alignment.center,
+                                            decoration: BoxDecoration(
+                                              color: _kCard,
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                              border: Border.all(
+                                                  color: _kRose
+                                                      .withOpacity(0.4)),
                                             ),
-                                            if (started)
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.black,
-                                                  borderRadius: BorderRadius.circular(999),
-                                                ),
-                                                child: const Text(
-                                                  "Period Started",
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.w800,
-                                                    fontSize: 11,
-                                                  ),
-                                                ),
-                                              ),
-                                            PopupMenuButton<String>(
-                                              icon: const Icon(Icons.more_horiz, size: 22, color: Colors.black54),
-                                              padding: EdgeInsets.zero,
-                                              onSelected: (value) {
-                                                if (value == 'edit') _openEditLogSheet(item);
-                                                if (value == 'delete') _deleteLogFromHistory(item);
-                                              },
-                                              itemBuilder: (ctx) => [
-                                                const PopupMenuItem(
-                                                  value: 'edit',
-                                                  child: Row(
-                                                    children: [
-                                                      Icon(Icons.edit_outlined, size: 20),
-                                                      SizedBox(width: 10),
-                                                      Text("Edit"),
-                                                    ],
-                                                  ),
-                                                ),
-                                                const PopupMenuItem(
-                                                  value: 'delete',
-                                                  child: Row(
-                                                    children: [
-                                                      Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                                                      SizedBox(width: 10),
-                                                      Text("Delete", style: TextStyle(color: Colors.red)),
-                                                    ],
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                const Icon(
+                                                    Icons
+                                                        .water_drop_outlined,
+                                                    color: _kRoseLt,
+                                                    size: 18),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  _saving
+                                                      ? "Saving…"
+                                                      : "Period Started",
+                                                  style: const TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.w800,
+                                                    color: _kText,
+                                                    fontSize: 13,
                                                   ),
                                                 ),
                                               ],
                                             ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          "Mood: $mood",
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.black87,
                                           ),
                                         ),
-                                        const SizedBox(height: 8),
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          children: symptoms.map((s) {
-                                            return Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey.shade100,
-                                                borderRadius: BorderRadius.circular(999),
-                                                border: Border.all(color: const Color(0xFFEDEDED)),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap: _openLogBottomSheet,
+                                          child: Container(
+                                            height: 48,
+                                            alignment: Alignment.center,
+                                            decoration: BoxDecoration(
+                                              gradient:
+                                                  const LinearGradient(
+                                                colors: [
+                                                  _kPrimaryLt,
+                                                  _kPrimary
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
                                               ),
-                                              child: Text(
-                                                s.toString(),
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: Colors.black54,
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                              boxShadow: const [
+                                                BoxShadow(
+                                                  color: Color(0x40FF8132),
+                                                  blurRadius: 10,
+                                                  offset: Offset(0, 4),
                                                 ),
+                                              ],
+                                            ),
+                                            child: const Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(Icons.add,
+                                                    color: Colors.white,
+                                                    size: 18),
+                                                SizedBox(width: 6),
+                                                Text(
+                                                  "Log Symptoms",
+                                                  style: TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.w800,
+                                                    color: Colors.white,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: 16),
+
+                                  // ── Predictions card ──────────────
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: _kCard,
+                                      borderRadius:
+                                          BorderRadius.circular(18),
+                                      border:
+                                          Border.all(color: _kBorder),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Row(
+                                          children: [
+                                            Icon(
+                                                Icons.calendar_month_outlined,
+                                                color: _kPrimaryLt,
+                                                size: 18),
+                                            SizedBox(width: 8),
+                                            Text(
+                                              "Predictions",
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w900,
+                                                fontSize: 14,
+                                                color: _kText,
                                               ),
-                                            );
-                                          }).toList(),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 14),
+                                        _PredictionRow(
+                                          label: "Next Period",
+                                          value:
+                                              "In $_daysUntilPeriod days",
+                                        ),
+                                        const SizedBox(height: 12),
+                                        const _PredictionRow(
+                                          label: "Fertility Window",
+                                          value: "Feb 1 - Feb 7",
                                         ),
                                       ],
                                     ),
-                                  );
-                                },
-                              ),
+                                  ),
 
-                            const SizedBox(height: 30),
-                          ],
-                        ),
-                ),
-              ),
+                                  const SizedBox(height: 12),
+
+                                  // ── Nutrition tip ─────────────────
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: _kCard,
+                                      borderRadius:
+                                          BorderRadius.circular(18),
+                                      border:
+                                          Border.all(color: _kBorder),
+                                    ),
+                                    child: const Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text('💛',
+                                            style:
+                                                TextStyle(fontSize: 18)),
+                                        SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                "Nutrition Tip",
+                                                style: TextStyle(
+                                                  fontWeight:
+                                                      FontWeight.w900,
+                                                  fontSize: 13,
+                                                  color: _kText,
+                                                ),
+                                              ),
+                                              SizedBox(height: 4),
+                                              Text(
+                                                "Avoid excessive salt to reduce bloating",
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: _kSubtext,
+                                                  fontWeight:
+                                                      FontWeight.w500,
+                                                  height: 1.4,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 20),
+
+                                  // ── History heading ───────────────
+                                  Row(
+                                    children: [
+                                      const Text(
+                                        "History",
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w900,
+                                          color: _kText,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      if (_history.isNotEmpty)
+                                        Container(
+                                          padding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: _kPrimary
+                                                .withOpacity(0.15),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            '${_history.length}',
+                                            style: const TextStyle(
+                                              color: _kPrimaryLt,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+
+                                  // ── History list ──────────────────
+                                  if (_history.isEmpty)
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(18),
+                                      decoration: BoxDecoration(
+                                        color: _kCard,
+                                        borderRadius:
+                                            BorderRadius.circular(18),
+                                        border: Border.all(
+                                            color: _kBorder),
+                                      ),
+                                      child: const Text(
+                                        "No logs yet. Start logging today 💛",
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: _kSubtext,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    ListView.builder(
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      itemCount: _history.length,
+                                      itemBuilder: (context, index) {
+                                        final item = _history[index];
+                                        final date = _formatDate(
+                                            item["date"] ??
+                                                item["createdAt"] ??
+                                                "");
+                                        final mood = (item["mood"] ?? "")
+                                            .toString();
+                                        final symptoms =
+                                            (item["symptoms"] ?? [])
+                                                as List<dynamic>;
+                                        final started = (item[
+                                                        "periodStarted"] ??
+                                                    item["isPeriodStart"] ??
+                                                    false) ==
+                                                true;
+
+                                        return Container(
+                                          margin: const EdgeInsets.only(
+                                              bottom: 10),
+                                          padding: const EdgeInsets.all(14),
+                                          decoration: BoxDecoration(
+                                            color: _kCard,
+                                            borderRadius:
+                                                BorderRadius.circular(18),
+                                            border: Border.all(
+                                                color: _kBorder),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      date,
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w900,
+                                                        fontSize: 13,
+                                                        color: _kText,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (started)
+                                                    Container(
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                              right: 4),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 10,
+                                                          vertical: 5),
+                                                      decoration:
+                                                          BoxDecoration(
+                                                        color: _kRose
+                                                            .withOpacity(
+                                                                0.15),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(
+                                                                    999),
+                                                        border: Border.all(
+                                                            color: _kRose
+                                                                .withOpacity(
+                                                                    0.4)),
+                                                      ),
+                                                      child: const Text(
+                                                        "Period Started",
+                                                        style: TextStyle(
+                                                          color: _kRoseLt,
+                                                          fontWeight:
+                                                              FontWeight.w800,
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  PopupMenuButton<String>(
+                                                    icon: const Icon(
+                                                        Icons.more_horiz,
+                                                        size: 22,
+                                                        color: _kMuted),
+                                                    padding: EdgeInsets.zero,
+                                                    color: _kCard,
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              12),
+                                                      side: const BorderSide(
+                                                          color: _kBorder),
+                                                    ),
+                                                    onSelected: (value) {
+                                                      if (value == 'edit') {
+                                                        _openEditLogSheet(
+                                                            item);
+                                                      }
+                                                      if (value ==
+                                                          'delete') {
+                                                        _deleteLogFromHistory(
+                                                            item);
+                                                      }
+                                                    },
+                                                    itemBuilder: (ctx) => [
+                                                      const PopupMenuItem(
+                                                        value: 'edit',
+                                                        child: Row(
+                                                          children: [
+                                                            Icon(
+                                                                Icons
+                                                                    .edit_outlined,
+                                                                size: 18,
+                                                                color:
+                                                                    _kSubtext),
+                                                            SizedBox(
+                                                                width: 10),
+                                                            Text("Edit",
+                                                                style: TextStyle(
+                                                                    color:
+                                                                        _kText)),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                      const PopupMenuItem(
+                                                        value: 'delete',
+                                                        child: Row(
+                                                          children: [
+                                                            Icon(
+                                                                Icons
+                                                                    .delete_outline,
+                                                                size: 18,
+                                                                color: Color(
+                                                                    0xFFEF4444)),
+                                                            SizedBox(
+                                                                width: 10),
+                                                            Text(
+                                                              "Delete",
+                                                              style: TextStyle(
+                                                                  color: Color(
+                                                                      0xFFEF4444)),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    _moodEmoji(mood),
+                                                    style: const TextStyle(
+                                                        fontSize: 16),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    mood,
+                                                    style: const TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: _kSubtext,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              if (symptoms.isNotEmpty) ...[
+                                                const SizedBox(height: 8),
+                                                Wrap(
+                                                  spacing: 6,
+                                                  runSpacing: 6,
+                                                  children:
+                                                      symptoms.map((s) {
+                                                    return Container(
+                                                      padding:
+                                                          const EdgeInsets
+                                                              .symmetric(
+                                                              horizontal: 10,
+                                                              vertical: 5),
+                                                      decoration:
+                                                          BoxDecoration(
+                                                        color: const Color(
+                                                            0xFF1A2235),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(
+                                                                    999),
+                                                        border: Border.all(
+                                                            color: _kBorder),
+                                                      ),
+                                                      child: Text(
+                                                        s.toString(),
+                                                        style:
+                                                            const TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                          color: _kSubtext,
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }).toList(),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                ],
+                              ),
+                      ),
+                    ),
             ),
+          ],
+        ),
+      ),
     );
   }
 }
 
+// ── Prediction Row ──────────────────────────────────────────────────────────────
 class _PredictionRow extends StatelessWidget {
   final String label;
   final String value;
@@ -916,7 +1268,7 @@ class _PredictionRow extends StatelessWidget {
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Colors.black54,
+              color: _kSubtext,
             ),
           ),
         ),
@@ -925,7 +1277,7 @@ class _PredictionRow extends StatelessWidget {
           style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w900,
-            color: Colors.black,
+            color: _kText,
           ),
         ),
       ],
@@ -933,6 +1285,7 @@ class _PredictionRow extends StatelessWidget {
   }
 }
 
+// ── Edit Log Sheet ──────────────────────────────────────────────────────────────
 class _EditLogSheetContent extends StatefulWidget {
   final String logId;
   final String? initialMood;
@@ -969,14 +1322,25 @@ class _EditLogSheetContentState extends State<_EditLogSheetContent> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 14,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        left: 20,
+        right: 20,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Drag handle
+          Container(
+            width: 36,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: _kBorder,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
           Row(
             children: [
               const Expanded(
@@ -985,17 +1349,18 @@ class _EditLogSheetContentState extends State<_EditLogSheetContent> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
-                    color: Colors.black,
+                    color: _kText,
                   ),
                 ),
               ),
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, color: Colors.black),
+                icon: const Icon(Icons.close, color: _kSubtext, size: 20),
               ),
             ],
           ),
           const SizedBox(height: 12),
+
           const Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -1003,11 +1368,12 @@ class _EditLogSheetContentState extends State<_EditLogSheetContent> {
               style: TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: 13,
-                color: Colors.black87,
+                color: _kSubtext,
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
+
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -1016,20 +1382,22 @@ class _EditLogSheetContentState extends State<_EditLogSheetContent> {
               final isSelected = selectedMood == key;
               return GestureDetector(
                 onTap: () => setState(() => selectedMood = key),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 9),
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.black : Colors.grey.shade100,
+                    color: isSelected ? _kRose : const Color(0xFF1A2235),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: isSelected ? Colors.black : Colors.grey.shade300,
+                      color: isSelected ? _kRoseLt : _kBorder,
                     ),
                   ),
                   child: Text(
                     "${m["emoji"]} $key",
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: isSelected ? Colors.white : Colors.black87,
+                      color: isSelected ? Colors.white : _kSubtext,
                       fontSize: 13,
                     ),
                   ),
@@ -1037,7 +1405,9 @@ class _EditLogSheetContentState extends State<_EditLogSheetContent> {
               );
             }).toList(),
           ),
+
           const SizedBox(height: 16),
+
           const Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -1045,11 +1415,12 @@ class _EditLogSheetContentState extends State<_EditLogSheetContent> {
               style: TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: 13,
-                color: Colors.black87,
+                color: _kSubtext,
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
+
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -1065,13 +1436,17 @@ class _EditLogSheetContentState extends State<_EditLogSheetContent> {
                     }
                   });
                 },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.black : Colors.grey.shade100,
+                    color: isSelected
+                        ? _kRose
+                        : const Color(0xFF1A2235),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: isSelected ? Colors.black : Colors.grey.shade300,
+                      color: isSelected ? _kRoseLt : _kBorder,
                     ),
                   ),
                   child: Text(
@@ -1079,52 +1454,72 @@ class _EditLogSheetContentState extends State<_EditLogSheetContent> {
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 12,
-                      color: isSelected ? Colors.white : Colors.black87,
+                      color: isSelected ? Colors.white : _kSubtext,
                     ),
                   ),
                 ),
               );
             }).toList(),
           ),
+
           const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: () async {
-                if (selectedMood == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Select your mood first 🙂")),
-                  );
-                  return;
-                }
-                try {
-                  await SCycleService.updateLog(
-                    logId: widget.logId,
-                    mood: selectedMood!,
-                    symptoms: selectedSymptoms.toList(),
-                  );
-                  if (!context.mounted) return;
-                  Navigator.pop(context);
-                  widget.onSaved();
-                } catch (e) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Failed to update: ${e.toString().replaceFirst('Exception: ', '')}")),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+
+          GestureDetector(
+            onTap: () async {
+              if (selectedMood == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Select your mood first 🙂"),
+                    backgroundColor: _kCard,
+                  ),
+                );
+                return;
+              }
+              try {
+                await SCycleService.updateLog(
+                  logId: widget.logId,
+                  mood: selectedMood!,
+                  symptoms: selectedSymptoms.toList(),
+                );
+                if (!context.mounted) return;
+                Navigator.pop(context);
+                widget.onSaved();
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                        "Failed to update: ${e.toString().replaceFirst('Exception: ', '')}"),
+                    backgroundColor: _kCard,
+                  ),
+                );
+              }
+            },
+            child: Container(
+              width: double.infinity,
+              height: 50,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [_kPrimaryLt, _kPrimary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x40FF8132),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ],
               ),
               child: const Text(
                 "Save changes",
                 style: TextStyle(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w900,
                   color: Colors.white,
+                  fontSize: 15,
                 ),
               ),
             ),

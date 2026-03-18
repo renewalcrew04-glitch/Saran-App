@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-
 import 'package:saran_app/services/games_streak_service.dart';
+import 'package:saran_app/screens/profile/games/memory_bloom_screen.dart';
+import 'package:saran_app/screens/profile/games/word_weave_screen.dart';
+import 'package:saran_app/screens/profile/games/mind_quiz_screen.dart';
+import 'package:saran_app/screens/profile/games/zen_puzzle_screen.dart';
+import 'package:saran_app/screens/profile/games/pattern_lock_screen.dart';
+import 'package:saran_app/screens/profile/games/creative_color_screen.dart';
+
+// ── Brand tokens (kept for non-theme colors) ────────────────────────────────────
+const _kOrange   = Color(0xFFFF8132);
+const _kOrangeLt = Color(0xFFFF9D5C);
 
 class GamesHomeScreen extends StatefulWidget {
   const GamesHomeScreen({super.key});
@@ -12,7 +20,6 @@ class GamesHomeScreen extends StatefulWidget {
 
 class _GamesHomeScreenState extends State<GamesHomeScreen> {
   int _streak = 0;
-  List<String> _history = [];
 
   @override
   void initState() {
@@ -22,170 +29,175 @@ class _GamesHomeScreenState extends State<GamesHomeScreen> {
 
   Future<void> _load() async {
     final s = await GamesStreakService.getStreak();
-    final h = await GamesStreakService.getHistory();
     if (!mounted) return;
-    setState(() {
-      _streak = s;
-      _history = h;
-    });
+    setState(() => _streak = s);
   }
 
   Future<void> _openGame({
     required String id,
     required String title,
-    required String route,
+    required Widget screen,
   }) async {
     await GamesStreakService.recordPlay(gameId: id, gameTitle: title);
     await _load();
     if (!mounted) return;
-    context.push(route);
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
+
+  static final _games = [
+    _GameDef(
+      id: 'memory_bloom',
+      title: 'Memory Bloom',
+      desc: 'Match flower pairs before time runs out',
+      emoji: '🌸',
+      screen: const MemoryBloomScreen(),
+      badge: 'Popular',
+      gradient: [const Color(0xFF7C3AED), const Color(0xFF5B21B6)],
+    ),
+    _GameDef(
+      id: 'word_weave',
+      title: 'Word Weave',
+      desc: 'Build words from the daily letter grid',
+      emoji: '✏️',
+      screen: const WordWeaveScreen(),
+      badge: 'Daily',
+      gradient: [const Color(0xFF0891B2), const Color(0xFF0E7490)],
+    ),
+    _GameDef(
+      id: 'mind_quiz',
+      title: 'Mind Quiz',
+      desc: 'Test your knowledge with brain teasers',
+      emoji: '🧠',
+      screen: const MindQuizScreen(),
+      badge: 'New',
+      gradient: [const Color(0xFF7C3AED), const Color(0xFF4C1D95)],
+    ),
+    _GameDef(
+      id: 'zen_puzzle',
+      title: 'Zen Puzzle',
+      desc: 'Calming sliding puzzle with beautiful art',
+      emoji: '🧩',
+      screen: const ZenPuzzleScreen(),
+      badge: null,
+      gradient: [const Color(0xFF059669), const Color(0xFF065F46)],
+    ),
+    _GameDef(
+      id: 'pattern_lock',
+      title: 'Pattern Lock',
+      desc: 'Spot the pattern, unlock the sequence',
+      emoji: '👾',
+      screen: const PatternLockScreen(),
+      badge: null,
+      gradient: [const Color(0xFFEA580C), const Color(0xFFB91C1C)],
+    ),
+    _GameDef(
+      id: 'creative_color',
+      title: 'Creative Color',
+      desc: 'Color-by-number relaxing art sessions',
+      emoji: '🎨',
+      screen: const CreativeColorScreen(),
+      badge: null,
+      gradient: [const Color(0xFF1E40AF), const Color(0xFF1E3A8A)],
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final games = [
-      _GameItem(
-        id: "garden",
-        title: "S-Garden",
-        desc: "Grow positivity gently",
-        icon: Icons.spa_outlined,
-        route: "/games/garden",
-      ),
-      _GameItem(
-        id: "soundboard",
-        title: "S-Zen Soundboard",
-        desc: "Calming sounds for peace",
-        icon: Icons.graphic_eq_outlined,
-        route: "/games/soundboard",
-      ),
-      _GameItem(
-        id: "mirror",
-        title: "S-Mirror Challenge",
-        desc: "Self-love reflection",
-        icon: Icons.auto_awesome_outlined,
-        route: "/games/mirror",
-      ),
-    ];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+    final bg = isDark ? const Color(0xFF060B14) : Theme.of(context).scaffoldBackgroundColor;
+    final text = isDark ? const Color(0xFFF1F5F9) : cs.onSurface;
+    final subtext = isDark ? const Color(0xFF94A3B8) : cs.onSurfaceVariant;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("S-Games"),
-        elevation: 0,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          children: [
-            _StreakCard(streak: _streak),
-            const SizedBox(height: 14),
-
-            Expanded(
-              child: ListView(
-                children: [
-                  Text(
-                    "Play",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Theme.of(context).colorScheme.onSurface,
+      backgroundColor: bg,
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            // ── Header ────────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.arrow_back_ios_new_rounded,
+                          color: subtext, size: 20),
+                      padding: EdgeInsets.zero,
                     ),
-                  ),
-                  const SizedBox(height: 10),
+                    const SizedBox(width: 4),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Mini Games',
+                          style: TextStyle(
+                            color: text,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        Text(
+                          'Relax, play, and recharge your mind',
+                          style: TextStyle(
+                              color: subtext, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
-                  ...games.map(
-                    (g) => _GameCard(
-                      title: g.title,
-                      desc: g.desc,
-                      icon: g.icon,
+            // ── Streak card ──────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                child: _StreakCard(streak: _streak),
+              ),
+            ),
+
+            // ── All Games label ──────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
+                child: Text(
+                  'All Games',
+                  style: TextStyle(
+                    color: text,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Game grid ────────────────────────────────────────────
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+              sliver: SliverGrid(
+                gridDelegate:
+                    const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.78,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) {
+                    final g = _games[i];
+                    return _GameCard(
+                      game: g,
                       onTap: () => _openGame(
                         id: g.id,
                         title: g.title,
-                        route: g.route,
+                        screen: g.screen,
                       ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "History",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          await GamesStreakService.clearHistory();
-                          await _load();
-                        },
-                        child: Text(
-                          "Clear",
-                          style: TextStyle(color: Theme.of(context).colorScheme.primary),
-                        ),
-                      )
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  if (_history.isEmpty)
-                    Builder(
-                      builder: (context) {
-                        final scheme = Theme.of(context).colorScheme;
-                        return Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: scheme.outline),
-                          ),
-                          child: Text(
-                            "No history yet. Open a game to start your streak ✨",
-                            style: TextStyle(color: scheme.onSurfaceVariant),
-                          ),
-                        );
-                      },
-                    )
-                  else
-                    ..._history.take(8).map((raw) {
-                      final parts = raw.split("|");
-                      final time = parts.isNotEmpty ? parts[0] : "";
-                      final title = parts.length >= 3 ? parts[2] : "Game";
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: Theme.of(context).colorScheme.outline),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.history, size: 18),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                title,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              _shortTime(time),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                ],
+                    );
+                  },
+                  childCount: _games.length,
+                ),
               ),
             ),
           ],
@@ -193,60 +205,104 @@ class _GamesHomeScreenState extends State<GamesHomeScreen> {
       ),
     );
   }
-
-  String _shortTime(String iso) {
-    final dt = DateTime.tryParse(iso);
-    if (dt == null) return "";
-    return "${dt.day}/${dt.month} ${dt.hour.toString().padLeft(2, "0")}:${dt.minute.toString().padLeft(2, "0")}";
-  }
 }
 
-class _GameItem {
+// ── Data class ──────────────────────────────────────────────────────────────────
+class _GameDef {
   final String id;
   final String title;
   final String desc;
-  final IconData icon;
-  final String route;
+  final String emoji;
+  final Widget screen;
+  final String? badge;
+  final List<Color> gradient;
 
-  _GameItem({
+  const _GameDef({
     required this.id,
     required this.title,
     required this.desc,
-    required this.icon,
-    required this.route,
+    required this.emoji,
+    required this.screen,
+    required this.badge,
+    required this.gradient,
   });
 }
 
+// ── Streak Card ─────────────────────────────────────────────────────────────────
 class _StreakCard extends StatelessWidget {
   final int streak;
-
   const _StreakCard({required this.streak});
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+    final text = isDark ? const Color(0xFFF1F5F9) : cs.onSurface;
+    final subtext = isDark ? const Color(0xFF94A3B8) : cs.onSurfaceVariant;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1A1040), Color(0xFF0D1120)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF2D1B69)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.local_fire_department, color: Colors.white),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              "Streak: $streak day${streak == 1 ? "" : "s"}",
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 15,
-              ),
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF2D1B69),
+              border: Border.all(
+                  color: const Color(0xFFFFAC33).withOpacity(0.4)),
             ),
+            alignment: Alignment.center,
+            child: const Text('🏆', style: TextStyle(fontSize: 26)),
           ),
-          const Text(
-            "Keep going",
-            style: TextStyle(color: Colors.white70, fontSize: 12),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'YOUR STREAK',
+                  style: TextStyle(
+                    color: _kOrange,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  streak == 0
+                      ? 'Start your streak!'
+                      : '$streak day${streak == 1 ? '' : 's'} in a row!',
+                  style: TextStyle(
+                    color: text,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  streak == 0
+                      ? 'Play a game to get started'
+                      : 'Play today to keep your streak going',
+                  style: TextStyle(
+                    color: subtext,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -254,72 +310,120 @@ class _StreakCard extends StatelessWidget {
   }
 }
 
+// ── Game Card ───────────────────────────────────────────────────────────────────
 class _GameCard extends StatelessWidget {
-  final String title;
-  final String desc;
-  final IconData icon;
+  final _GameDef game;
   final VoidCallback onTap;
 
-  const _GameCard({
-    required this.title,
-    required this.desc,
-    required this.icon,
-    required this.onTap,
-  });
+  const _GameCard({required this.game, required this.onTap});
+
+  Color get _badgeColor {
+    switch (game.badge) {
+      case 'Popular':
+        return const Color(0xFFEC4899);
+      case 'Daily':
+        return const Color(0xFF10B981);
+      case 'New':
+        return const Color(0xFF6366F1);
+      default:
+        return _kOrange;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: onTap,
-        child: Ink(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: scheme.outline),
-            color: scheme.surface,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: game.gradient,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Icon(icon, color: scheme.onSurface),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Emoji + badge row
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(game.emoji,
+                    style: const TextStyle(fontSize: 32)),
+                const Spacer(),
+                if (game.badge != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _badgeColor.withOpacity(0.25),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: _badgeColor.withOpacity(0.5)),
+                    ),
+                    child: Text(
+                      game.badge!,
                       style: TextStyle(
+                        color: _badgeColor,
+                        fontSize: 10,
                         fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                        color: scheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      desc,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+                  ),
+              ],
+            ),
+
+            const Spacer(),
+
+            // Title
+            Text(
+              game.title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 4),
+
+            // Description
+            Text(
+              game.desc,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.7),
+                fontSize: 11,
+                height: 1.3,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+
+            // Play Now button
+            Container(
+              width: double.infinity,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.25),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: Colors.white.withOpacity(0.15)),
+              ),
+              child: const Text(
+                'Play Now',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
                 ),
               ),
-              Icon(Icons.chevron_right, color: scheme.onSurface),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

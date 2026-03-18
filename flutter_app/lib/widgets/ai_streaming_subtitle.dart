@@ -2,55 +2,75 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 class AIStreamingSubtitle extends StatefulWidget {
-
   final String text;
+  final bool isDark;
 
-  const AIStreamingSubtitle({super.key, required this.text});
+  const AIStreamingSubtitle({
+    super.key,
+    required this.text,
+    this.isDark = true,
+  });
 
   @override
   State<AIStreamingSubtitle> createState() => _AIStreamingSubtitleState();
 }
 
 class _AIStreamingSubtitleState extends State<AIStreamingSubtitle> {
-
-  String visibleText = "";
-  int index = 0;
+  String _visible = "";
+  int _index = 0;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    streamText();
+    _startStream();
   }
 
-  void streamText() {
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
-    List<String> words = widget.text.split(" ");
+  void _startStream() {
+    _timer?.cancel();
+    _visible = "";
+    _index = 0;
 
-    Timer.periodic(const Duration(milliseconds: 80), (timer) {
+    final words = widget.text.split(" ");
 
-      if (index >= words.length) {
-        timer.cancel();
+    _timer = Timer.periodic(const Duration(milliseconds: 75), (t) {
+      if (!mounted) {
+        t.cancel();
         return;
       }
-
+      if (_index >= words.length) {
+        t.cancel();
+        return;
+      }
       setState(() {
-        visibleText += "${words[index]} ";
+        _visible += "${words[_index]} ";
+        _index++;
       });
-
-      index++;
     });
-
   }
 
   @override
   Widget build(BuildContext context) {
+    final textColor = widget.isDark
+        ? Colors.white.withOpacity(0.92)
+        : const Color(0xFF3D1A6B);
 
     return Text(
-      visibleText,
+      _visible,
       textAlign: TextAlign.center,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 18,
+      maxLines: 4,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: textColor,
+        fontSize: 15,
+        height: 1.5,
+        fontWeight: FontWeight.w400,
       ),
     );
   }
