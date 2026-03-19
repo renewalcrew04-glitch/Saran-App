@@ -2,7 +2,7 @@ import fs from "fs";
 import multer from "multer";
 import multerS3 from "multer-s3";
 import path from "path";
-import { s3, S3_BUCKET } from "../config/aws.js";
+import { s3V3, S3_BUCKET } from "../config/aws.js";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 
@@ -18,7 +18,7 @@ const hasAwsConfig = !!(
 
 // S3 storage - permanent; survives deploys/restarts
 const s3Storage = multerS3({
-  s3,
+  s3: s3V3,
   bucket: S3_BUCKET,
   acl: "public-read",
   contentType: multerS3.AUTO_CONTENT_TYPE,
