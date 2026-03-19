@@ -1,8 +1,8 @@
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import fs from "fs";
 import multer from "multer";
-import multerS3 from "multer-s3";
 import path from "path";
-import { s3V3, S3_BUCKET } from "../config/aws.js";
+import { S3_BUCKET, s3V3 } from "../config/aws.js";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 
@@ -16,32 +16,19 @@ const hasAwsConfig = !!(
   process.env.AWS_S3_BUCKET_NAME
 );
 
-// S3 storage - permanent; survives deploys/restarts
-const s3Storage = multerS3({
-  s3: s3V3,
-  bucket: S3_BUCKET,
-  acl: "public-read",
-  contentType: multerS3.AUTO_CONTENT_TYPE,
-  key: (_, file, cb) => {
-    const ext = path.extname(file.originalname) || ".jpg";
-    const name = `uploads/${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, name);
-  },
-});
+// Use memory storage for AWS uploads, disk for local fallback
+const storage = hasAwsConfig
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (_, __, cb) => cb(null, uploadDir),
+      filename: (_, file, cb) => {
+        const ext = path.extname(file.originalname) || ".jpg";
+        const name = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+        cb(null, name);
+      },
+    });
 
-// Disk storage - fallback for local dev when AWS not configured
-const diskStorage = multer.diskStorage({
-  destination: (_, __, cb) => cb(null, uploadDir),
-  filename: (_, file, cb) => {
-    const ext = path.extname(file.originalname) || ".jpg";
-    const name = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, name);
-  },
-});
-
-const upload = multer({
-  storage: hasAwsConfig ? s3Storage : diskStorage,
-});
+const upload = multer({ storage });
 
 export const uploadSingle = [
   upload.single("file"),
@@ -57,10 +44,20 @@ export const uploadSingle = [
       let fileUrl;
 
       if (hasAwsConfig) {
-        // S3: req.file.location is the permanent public URL
-        fileUrl = req.file.location;
+        const ext = path.extname(req.file.originalname) || ".jpg";
+        const key = `uploads/${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+
+        await s3V3.send(
+          new PutObjectCommand({
+            Bucket: S3_BUCKET,
+            Key: key,
+            Body: req.file.buffer,
+            ContentType: req.file.mimetype,
+          })
+        );
+
+        fileUrl = `https://${S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
       } else {
-        // Disk: build URL from server host (local dev only)
         const host = req.get("host");
         let baseUrl = `${req.protocol}://${host}`;
         if (host?.includes("localhost")) {
@@ -78,7 +75,10 @@ export const uploadSingle = [
       console.error("[Upload] Error:", e?.message ?? e);
       return res.status(500).json({
         success: false,
-        message: process.env.NODE_ENV === "production" ? "Upload failed" : `Upload failed: ${e?.message || String(e)}`,
+        message:
+          process.env.NODE_ENV === "production"
+            ? "Upload failed"
+            : `Upload failed: ${e?.message ?? e}`,
       });
     }
   },
